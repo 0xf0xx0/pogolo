@@ -8,10 +8,16 @@ import (
 	"pogolo/stratumclient"
 	"sync"
 	"syscall"
+	"time"
+
+	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/btcutil"
+	stratum "github.com/kbnchk/go-Stratum"
 )
 
 var (
-	clients []any
+	clients map[string]stratumclient.StratumClient
+	currJobID = uint64(0)
 )
 
 func main() {
@@ -79,11 +85,29 @@ func clientHandler(conn net.Conn) {
 	channel := client.Channel()
 	for {
 		select {
-		case msg := <-channel: {
-			if msg == "ready" {
-				fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
+		case msg := <-channel:
+			{
+				if msg == "ready" {
+					fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
+				}
 			}
 		}
-		}
 	}
+}
+
+func createJob() stratum.NotifyParams {
+	currJobID++
+
+	isNewBlock := false
+
+	template := btcjson.GetBlockTemplateResult{
+
+	}
+	job := stratum.NotifyParams{
+		JobID: fmt.Sprintf("%x", currJobID),
+		Timestamp: uint32(time.Now().Unix()),
+		Version: uint32(0x20000000),
+		Clean: isNewBlock,
+	}
+	return job
 }

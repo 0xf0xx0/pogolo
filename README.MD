@@ -6,5 +6,5 @@ extremely simple, start it, point your miners to it, and watch the logs roll by
 # setup
 ```
 username: <your address>[.<worker name>]
-password: ignored
+password: <ignored>
 ```

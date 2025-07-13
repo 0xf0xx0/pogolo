@@ -32,6 +32,7 @@ type StratumClient struct {
 }
 
 func (client *StratumClient) Run() {
+	go client.readChanRoutine()
 	stratumInited := false
 	isAuthed := false
 	isConfigured := false
@@ -50,7 +51,7 @@ readloop:
 			/// fully initialized
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
-				client.sendNotif(stratum.SetDifficulty(client.Difficulty))
+				client.writeNotif(stratum.SetDifficulty(client.Difficulty))
 			}
 			client.messageChan <- "ready"
 		}
@@ -98,7 +99,7 @@ readloop:
 						break readloop
 					}
 				}
-				client.sendRes(stratum.ConfigureResponse(m.MessageID, res))
+				client.writeRes(stratum.ConfigureResponse(m.MessageID, res))
 				isConfigured = true
 			}
 		case stratum.MiningAuthorize:
@@ -114,7 +115,7 @@ readloop:
 					client.Worker = split[1]
 				}
 				//client.password = params.Password
-				client.sendRes(stratum.AuthorizeResponse(m.MessageID, true))
+				client.writeRes(stratum.AuthorizeResponse(m.MessageID, true))
 				isAuthed = true
 			}
 		case stratum.MiningSubscribe:
@@ -136,7 +137,7 @@ readloop:
 					ExtraNonce1:     client.ID,
 					ExtraNonce2Size: config.EXTRANONCE_SIZE,
 				}
-				client.sendRes(stratum.SubscribeResponse(m.MessageID, params))
+				client.writeRes(stratum.SubscribeResponse(m.MessageID, params))
 				isSubscribed = true
 			}
 		case stratum.MiningSuggestDifficulty:
@@ -155,7 +156,7 @@ readloop:
 					client.Difficulty = suggestedDiff
 				}
 
-				if err := client.sendNotif(stratum.SetDifficulty(client.Difficulty)); err != nil {
+				if err := client.writeNotif(stratum.SetDifficulty(client.Difficulty)); err != nil {
 					panic(err)
 				}
 			}
@@ -180,8 +181,8 @@ readloop:
 	/// MAYBE: client.Stop() here?
 }
 func (client *StratumClient) Stop() {
-	client.conn.Close()
 	close(client.messageChan)
+	client.conn.Close()
 }
 
 func (client *StratumClient) Channel() chan any {
@@ -189,6 +190,28 @@ func (client *StratumClient) Channel() chan any {
 }
 func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
+}
+func (client *StratumClient) writeChan(msg any) {
+	client.messageChan <- msg
+}
+func (client *StratumClient) readChanRoutine() {
+	for {
+		switch m := (<-client.messageChan).(type) {
+		case string:
+			{
+				println(m)
+			}
+		case stratum.NotifyParams:
+			{
+				client.writeNotif(stratum.Notify(m))
+			}
+		default:
+			{
+				/// closed
+				return
+			}
+		}
+	}
 }
 
 // 32-bit (4-byte) hash used for client id and extranonce1
@@ -206,25 +229,25 @@ func CreateClient(conn net.Conn) StratumClient {
 	}
 	return client
 }
-func (client *StratumClient) sendRes(res stratum.Response) error {
+func (client *StratumClient) writeRes(res stratum.Response) error {
 	bytes, err := res.Marshal()
 	if err != nil {
 		println(fmt.Sprintf("failed to marshal response: %s", err))
 		return err
 	}
 
-	return client.send(bytes)
+	return client.writeConn(bytes)
 }
-func (client *StratumClient) sendNotif(n stratum.Notification) error {
+func (client *StratumClient) writeNotif(n stratum.Notification) error {
 	bytes, err := n.Marshal()
 	if err != nil {
 		println(fmt.Sprintf("failed to marshal notification: %s", err))
 		return err
 	}
 
-	return client.send(bytes)
+	return client.writeConn(bytes)
 }
-func (client *StratumClient) send(b []byte) error {
+func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
 	println(string(b))
 	return err
