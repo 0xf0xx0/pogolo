@@ -14,7 +14,8 @@ import (
 // params
 var (
 	authorizeParams = stratum.AuthorizeParams{
-		Username: "bc1qfakeaddr.fakeminer",
+		/// bitmex addr https://blog.bitmex.com/taproot-demonstration/
+		Username: "bc1pdqrcrxa8vx6gy75mfdfj84puhxffh4fq46h3gkp6jxdd0vjcsdyspfxcv6.fakeminer",
 		Password: nil,
 	}
 	configureParams = func() stratum.ConfigureParams {
@@ -72,8 +73,8 @@ func TestAuthorize(t *testing.T) {
 	if resp.Result == false {
 		t.Error("result was false")
 	}
-	t.Logf("user: %q, worker: %q", client.User, client.Worker)
-	rebuiltUser := fmt.Sprintf("%s.%s", client.User, client.Worker)
+	t.Logf("user: %q, worker: %q", *client.User, client.Worker)
+	rebuiltUser := fmt.Sprintf("%s.%s", *client.User, client.Worker)
 	if rebuiltUser != params.Username {
 		t.Errorf("username mismatch: expected %q, got %q", params.Username, rebuiltUser)
 	}

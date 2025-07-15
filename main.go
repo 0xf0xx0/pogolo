@@ -1,23 +1,24 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"path"
 	"pogolo/stratumclient"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/rpcclient"
 	stratum "github.com/kbnchk/go-Stratum"
 )
 
 var (
-	clients map[string]stratumclient.StratumClient
-	currJobID = uint64(0)
+	clients   map[string]stratumclient.StratumClient
 )
 
 func main() {
@@ -27,8 +28,8 @@ func main() {
 	var wg sync.WaitGroup
 	shutdown := make(chan struct{})
 	conns := make(chan net.Conn)
-	// listener, err := net.Listen("tcp", "127.0.0.1:5661")
-	listener, err := net.Listen("tcp", "10.42.0.1:3333")
+	listener, err := net.Listen("tcp", "127.0.0.1:5661")
+	// listener, err := net.Listen("tcp", "10.42.0.1:3333")
 	if err != nil {
 		panic(err)
 	}
@@ -73,6 +74,7 @@ func main() {
 		}
 	}()
 	wg.Add(2)
+	go gbtRoutine()
 	<-sigs
 	println()
 	println("closing")
@@ -95,19 +97,29 @@ func clientHandler(conn net.Conn) {
 	}
 }
 
-func createJob() stratum.NotifyParams {
-	currJobID++
-
-	isNewBlock := false
-
-	template := btcjson.GetBlockTemplateResult{
-
+func gbtRoutine() {
+	homedir, _ := os.UserHomeDir()
+	client, err := rpcclient.New(&rpcclient.ConnConfig{
+		Host:                "127.0.0.1:8332",
+		CookiePath:          path.Join(homedir, ".bitcoin/rpc.cookie"),
+		DisableTLS:          true,
+		DisableConnectOnNew: true,
+		HTTPPostMode:        true,
+	}, nil)
+	if err != nil {
+		panic(err)
 	}
-	job := stratum.NotifyParams{
-		JobID: fmt.Sprintf("%x", currJobID),
-		Timestamp: uint32(time.Now().Unix()),
-		Version: uint32(0x20000000),
-		Clean: isNewBlock,
+	for {
+		template, err := client.GetBlockTemplate(&btcjson.TemplateRequest{
+			Rules:        []string{"segwit"}, /// required by gbt
+			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
+			Mode:         "template",
+		})
+		if err != nil {
+			panic(err)
+		}
+		newJob := createJob(template)
+
+		time.Sleep(time.Minute)
 	}
-	return job
 }

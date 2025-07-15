@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcd/btcutil"
 	stratum "github.com/kbnchk/go-Stratum"
 )
 
@@ -22,7 +23,7 @@ type StratumClient struct {
 	VersionRollingMask  uint32
 	SuggestedDifficulty uint64
 	UserAgent           string
-	User                string
+	User                *btcutil.Address
 	Worker              string
 	//Password            string
 	config      map[string]any
@@ -32,6 +33,7 @@ type StratumClient struct {
 }
 
 func (client *StratumClient) Run() {
+	//defer client.Stop()
 	go client.readChanRoutine()
 	stratumInited := false
 	isAuthed := false
@@ -110,7 +112,11 @@ readloop:
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
 				split := strings.Split(params.Username, ".")
-				client.User = split[0]
+				decoded, err := btcutil.DecodeAddress(split[0], config.CHAIN)
+				if err != nil {
+					println(err.Error())
+				}
+				client.User = &decoded
 				if len(split) > 1 {
 					client.Worker = split[1]
 				}
@@ -172,13 +178,10 @@ readloop:
 			}
 		default:
 			{
-				/// unknown, close conn
 				println(fmt.Sprintf("unhandled stratum message: %+v", m))
-				//break readloop
 			}
 		}
 	}
-	/// MAYBE: client.Stop() here?
 }
 func (client *StratumClient) Stop() {
 	close(client.messageChan)
