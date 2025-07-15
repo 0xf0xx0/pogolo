@@ -1,5 +1,5 @@
 package stratumclient_test
-
+// just for storing the data as variables
 import (
 	"encoding/json"
 	"os"
@@ -7,9 +7,7 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 )
 
-/// mock recording from public pool
-/// mayb replace data later
-
+// mock recording values from https://github.com/benjamin-wilson/public-pool
 const (
 	MOCK_EXTRANONCE                = "57a6f098"
 	MOCK_MINING_SUBSCRIBE          = `{"id": 1, "method": "mining.subscribe", "params": ["bitaxe v2.2"]}\n`
@@ -19,7 +17,7 @@ const (
 	MOCK_MINING_SUBMIT             = `{"id": 5, "method": "mining.submit", "params": ["tb1qumezefzdeqqwn5zfvgdrhxjzc5ylr39uhuxcz4.bitaxe3", "1", "c7080000", "64b3f3ec", "ed460d91", "00002000"]}\n`
 	MOCK_TIME                      = "64b3f3ec"
 )
-
+// mock recording values from https://github.com/benjamin-wilson/public-pool
 var MOCK_BLOCK_TEMPLATE = func() *btcjson.GetBlockTemplateResult {
 	gbt := btcjson.GetBlockTemplateResult{}
 	file, err := os.ReadFile("./mocktemplate.json")
