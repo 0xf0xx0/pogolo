@@ -1,6 +1,7 @@
 package stratumclient
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"pogolo/config"
@@ -25,17 +26,18 @@ type JobTemplate struct {
 	Block              *btcutil.Block
 	WitnessCommittment []byte
 	MerkleBranch       []*chainhash.Hash
-	CoinbaseValue      int64
+	MerkleRoot         *chainhash.Hash
+	Subsidy            int64
 	Height             int64
 	Clear              bool
 }
 
 var (
-	currJobID       = uint64(0)
+	currTemplateID  = uint64(0)
 	currBlockHeight = uint64(0)
 )
 
-func CreateJobTemplate(template *btcjson.GetBlockTemplateResult, client StratumClient) JobTemplate {
+func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	clear := false
 
 	if currBlockHeight != uint64(template.Height) {
@@ -52,7 +54,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult, client StratumC
 	// networkDiff := calcNetworkDifficulty()
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
 	for idx, templateTx := range template.Transactions {
-		decoded, err:= hex.DecodeString(templateTx.Data)
+		decoded, err := hex.DecodeString(templateTx.Data)
 		if err != nil {
 			println(idx, templateTx.Data)
 			panic(err)
@@ -97,12 +99,13 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult, client StratumC
 	})
 	block.SetHeight(int32(template.Height))
 
-	job := JobTemplate{
-		ID:                 getNextJobID(),
+	job := &JobTemplate{
+		ID:                 getNextTemplateID(),
 		Block:              block,
 		WitnessCommittment: witnessCommit[:],
 		MerkleBranch:       merkleBranch,
-		CoinbaseValue:      *template.CoinbaseValue,
+		MerkleRoot:         merkleRoot,
+		Subsidy:            *template.CoinbaseValue,
 		Height:             template.Height,
 		Clear:              clear,
 	}
@@ -110,9 +113,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult, client StratumC
 	return job
 }
 
-func getNextJobID() string {
-	currJobID++
-	return fmt.Sprintf("%x", currJobID)
+func getNextTemplateID() string {
+	currTemplateID++
+	return fmt.Sprintf("%x", currTemplateID)
 }
 
 func BuildMerkleTree(txns []*btcutil.Tx, witness bool) []*chainhash.Hash {
@@ -185,6 +188,7 @@ func treeNodeCount(leafCount int) int {
 	}
 	return count
 }
+// placeholder tx
 func CreateEmptyCoinbase() *btcutil.Tx {
 	/// use v2?
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
@@ -195,30 +199,60 @@ func CreateEmptyCoinbase() *btcutil.Tx {
 	})
 	return btcutil.NewTx(coinbaseTxMsg)
 }
+func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
+	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
+
+	if witness {
+		if err := tx.Serialize(serializedTx); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := tx.SerializeNoWitness(serializedTx); err != nil {
+			return nil, err
+		}
+	}
+	return serializedTx.Bytes(), nil
+}
 
 // thank you btcd devs for doin all this boilerplate work
-func CreateCoinbaseTx(addr btcutil.Address, nextBlockHeight int32, extranonce2 int64, params *chaincfg.Params) *btcutil.Tx {
+func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chaincfg.Params) *btcutil.Tx {
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		panic(err)
 	}
-	coinbaseScript, err := txscript.NewScriptBuilder().
-		AddInt64(int64(nextBlockHeight)).
-		AddInt64(extranonce2).
-		AddData([]byte(config.COINBASE_TAG)).
-		Script()
+	height := template.Block.Height()
+	coinbaseScript := txscript.NewScriptBuilder().
+		AddInt64(int64(height)).
+		AddData([]byte(config.COINBASE_TAG))
+	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
 		panic(err)
 	}
+	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
+		println("pool identifier too long, removing")
+		coinbaseScript = coinbaseScript.Reset().
+			AddInt64(int64(height))
+		encodedCoinbaseScript, err = coinbaseScript.Script()
+		if err != nil {
+			panic(err)
+		}
+	}
+	/// TODO: copy and update template block instead
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
-		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxTxInSequenceNum),
-		SignatureScript:  coinbaseScript,
+		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
+		SignatureScript:  encodedCoinbaseScript,
 		Sequence:         wire.MaxTxInSequenceNum,
 	})
 	coinbaseTxMsg.AddTxOut(&wire.TxOut{
-		Value:    blockchain.CalcBlockSubsidy(nextBlockHeight, params),
+		Value:    template.Subsidy,
 		PkScript: pkScript,
 	})
-	return btcutil.NewTx(coinbaseTxMsg)
+	coinbaseTxMsg.AddTxOut(&wire.TxOut{
+		Value:    0,
+		PkScript: template.WitnessCommittment,
+	})
+	tx := btcutil.NewTx(coinbaseTxMsg)
+	tx.SetIndex(0)
+	return tx
 }

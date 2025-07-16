@@ -1,19 +1,22 @@
 package stratumclient_test
 
 import (
-	"pogolo/config"
 	"pogolo/stratumclient"
-	"strconv"
 	"testing"
 
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 )
 
 const (
-	ADDR   = "bc1pdqrcrxa8vx6gy75mfdfj84puhxffh4fq46h3gkp6jxdd0vjcsdyspfxcv6"
+	ADDR   = "tb1qumezefzdeqqwn5zfvgdrhxjzc5ylr39uhuxcz4"
 	HEIGHT = 0
+)
+
+var (
+	CHAIN = &chaincfg.TestNet3Params
 )
 
 func TestGBT(t *testing.T) {
@@ -22,44 +25,47 @@ func TestGBT(t *testing.T) {
 }
 
 func TestJobTemplate(t *testing.T) {
-	_, client := initClient()
 	template := getBlockTemplate()
-	job := stratumclient.CreateJobTemplate(template, *client)
+	job := stratumclient.CreateJobTemplate(template)
 	if job.Height != template.Height || job.Block.Height() != int32(template.Height) {
 		t.Errorf("job height mismatch: expected %d, got %d and %d", template.Height, job.Height, job.Block.Height())
 	}
-	if job.CoinbaseValue != *template.CoinbaseValue {
-		t.Errorf("job coinbase value mismatch, expected %d, got %d", template.CoinbaseValue, job.CoinbaseValue)
+	if job.Subsidy != *template.CoinbaseValue {
+		t.Errorf("job coinbase value mismatch, expected %d, got %d", template.CoinbaseValue, job.Subsidy)
 	}
 	t.Logf("%+v", job)
 }
 
 func TestCoinbaseWeight(t *testing.T) {
-	tx := getCoinbaseTx(HEIGHT)
+	tx := getCoinbaseTx()
 	coinbaseWeight := blockchain.GetTransactionWeight(tx)
 	if coinbaseWeight > blockchain.MaxBlockWeight {
-		t.Errorf("block too heavy: %d, max %d", coinbaseWeight, blockchain.MaxCoinbaseScriptLen)
+		t.Errorf("block too heavy: %d, max %d", coinbaseWeight, blockchain.MaxBlockWeight)
 	}
 	t.Logf("weight: %d", coinbaseWeight)
 }
 
 func TestCoinbaseScript(t *testing.T) {
-	tx := getCoinbaseTx(HEIGHT)
+	tx := getCoinbaseTx()
 
 	coinbaseScript := tx.MsgTx().TxIn[0].SignatureScript
+
+	if len(coinbaseScript) > blockchain.MaxCoinbaseScriptLen {
+		t.Errorf("pool identifier too long: max %d, got %d", blockchain.MaxCoinbaseScriptLen, len(coinbaseScript))
+	}
 	t.Logf("%q", coinbaseScript)
 	t.Logf("coinbase script: %x", coinbaseScript)
 }
 
 func TestValidatePkScript(t *testing.T) {
-	tx := getCoinbaseTx(HEIGHT)
+	tx := getCoinbaseTx()
 
 	pkscript := tx.MsgTx().TxOut[0].PkScript
 	t.Logf("pkscript: %x", pkscript)
 }
 
 func TestValidateCoinbaseScript(t *testing.T) {
-	tx := getCoinbaseTx(HEIGHT)
+	tx := getCoinbaseTx()
 	txIn := tx.MsgTx().TxIn[0]
 	script := txIn.SignatureScript
 
@@ -70,13 +76,14 @@ func TestValidateCoinbaseScript(t *testing.T) {
 }
 
 func getAddr() btcutil.Address {
-	addr, _ := btcutil.DecodeAddress(ADDR, config.CHAIN)
+	addr, _ := btcutil.DecodeAddress(ADDR, CHAIN)
 	return addr
 }
-func getCoinbaseTx(height int32) *btcutil.Tx {
+func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
-	en2, _ := strconv.ParseInt("0f100f", 16, 32)
-	tx := stratumclient.CreateCoinbaseTx(addr, height, en2, config.CHAIN)
+	// en2, _ := strconv.ParseInt("0f100f", 16, 32)
+	job := stratumclient.CreateJobTemplate(getBlockTemplate())
+	tx := stratumclient.CreateCoinbaseTx(addr, *job, CHAIN)
 	return tx
 }
 func getBlockTemplate() *btcjson.GetBlockTemplateResult {

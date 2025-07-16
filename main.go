@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
@@ -14,11 +13,12 @@ import (
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
-	stratum "github.com/kbnchk/go-Stratum"
 )
 
+// / state
 var (
-	clients   map[string]stratumclient.StratumClient
+	clients      map[string]stratumclient.StratumClient
+	currTemplate *stratumclient.JobTemplate
 )
 
 func main() {
@@ -86,12 +86,16 @@ func clientHandler(conn net.Conn) {
 	go client.Run()
 	channel := client.Channel()
 	for {
-		select {
-		case msg := <-channel:
+		switch msg := (<-channel).(type) {
+		case string:
 			{
 				if msg == "ready" {
 					fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
 				}
+			}
+		case stratumclient.JobSubmission:
+			{
+				/// TODO
 			}
 		}
 	}
@@ -118,8 +122,16 @@ func gbtRoutine() {
 		if err != nil {
 			panic(err)
 		}
-		newJob := createJob(template)
+		/// this gets shipped to each StratumClient to become a full Job
+		currTemplate = stratumclient.CreateJobTemplate(template)
 
+		notifyClients(currTemplate)
 		time.Sleep(time.Minute)
+	}
+}
+
+func notifyClients(n any) {
+	for _, client := range clients {
+		client.Channel() <- n
 	}
 }

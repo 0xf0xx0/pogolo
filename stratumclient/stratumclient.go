@@ -30,6 +30,7 @@ type StratumClient struct {
 	conn        net.Conn
 	messageChan chan any ///TODO: some sort of messaging system
 	currentJob  stratum.NotifyParams
+	activeJobs  []stratum.NotifyParams
 }
 
 func (client *StratumClient) Run() {
@@ -204,9 +205,10 @@ func (client *StratumClient) readChanRoutine() {
 			{
 				println(m)
 			}
-		case stratum.NotifyParams:
+		case *JobTemplate:
 			{
-				client.writeNotif(stratum.Notify(m))
+				job := client.createJob(m)
+				client.writeNotif(job)
 			}
 		default:
 			{
@@ -215,6 +217,35 @@ func (client *StratumClient) readChanRoutine() {
 			}
 		}
 	}
+}
+func (client *StratumClient) CreateJob(template *JobTemplate) stratum.Notification {
+	return client.createJob(template)
+}
+func (client *StratumClient) createJob(template *JobTemplate) stratum.Notification {
+	merkleBranches := make([][]byte, len(template.MerkleBranch))
+	for i, branch := range template.MerkleBranch {
+		merkleBranches[i] = branch[:]
+	}
+	blockHeader := template.Block.MsgBlock().Header
+	coinbaseTx := CreateCoinbaseTx(*client.User, *template, config.CHAIN)
+	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
+	if err != nil {
+		panic(err)
+	}
+	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
+	partOneIndex := strings.Index(string(serializedCoinbaseTx), string(inputScript)) + len(inputScript)
+	job := stratum.NotifyParams{
+		JobID:          template.ID,
+		PrevBlockHash:  blockHeader.PrevBlock[:],
+		MerkleBranches: merkleBranches,
+		Version:        uint32(blockHeader.Version),
+		Clean:          template.Clear,
+		Timestamp:      blockHeader.Timestamp,
+		GenerationTX1:  serializedCoinbaseTx[:partOneIndex-16],
+		GenerationTX2:  serializedCoinbaseTx[partOneIndex:],
+	}
+
+	return stratum.Notify(job)
 }
 
 // 32-bit (4-byte) hash used for client id and extranonce1
@@ -252,6 +283,5 @@ func (client *StratumClient) writeNotif(n stratum.Notification) error {
 }
 func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
-	println(string(b))
 	return err
 }

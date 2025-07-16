@@ -2,20 +2,22 @@ package stratumclient_test
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"pogolo/config"
 	"pogolo/stratumclient"
 	"testing"
 
+	"github.com/btcsuite/btcd/btcutil"
 	stratum "github.com/kbnchk/go-Stratum"
 )
 
 // params
 var (
 	authorizeParams = stratum.AuthorizeParams{
-		/// bitmex addr https://blog.bitmex.com/taproot-demonstration/
-		Username: "bc1pdqrcrxa8vx6gy75mfdfj84puhxffh4fq46h3gkp6jxdd0vjcsdyspfxcv6.fakeminer",
+		/// public-pool test data
+		Username: "tb1qumezefzdeqqwn5zfvgdrhxjzc5ylr39uhuxcz4.fakeminer",
 		Password: nil,
 	}
 	configureParams = func() stratum.ConfigureParams {
@@ -127,6 +129,68 @@ func TestInitSequence(t *testing.T) {
 	fmt.Printf("%+v\n", client)
 }
 
+func TestSerialize(t *testing.T) {
+	tx0 := getBlockTemplate().Transactions[0]
+	decoded, err := hex.DecodeString(tx0.Data)
+	if err != nil {
+		panic(err)
+	}
+	tx, err := btcutil.NewTxFromBytes(decoded)
+	if err != nil {
+		panic(err)
+	}
+	serializedTx, err := stratumclient.SerializeTx(tx.MsgTx(), true)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%x %s, %+v", serializedTx, tx.Hash(), tx)
+	if tx.WitnessHash().String() != tx0.Hash {
+		t.Logf("data: %x", serializedTx)
+		t.Fatalf("hash mismatch: expected %q, got %q", tx0.Hash, tx.Hash())
+	}
+
+}
+
+func TestCoinbaseCreation(t *testing.T) {
+	lpipe, client := initClient()
+	sendReqAndWaitForRes(t, authorizeReq, lpipe)
+	sendReqAndWaitForRes(t, configureReq, lpipe)
+	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+
+	template := stratumclient.CreateJobTemplate(getBlockTemplate())
+	templateCoinbase := template.Block.MsgBlock().Transactions[0]
+	notif := client.CreateJob(template)
+	serializedCoinbaseTx, err := stratumclient.SerializeTx(templateCoinbase, false)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("sent: %+v", template)
+	t.Logf("got: %+v", notif)
+	t.Logf("%x %s", serializedCoinbaseTx, template.Block.MsgBlock().Transactions[0].TxHash())
+}
+
+// func TestJobCreation(t *testing.T) {
+// 	lpipe, client := initClient()
+// 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
+// 	sendReqAndWaitForRes(t, configureReq, lpipe)
+// 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+
+// 	template := stratumclient.CreateJobTemplate(getBlockTemplate())
+// 	notif := client.CreateJob(template)
+// 	serializedCoinbaseTx := make([]byte, template.Block.MsgBlock().Transactions[0].SerializeSizeStripped())
+// 	template.Block.MsgBlock().Transactions[0].SerializeNoWitness(bytes.NewBuffer(serializedCoinbaseTx))
+// 	t.Logf("sent: %+v", template)
+// 	t.Logf("got: %+v", notif)
+// 	t.Logf("%x %s", serializedCoinbaseTx, template.Block.MsgBlock().Transactions[0].TxHash())
+// 	tx := getCoinbaseTx()
+// 	serializedTx := make([]byte, tx.MsgTx().SerializeSize())
+// 	err := tx.MsgTx().BtcEncode(bytes.NewBuffer(serializedTx), wire.ProtocolVersion, wire.LatestEncoding)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	t.Logf("%x %s, %+v", serializedTx, tx.Hash(), tx)
+// }
+
 //
 
 // util
@@ -140,6 +204,11 @@ func sendReqAndWaitForRes(t *testing.T, r stratum.Request, lpipe net.Conn) strat
 		t.Fatal(err.Error())
 	}
 
+	res := readPipe(t, lpipe)
+	return res
+}
+
+func readPipe(t *testing.T, lpipe net.Conn) stratum.Response {
 	reader := bufio.NewReader(lpipe)
 	line, err := reader.ReadBytes('\n')
 	if err != nil {
