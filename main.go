@@ -37,6 +37,7 @@ func main() {
 	/// listener
 	go func() {
 		defer wg.Done()
+		println("srv start")
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
@@ -59,6 +60,7 @@ func main() {
 	/// connections
 	go func() {
 		defer wg.Done()
+		println("conns start")
 		for {
 			select {
 			case <-shutdown:
@@ -83,19 +85,19 @@ func main() {
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := stratumclient.CreateClient(conn)
-	go client.Run()
 	channel := client.Channel()
+	defer func() {
+		delete(clients, client.ID.String())
+	}()
+	go client.Run()
 	for {
 		switch msg := (<-channel).(type) {
 		case string:
 			{
 				if msg == "ready" {
 					fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
+					client.Channel() <- currTemplate
 				}
-			}
-		case stratumclient.JobSubmission:
-			{
-				/// TODO
 			}
 		}
 	}
@@ -119,6 +121,7 @@ func gbtRoutine() {
 			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 			Mode:         "template",
 		})
+		println(fmt.Sprintf("new template with %d txns", len(template.Transactions)))
 		if err != nil {
 			panic(err)
 		}
@@ -132,6 +135,6 @@ func gbtRoutine() {
 
 func notifyClients(n any) {
 	for _, client := range clients {
-		client.Channel() <- n
+		go func(){client.Channel() <- n}()
 	}
 }

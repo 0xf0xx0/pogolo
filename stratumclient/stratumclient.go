@@ -34,7 +34,7 @@ type StratumClient struct {
 }
 
 func (client *StratumClient) Run() {
-	//defer client.Stop()
+	defer client.Stop()
 	go client.readChanRoutine()
 	stratumInited := false
 	isAuthed := false
@@ -54,7 +54,7 @@ readloop:
 			/// fully initialized
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
-				client.writeNotif(stratum.SetDifficulty(client.Difficulty))
+				client.AdjustDifficulty(client.Difficulty)
 			}
 			client.messageChan <- "ready"
 		}
@@ -163,19 +163,20 @@ readloop:
 					client.Difficulty = suggestedDiff
 				}
 
-				if err := client.writeNotif(stratum.SetDifficulty(client.Difficulty)); err != nil {
+				if err := client.AdjustDifficulty(client.Difficulty); err != nil {
 					panic(err)
 				}
 			}
 		case stratum.MiningSubmit:
 			{
+				/// TODO: adjust diff every 6 submissions
 				if !stratumInited {
 					println("submit before subscribe")
-					client.Stop()
 					return
 				}
 				s := stratum.Share{}
 				s.Read(m)
+				println(fmt.Sprintf("%+v", s))
 			}
 		default:
 			{
@@ -194,6 +195,9 @@ func (client *StratumClient) Channel() chan any {
 }
 func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
+}
+func (client *StratumClient) AdjustDifficulty(newDiff uint64) error {
+	return client.writeNotif(stratum.SetDifficulty(newDiff))
 }
 func (client *StratumClient) writeChan(msg any) {
 	client.messageChan <- msg
@@ -229,24 +233,27 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 
 	blockHeader := template.Block.MsgBlock().Header
 	coinbaseTx := CreateCoinbaseTx(*client.User, *template, config.CHAIN)
+	/// this is serialized without the witness because its given to the client
+	/// we finish up the tx on a block-winning share submission
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
 		panic(err)
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	partOneIndex := strings.Index(string(serializedCoinbaseTx), string(inputScript)) + len(inputScript)
-	job := MiningJob {
-		Template: template,
+	job := MiningJob{
+		Template:   template,
 		CoinbaseTx: coinbaseTx,
 		Notification: stratum.Notify(stratum.NotifyParams{
 			JobID:          template.ID,
 			PrevBlockHash:  blockHeader.PrevBlock[:],
 			MerkleBranches: merkleBranches,
 			Version:        uint32(blockHeader.Version),
-			Clean:          template.Clear,
+			Bits:           template.Bits,
 			Timestamp:      blockHeader.Timestamp,
 			CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-16],
 			CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
+			Clean:          template.Clear,
 		}),
 	}
 

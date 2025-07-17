@@ -28,6 +28,7 @@ type JobTemplate struct {
 	WitnessCommittment []byte
 	MerkleBranch       []*chainhash.Hash
 	MerkleRoot         *chainhash.Hash
+	Bits               []byte
 	Subsidy            int64
 	Height             int64
 	Clear              bool
@@ -48,6 +49,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 
 	if currBlockHeight != uint64(template.Height) {
 		println("new block")
+		currBlockHeight = uint64(template.Height)
 		clear = true
 	}
 
@@ -55,7 +57,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	if template.MinTime > currTime {
 		currTime = template.MinTime
 	}
-	bits, _ := strconv.ParseUint(template.Bits, 16, 32)
+	headerBits, _ := strconv.ParseUint(template.Bits, 16, 32)
 	prevBlockHash, _ := chainhash.NewHashFromStr(template.PreviousHash)
 	// networkDiff := calcNetworkDifficulty()
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
@@ -96,7 +98,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	block := btcutil.NewBlock(&wire.MsgBlock{
 		Header: wire.BlockHeader{
 			Version:    template.Version,
-			Bits:       uint32(bits),
+			Bits:       uint32(headerBits),
 			PrevBlock:  *prevBlockHash,
 			Timestamp:  time.Unix(currTime, 0),
 			MerkleRoot: *merkleRoot,
@@ -105,12 +107,14 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	})
 	block.SetHeight(int32(template.Height))
 
+	bits, _ := hex.DecodeString(template.Bits)
 	job := &JobTemplate{
 		ID:                 getNextTemplateID(),
 		Block:              block,
 		WitnessCommittment: witnessCommit[:],
 		MerkleBranch:       merkleBranch,
 		MerkleRoot:         merkleRoot,
+		Bits:               bits,
 		Subsidy:            *template.CoinbaseValue,
 		Height:             template.Height,
 		Clear:              clear,
@@ -232,15 +236,18 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		panic(err)
 	}
 	height := template.Block.Height()
+	padding := [15]byte{} /// 16 bytes of padding, for extranonce
+	/// adding data pushes an extra byte for the opcode
 	coinbaseScript := txscript.NewScriptBuilder().
 		AddInt64(int64(height)).
-		AddData([]byte(config.COINBASE_TAG))
+		AddData([]byte(config.COINBASE_TAG)).
+		AddData(padding[:])
 	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
 		panic(err)
 	}
 	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
-		println("pool identifier too long, removing")
+		println("pool tag too long, removing")
 		coinbaseScript = coinbaseScript.Reset().
 			AddInt64(int64(height))
 		encodedCoinbaseScript, err = coinbaseScript.Script()
@@ -248,9 +255,7 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 			panic(err)
 		}
 	}
-	/// TODO: copy and update template block instead
-	copy := template.Block.MsgBlock().Copy()
-	var emptyWitness [blockchain.CoinbaseWitnessDataLen]byte
+	emptyWitness := [blockchain.CoinbaseWitnessDataLen]byte{}
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
@@ -269,7 +274,6 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		Value:    0,
 		PkScript: witnessCommit,
 	})
-	copy.Transactions[0] = coinbaseTxMsg
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
