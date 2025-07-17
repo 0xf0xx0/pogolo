@@ -158,38 +158,15 @@ func TestCoinbaseCreation(t *testing.T) {
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
 
 	template := stratumclient.CreateJobTemplate(getBlockTemplate())
-	templateCoinbase := template.Block.MsgBlock().Transactions[0]
-	notif := client.CreateJob(template)
-	serializedCoinbaseTx, err := stratumclient.SerializeTx(templateCoinbase, false)
+	job := client.CreateJob(template)
+	serializedCoinbaseTx, err := stratumclient.SerializeTx(job.CoinbaseTx.MsgTx(), true)
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("coinbase: %x", serializedCoinbaseTx)
 	t.Logf("sent: %+v", template)
-	t.Logf("got: %+v", notif)
-	t.Logf("%x %s", serializedCoinbaseTx, template.Block.MsgBlock().Transactions[0].TxHash())
+	t.Logf("got: %+v", job)
 }
-
-// func TestJobCreation(t *testing.T) {
-// 	lpipe, client := initClient()
-// 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
-// 	sendReqAndWaitForRes(t, configureReq, lpipe)
-// 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
-
-// 	template := stratumclient.CreateJobTemplate(getBlockTemplate())
-// 	notif := client.CreateJob(template)
-// 	serializedCoinbaseTx := make([]byte, template.Block.MsgBlock().Transactions[0].SerializeSizeStripped())
-// 	template.Block.MsgBlock().Transactions[0].SerializeNoWitness(bytes.NewBuffer(serializedCoinbaseTx))
-// 	t.Logf("sent: %+v", template)
-// 	t.Logf("got: %+v", notif)
-// 	t.Logf("%x %s", serializedCoinbaseTx, template.Block.MsgBlock().Transactions[0].TxHash())
-// 	tx := getCoinbaseTx()
-// 	serializedTx := make([]byte, tx.MsgTx().SerializeSize())
-// 	err := tx.MsgTx().BtcEncode(bytes.NewBuffer(serializedTx), wire.ProtocolVersion, wire.LatestEncoding)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	t.Logf("%x %s, %+v", serializedTx, tx.Hash(), tx)
-// }
 
 //
 
@@ -231,6 +208,7 @@ func initClient() (net.Conn, *stratumclient.StratumClient) {
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
 	client := stratumclient.CreateClient(rpipe)
+	client.ID,_ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run()
 	return lpipe, &client
 }

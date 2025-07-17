@@ -208,7 +208,7 @@ func (client *StratumClient) readChanRoutine() {
 		case *JobTemplate:
 			{
 				job := client.createJob(m)
-				client.writeNotif(job)
+				client.writeNotif(job.Notification)
 			}
 		default:
 			{
@@ -218,14 +218,15 @@ func (client *StratumClient) readChanRoutine() {
 		}
 	}
 }
-func (client *StratumClient) CreateJob(template *JobTemplate) stratum.Notification {
+func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 	return client.createJob(template)
 }
-func (client *StratumClient) createJob(template *JobTemplate) stratum.Notification {
+func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	merkleBranches := make([][]byte, len(template.MerkleBranch))
 	for i, branch := range template.MerkleBranch {
 		merkleBranches[i] = branch[:]
 	}
+
 	blockHeader := template.Block.MsgBlock().Header
 	coinbaseTx := CreateCoinbaseTx(*client.User, *template, config.CHAIN)
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
@@ -234,18 +235,22 @@ func (client *StratumClient) createJob(template *JobTemplate) stratum.Notificati
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	partOneIndex := strings.Index(string(serializedCoinbaseTx), string(inputScript)) + len(inputScript)
-	job := stratum.NotifyParams{
-		JobID:          template.ID,
-		PrevBlockHash:  blockHeader.PrevBlock[:],
-		MerkleBranches: merkleBranches,
-		Version:        uint32(blockHeader.Version),
-		Clean:          template.Clear,
-		Timestamp:      blockHeader.Timestamp,
-		GenerationTX1:  serializedCoinbaseTx[:partOneIndex-16],
-		GenerationTX2:  serializedCoinbaseTx[partOneIndex:],
+	job := MiningJob {
+		Template: template,
+		CoinbaseTx: coinbaseTx,
+		Notification: stratum.Notify(stratum.NotifyParams{
+			JobID:          template.ID,
+			PrevBlockHash:  blockHeader.PrevBlock[:],
+			MerkleBranches: merkleBranches,
+			Version:        uint32(blockHeader.Version),
+			Clean:          template.Clear,
+			Timestamp:      blockHeader.Timestamp,
+			CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-16],
+			CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
+		}),
 	}
 
-	return stratum.Notify(job)
+	return job
 }
 
 // 32-bit (4-byte) hash used for client id and extranonce1

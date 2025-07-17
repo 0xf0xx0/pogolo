@@ -16,6 +16,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	stratum "github.com/kbnchk/go-Stratum"
 )
 
 //////
@@ -30,6 +31,11 @@ type JobTemplate struct {
 	Subsidy            int64
 	Height             int64
 	Clear              bool
+}
+type MiningJob struct {
+	Template     *JobTemplate
+	CoinbaseTx   *btcutil.Tx
+	Notification stratum.Notification
 }
 
 var (
@@ -188,6 +194,7 @@ func treeNodeCount(leafCount int) int {
 	}
 	return count
 }
+
 // placeholder tx
 func CreateEmptyCoinbase() *btcutil.Tx {
 	/// use v2?
@@ -195,8 +202,11 @@ func CreateEmptyCoinbase() *btcutil.Tx {
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxTxInSequenceNum),
 		Sequence:         wire.MaxTxInSequenceNum,
-		Witness:          wire.TxWitness{},
+		Witness:          wire.TxWitness{
+			/// TODO: empty 32-byte witness
+		},
 	})
+
 	return btcutil.NewTx(coinbaseTxMsg)
 }
 func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
@@ -207,6 +217,7 @@ func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
 			return nil, err
 		}
 	} else {
+		serializedTx = bytes.NewBuffer(make([]byte, 0, tx.SerializeSizeStripped()))
 		if err := tx.SerializeNoWitness(serializedTx); err != nil {
 			return nil, err
 		}
@@ -238,20 +249,28 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		}
 	}
 	/// TODO: copy and update template block instead
+	copy := template.Block.MsgBlock().Copy()
+	var emptyWitness [blockchain.CoinbaseWitnessDataLen]byte
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
 		SignatureScript:  encodedCoinbaseScript,
 		Sequence:         wire.MaxTxInSequenceNum,
+		Witness:          wire.TxWitness{emptyWitness[:]}, /// 32 bytes of nothin
 	})
 	coinbaseTxMsg.AddTxOut(&wire.TxOut{
 		Value:    template.Subsidy,
 		PkScript: pkScript,
 	})
+	/// there has to be a way to use txscript, right?
+	magicBytes, _ := hex.DecodeString("6a24" + "aa21a9ed")
+	witnessCommit := append(magicBytes, template.WitnessCommittment...)
 	coinbaseTxMsg.AddTxOut(&wire.TxOut{
 		Value:    0,
-		PkScript: template.WitnessCommittment,
+		PkScript: witnessCommit,
 	})
+	copy.Transactions[0] = coinbaseTxMsg
+
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
 	return tx
