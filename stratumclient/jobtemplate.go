@@ -84,9 +84,12 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	merkleBranches = slices.DeleteFunc(merkleBranches, func(h *chainhash.Hash) bool {
 		return h == nil
 	})
+	println(len(merkleBranches))
+
 	merkleRoot := merkleBranches[len(merkleBranches)-1]
 	merkleBranches = merkleBranches[:len(merkleBranches)-1]
 
+	println(len(merkleBranches))
 	merkleBranch := merkleBranches[1:]
 	witnessCommit := blockchain.CalcMerkleRoot(txns, true)
 
@@ -143,10 +146,11 @@ func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash
 	nodes := []*chainhash.Hash{}
 
 	z := calcTreeWidth(n, 1)
-	for ; z > 0; z-- {
+	for ; z > 0; {
 		if treeNodeCount(z) == n {
 			break
 		}
+		z--
 	}
 	if z == 0 {
 		panic("shouldnt ever be reached")
@@ -154,10 +158,7 @@ func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash
 
 	height := 0
 	i := 0
-	for {
-		if i >= n-1 {
-			break
-		}
+	for ; i < n - 1; {
 		layerWidth := calcTreeWidth(z, height)
 		height++
 
@@ -167,7 +168,12 @@ func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash
 		}
 		offset := i + index
 		left := tree[offset]
-		right := tree[offset+1]
+		var right *chainhash.Hash
+		if index == layerWidth-1 {
+			right = left
+		} else {
+			right = tree[offset+1]
+		}
 
 		if i > 0 {
 			if odd {
@@ -201,14 +207,12 @@ func treeNodeCount(leafCount int) int {
 
 // placeholder tx
 func CreateEmptyCoinbase() *btcutil.Tx {
-	/// use v2?
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
+	emptyWitness := [blockchain.CoinbaseWitnessDataLen]byte{}
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxTxInSequenceNum),
 		Sequence:         wire.MaxTxInSequenceNum,
-		Witness:          wire.TxWitness{
-			/// TODO: empty 32-byte witness
-		},
+		Witness:          wire.TxWitness{emptyWitness[:]},
 	})
 
 	return btcutil.NewTx(coinbaseTxMsg)

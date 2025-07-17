@@ -33,8 +33,10 @@ type StratumClient struct {
 	activeJobs  []stratum.NotifyParams
 }
 
-func (client *StratumClient) Run() {
-	defer client.Stop()
+func (client *StratumClient) Run(noCleanup bool) {
+	if !noCleanup {
+		defer client.Stop()
+	}
 	go client.readChanRoutine()
 	stratumInited := false
 	isAuthed := false
@@ -47,7 +49,7 @@ func (client *StratumClient) Run() {
 readloop:
 	for {
 		if isAuthed && isConfigured && isSubscribed && !stratumInited {
-			/// TODO
+			/// TODO?
 			stratumInited = true
 			/// the initial difficulty was set in CreateClient,
 			/// but the client may also suggest a difficulty before
@@ -65,6 +67,7 @@ readloop:
 			}
 			break readloop
 		}
+		/// TODO/FIXME: 1 min deadline? 30s? 5 min?
 		client.conn.SetDeadline(time.Now().Add(time.Second * 15))
 		// println(fmt.Sprintf("data from %s (%s):\n\"\"\"\n%s\n\"\"\"", client.ID, client.conn.RemoteAddr(), strings.TrimSpace(string(line))))
 		m, err := DecodeStratumMessage(line)
@@ -149,11 +152,13 @@ readloop:
 			}
 		case stratum.MiningSuggestDifficulty:
 			{
-				if len(m.Params) < 1 {
-					println("invalid difficulty from", client.ID)
+				params := stratum.SuggestDifficultyParams{}
+
+				if err := params.Read(m); err != nil {
+					println("invalid difficulty from", client.ID, err.Error())
 					break
 				}
-				suggestedDiff := uint64(m.Params[0].(float64))
+				suggestedDiff := uint64(params.Difficulty.(float64))
 				if suggestedDiff > stratum.MinimumDifficulty &&
 					stratum.ValidDifficulty(suggestedDiff) &&
 					client.SuggestedDifficulty == 0 {
@@ -161,10 +166,11 @@ readloop:
 					/// if we haven't got one before
 					client.SuggestedDifficulty = suggestedDiff
 					client.Difficulty = suggestedDiff
-				}
-
-				if err := client.AdjustDifficulty(client.Difficulty); err != nil {
-					panic(err)
+					/// and only send a mining.set_difficulty if accepted,
+					/// we wanna ignore
+					if err := client.AdjustDifficulty(client.Difficulty); err != nil {
+						panic(err)
+					}
 				}
 			}
 		case stratum.MiningSubmit:
@@ -176,6 +182,7 @@ readloop:
 				}
 				s := stratum.Share{}
 				s.Read(m)
+				/// TODO: validate share
 				println(fmt.Sprintf("%+v", s))
 			}
 		default:

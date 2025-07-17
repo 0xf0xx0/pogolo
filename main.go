@@ -89,7 +89,7 @@ func clientHandler(conn net.Conn) {
 	defer func() {
 		delete(clients, client.ID.String())
 	}()
-	go client.Run()
+	go client.Run(false)
 	for {
 		switch msg := (<-channel).(type) {
 		case string:

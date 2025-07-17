@@ -1,22 +1,17 @@
 package stratumclient_test
 
 import (
+	"encoding/hex"
 	"pogolo/stratumclient"
 	"testing"
 
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
 )
 
 const (
-	ADDR   = "tb1qumezefzdeqqwn5zfvgdrhxjzc5ylr39uhuxcz4"
 	HEIGHT = 0
-)
-
-var (
-	CHAIN = &chaincfg.TestNet3Params
 )
 
 func TestGBT(t *testing.T) {
@@ -32,6 +27,10 @@ func TestJobTemplate(t *testing.T) {
 	}
 	if job.Subsidy != *template.CoinbaseValue {
 		t.Errorf("job coinbase value mismatch, expected %d, got %d", template.CoinbaseValue, job.Subsidy)
+	}
+	jobBits := hex.EncodeToString(job.Bits)
+	if jobBits != template.Bits {
+		t.Errorf("job bits mismatch, expected %s, got %s", template.Bits, jobBits)
 	}
 	t.Logf("%+v", job)
 }
@@ -76,14 +75,14 @@ func TestValidateCoinbaseScript(t *testing.T) {
 }
 
 func getAddr() btcutil.Address {
-	addr, _ := btcutil.DecodeAddress(ADDR, CHAIN)
+	addr, _ := btcutil.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
 	return addr
 }
 func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
 	// en2, _ := strconv.ParseInt("0f100f", 16, 32)
 	job := stratumclient.CreateJobTemplate(getBlockTemplate())
-	tx := stratumclient.CreateCoinbaseTx(addr, *job, CHAIN)
+	tx := stratumclient.CreateCoinbaseTx(addr, *job, MOCK_CHAIN)
 	return tx
 }
 func getBlockTemplate() *btcjson.GetBlockTemplateResult {

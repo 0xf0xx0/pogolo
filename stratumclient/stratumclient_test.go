@@ -13,40 +13,6 @@ import (
 	stratum "github.com/kbnchk/go-Stratum"
 )
 
-// params
-var (
-	authorizeParams = stratum.AuthorizeParams{
-		/// public-pool test data
-		Username: "tb1qumezefzdeqqwn5zfvgdrhxjzc5ylr39uhuxcz4.fakeminer",
-		Password: nil,
-	}
-	configureParams = func() stratum.ConfigureParams {
-		params := stratum.ConfigureParams{
-			Supported:  make([]string, 0),
-			Parameters: make(map[string]interface{}),
-		}
-
-		err := params.Add(stratum.VersionRollingConfigurationRequest{
-			Mask: 0xffffffff,
-		})
-		if err != nil {
-			panic(err)
-		}
-		return params
-	}()
-	subscribeParams = stratum.SubscribeParams{
-		UserAgent: "bitaxe/FTXGOXX/v2021-08-24",
-	}
-	suggestDiffParams = []interface{}{1000}
-)
-
-// requests
-var (
-	authorizeReq         = stratum.AuthorizeRequest("2", authorizeParams)
-	configureReq         = stratum.ConfigureRequest("1", configureParams)
-	subscribeReq         = stratum.SubscribeRequest("3", subscribeParams)
-	suggestDifficultyReq = stratum.NewRequest("4", stratum.MiningSuggestDifficulty, suggestDiffParams)
-)
 
 func TestConfigure(t *testing.T) {
 	lpipe, client := initClient()
@@ -209,6 +175,6 @@ func initClient() (net.Conn, *stratumclient.StratumClient) {
 	lpipe.LocalAddr()
 	client := stratumclient.CreateClient(rpipe)
 	client.ID,_ = stratum.DecodeID(MOCK_EXTRANONCE)
-	go client.Run()
+	go client.Run(true)
 	return lpipe, &client
 }
