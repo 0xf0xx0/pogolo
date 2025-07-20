@@ -2,17 +2,14 @@ package stratumclient_test
 
 import (
 	"bufio"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"pogolo/config"
 	"pogolo/stratumclient"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcutil"
 	stratum "github.com/kbnchk/go-Stratum"
 )
-
 
 func TestConfigure(t *testing.T) {
 	lpipe, client := initClient()
@@ -95,43 +92,35 @@ func TestInitSequence(t *testing.T) {
 	fmt.Printf("%+v\n", client)
 }
 
-func TestSerialize(t *testing.T) {
-	tx0 := getBlockTemplate().Transactions[0]
-	decoded, err := hex.DecodeString(tx0.Data)
-	if err != nil {
-		panic(err)
-	}
-	tx, err := btcutil.NewTxFromBytes(decoded)
-	if err != nil {
-		panic(err)
-	}
-	serializedTx, err := stratumclient.SerializeTx(tx.MsgTx(), true)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("%x %s, %+v", serializedTx, tx.Hash(), tx)
-	if tx.WitnessHash().String() != tx0.Hash {
-		t.Logf("data: %x", serializedTx)
-		t.Fatalf("hash mismatch: expected %q, got %q", tx0.Hash, tx.Hash())
-	}
-
-}
+// func TestSerialize(t *testing.T) {
+// 	decoded, _ := hex.DecodeString(MOCK_COINBASE)
+// 	tx, _ := btcutil.NewTxFromBytes(decoded)
+// 	serializedTx, _ := stratumclient.SerializeTx(tx.MsgTx(), true)
+// 	t.Logf("%x %s, %+v", serializedTx, tx.Hash(), tx)
+// 	if tx.WitnessHash().String() != tx0.Hash {
+// 		t.Logf("data: %x", serializedTx)
+// 		t.Fatalf("hash mismatch: expected %q, got %q", tx0.Hash, tx.Hash())
+// 	}
+// }
 
 func TestCoinbaseCreation(t *testing.T) {
 	lpipe, client := initClient()
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendReqAndWaitForRes(t, configureReq, lpipe)
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 
 	template := stratumclient.CreateJobTemplate(getBlockTemplate())
 	job := client.CreateJob(template)
+	client.CurrentJob = job
 	serializedCoinbaseTx, err := stratumclient.SerializeTx(job.CoinbaseTx.MsgTx(), true)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Logf("coinbase: %x", serializedCoinbaseTx)
 	t.Logf("sent: %+v", template)
-	t.Logf("got: %+v", job)
+	t.Logf("got: %+v", job.Notification)
+	sendReqAndWaitForRes(t, submitReq, lpipe)
 }
 
 //
@@ -174,7 +163,7 @@ func initClient() (net.Conn, *stratumclient.StratumClient) {
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
 	client := stratumclient.CreateClient(rpipe)
-	client.ID,_ = stratum.DecodeID(MOCK_EXTRANONCE)
+	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(true)
 	return lpipe, &client
 }

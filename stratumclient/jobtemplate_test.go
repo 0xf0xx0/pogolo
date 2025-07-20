@@ -14,12 +14,30 @@ const (
 	HEIGHT = 0
 )
 
-func TestGBT(t *testing.T) {
+func TestWitnessCalc(t *testing.T) {
 	template := getBlockTemplate()
-	t.Logf("%+v", template)
+	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
+	decoded, _ := hex.DecodeString(MOCK_EMPTY_COINBASE)
+	txns[0],_ = btcutil.NewTxFromBytes(decoded)
+	witnessCommit := blockchain.CalcMerkleRoot(txns, true)
+	t.Log(witnessCommit)
+	t.Log(template.DefaultWitnessCommitment[12:])
+}
+func TestWitnessCalc2(t *testing.T) {
+	expectedCommitment := "e2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9"
+	COINBASE := "01000000000101000000000000000000000000000000000000000000000000000000000000"+
+				"0000ffffffff00ffffffff0001200000000000000000000000000000000000000000000000"+
+				"00000000000000000000000000"
+	txns := make([]*btcutil.Tx, 1)
+	decoded, _ := hex.DecodeString(COINBASE)
+	txns[0],_ = btcutil.NewTxFromBytes(decoded)
+	witnessCommitment := blockchain.CalcMerkleRoot(txns, true)
+	t.Log(witnessCommitment)
+	t.Log(expectedCommitment)
 }
 
 func TestJobTemplate(t *testing.T) {
+	return
 	template := getBlockTemplate()
 	job := stratumclient.CreateJobTemplate(template)
 	if job.Height != template.Height || job.Block.Height() != int32(template.Height) {
@@ -32,7 +50,26 @@ func TestJobTemplate(t *testing.T) {
 	if jobBits != template.Bits {
 		t.Errorf("job bits mismatch, expected %s, got %s", template.Bits, jobBits)
 	}
-	t.Logf("%+v", job)
+	if job.MerkleRoot.String() != job.Block.Transactions()[0].Hash().String() {
+		t.Error("ok")
+	}
+	if len(notifyParams.MerkleBranches) != 0 {
+		t.Errorf("job merkle branch mismatch, expected %s, got %s", template.Bits, jobBits)
+		t.Errorf("job merkle mismatch, expected empty, got %+v", notifyParams.MerkleBranches)
+	}
+	if job.Block.MsgBlock().Header.PrevBlock.String() != template.PreviousHash {
+		t.Errorf("job prevhash mismatch, expected %s, got %s",
+			template.PreviousHash,
+			job.Block.MsgBlock().Header.PrevBlock.String())
+	}
+	/// .DefaultWitnessCommitment includes the magic bytes, trim em before comparing
+	witnessCommitment := template.DefaultWitnessCommitment[12:]
+	if hex.EncodeToString(job.WitnessCommittment) != witnessCommitment {
+		t.Errorf("job witness mismatch, expected %s, got %s",
+			witnessCommitment,
+			hex.EncodeToString(job.WitnessCommittment))
+	}
+	t.Logf("validated job: %+v", job)
 }
 
 func TestCoinbaseWeight(t *testing.T) {

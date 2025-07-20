@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -29,7 +30,7 @@ type StratumClient struct {
 	config      map[string]any
 	conn        net.Conn
 	messageChan chan any ///TODO: some sort of messaging system
-	currentJob  stratum.NotifyParams
+	CurrentJob  MiningJob
 	activeJobs  []stratum.NotifyParams
 }
 
@@ -56,7 +57,7 @@ readloop:
 			/// fully initialized
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
-				client.AdjustDifficulty(client.Difficulty)
+				//client.AdjustDifficulty(client.Difficulty)
 			}
 			client.messageChan <- "ready"
 		}
@@ -181,9 +182,16 @@ readloop:
 					return
 				}
 				s := stratum.Share{}
-				s.Read(m)
+				err := s.Read(m)
+				if err != nil {
+					panic(err)
+				}
 				/// TODO: validate share
+				updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.CoinbaseTx)
+				shareDiff, _ := CalcDifficulty(updatedBlock.Header)
 				println(fmt.Sprintf("%+v", s))
+				println(fmt.Sprintf("difficulty: %g (%f): %s %s", shareDiff, shareDiff, updatedBlock.Header.BlockHash(), updatedBlock.BlockHash()))
+				client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 			}
 		default:
 			{
@@ -218,7 +226,10 @@ func (client *StratumClient) readChanRoutine() {
 			}
 		case *JobTemplate:
 			{
+				println("FUCK")
 				job := client.createJob(m)
+				println("n:", job.Template == nil)
+				client.CurrentJob = job
 				client.writeNotif(job.Notification)
 			}
 		default:
@@ -247,7 +258,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		panic(err)
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
-	partOneIndex := strings.Index(string(serializedCoinbaseTx), string(inputScript)) + len(inputScript)
+	partOneIndex := strings.Index(hex.EncodeToString(serializedCoinbaseTx), hex.EncodeToString(inputScript)) + len(inputScript)
 	job := MiningJob{
 		Template:   template,
 		CoinbaseTx: coinbaseTx,

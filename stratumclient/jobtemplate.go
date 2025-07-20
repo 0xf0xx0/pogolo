@@ -1,7 +1,6 @@
 package stratumclient
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"pogolo/config"
@@ -24,10 +23,11 @@ import (
 
 type JobTemplate struct {
 	ID                 string
-	Block              *btcutil.Block
+	Block              btcutil.Block
 	WitnessCommittment []byte
 	MerkleBranch       []*chainhash.Hash
 	MerkleRoot         *chainhash.Hash
+	NetworkDiff        float64
 	Bits               []byte
 	Subsidy            int64
 	Height             int64
@@ -79,18 +79,20 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	/// create temp coinbase
 	txns[0] = CreateEmptyCoinbase()
 
-	merkleTree := BuildMerkleTree(txns, false)
+	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)
 	merkleBranches := BuildMerkleProof(merkleTree, txns[0].Hash())
 	merkleBranches = slices.DeleteFunc(merkleBranches, func(h *chainhash.Hash) bool {
 		return h == nil
 	})
-	println(len(merkleBranches))
 
 	merkleRoot := merkleBranches[len(merkleBranches)-1]
 	merkleBranches = merkleBranches[:len(merkleBranches)-1]
 
-	println(len(merkleBranches))
-	merkleBranch := merkleBranches[1:]
+	merkleBranch := []*chainhash.Hash{}
+	if len(merkleBranches) > 1 {
+		merkleBranch = merkleBranches[1:]
+	}
+	/// FIXME: is this correct?
 	witnessCommit := blockchain.CalcMerkleRoot(txns, true)
 
 	msgTxns := make([]*wire.MsgTx, len(txns))
@@ -108,16 +110,18 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		},
 		Transactions: msgTxns,
 	})
+	println(fmt.Sprintf("txns: %+v", txns))
 	block.SetHeight(int32(template.Height))
 
 	bits, _ := hex.DecodeString(template.Bits)
 	job := &JobTemplate{
 		ID:                 getNextTemplateID(),
-		Block:              block,
+		Block:              *block,
 		WitnessCommittment: witnessCommit[:],
 		MerkleBranch:       merkleBranch,
 		MerkleRoot:         merkleRoot,
 		Bits:               bits,
+		NetworkDiff:        CalcNetworkDifficulty(uint32(headerBits)),
 		Subsidy:            *template.CoinbaseValue,
 		Height:             template.Height,
 		Clear:              clear,
@@ -130,11 +134,6 @@ func getNextTemplateID() string {
 	currTemplateID++
 	return fmt.Sprintf("%x", currTemplateID)
 }
-
-func BuildMerkleTree(txns []*btcutil.Tx, witness bool) []*chainhash.Hash {
-	treeStore := blockchain.BuildMerkleTreeStore(txns, witness)
-	return treeStore
-}
 func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
 	index := slices.Index(tree, leaf)
 
@@ -146,7 +145,7 @@ func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash
 	nodes := []*chainhash.Hash{}
 
 	z := calcTreeWidth(n, 1)
-	for ; z > 0; {
+	for z > 0 {
 		if treeNodeCount(z) == n {
 			break
 		}
@@ -158,7 +157,7 @@ func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash
 
 	height := 0
 	i := 0
-	for ; i < n - 1; {
+	for i < n-1 {
 		layerWidth := calcTreeWidth(z, height)
 		height++
 
@@ -217,32 +216,19 @@ func CreateEmptyCoinbase() *btcutil.Tx {
 
 	return btcutil.NewTx(coinbaseTxMsg)
 }
-func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
-	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
-
-	if witness {
-		if err := tx.Serialize(serializedTx); err != nil {
-			return nil, err
-		}
-	} else {
-		serializedTx = bytes.NewBuffer(make([]byte, 0, tx.SerializeSizeStripped()))
-		if err := tx.SerializeNoWitness(serializedTx); err != nil {
-			return nil, err
-		}
-	}
-	return serializedTx.Bytes(), nil
-}
 
 // thank you btcd devs for doin all this boilerplate work
+// TODO: reuse empty coinbase
 func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chaincfg.Params) *btcutil.Tx {
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		panic(err)
 	}
 	height := template.Block.Height()
-	padding := [15]byte{} /// 16 bytes of padding, for extranonce
+	padding := [7]byte{} /// 8 bytes of padding, for extranonces
 	/// adding data pushes an extra byte for the opcode
 	coinbaseScript := txscript.NewScriptBuilder().
+		/// bip-34
 		AddInt64(int64(height)).
 		AddData([]byte(config.COINBASE_TAG)).
 		AddData(padding[:])
@@ -253,7 +239,8 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
 		println("pool tag too long, removing")
 		coinbaseScript = coinbaseScript.Reset().
-			AddInt64(int64(height))
+			AddInt64(int64(height)).
+			AddData(padding[:])
 		encodedCoinbaseScript, err = coinbaseScript.Script()
 		if err != nil {
 			panic(err)
@@ -272,6 +259,7 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		PkScript: pkScript,
 	})
 	/// there has to be a way to use txscript, right?
+	/// OP_RETURN + magic_bytes from bip-141
 	magicBytes, _ := hex.DecodeString("6a24" + "aa21a9ed")
 	witnessCommit := append(magicBytes, template.WitnessCommittment...)
 	coinbaseTxMsg.AddTxOut(&wire.TxOut{
@@ -282,4 +270,21 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
 	return tx
+}
+
+func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, coinbase *btcutil.Tx) *wire.MsgBlock {
+	a := template.Block /// panic: runtime error: invalid memory address or nil pointer dereference
+	b := a.MsgBlock()
+	blockCopy := b.Copy()
+	blockCopy.Transactions[0] = coinbase.MsgTx()
+
+	blockCopy.Header.Version = blockCopy.Header.Version ^ int32(client.VersionRollingMask)
+	nonceScript := hex.EncodeToString(blockCopy.Transactions[0].TxIn[0].SignatureScript)
+	updatedNonceScript := nonceScript[:len(nonceScript)-16] + client.ID.String() + hex.EncodeToString(share.ExtraNonce2)
+	println(nonceScript)
+	println(updatedNonceScript)
+	blockCopy.Transactions[0].TxIn[0].SignatureScript, _ = hex.DecodeString(updatedNonceScript)
+	blockCopy.Header.MerkleRoot = blockchain.CalcMerkleRoot([]*btcutil.Tx{coinbase}, false)
+	blockCopy.Header.Timestamp = time.Unix(int64(share.Time), 0)
+	return blockCopy
 }

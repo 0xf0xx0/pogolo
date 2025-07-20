@@ -135,6 +135,6 @@ func gbtRoutine() {
 
 func notifyClients(n any) {
 	for _, client := range clients {
-		go func(){client.Channel() <- n}()
+		go func() { client.Channel() <- n }()
 	}
 }
