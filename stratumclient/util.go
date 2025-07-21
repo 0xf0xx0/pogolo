@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	stratum "github.com/kbnchk/go-Stratum"
 )
@@ -50,4 +52,22 @@ func CalcNetworkDifficulty(nBits uint32) float64 {
 	maxTarget := math.Pow(2, 208) * 65535
 	difficulty := maxTarget / target
 	return difficulty
+}
+
+func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
+	newtemplate := JobTemplate{}
+	newtemplate.ID = t.ID
+	newtemplate.Block = *btcutil.NewBlock(t.Block.MsgBlock().Copy())
+	copy(newtemplate.WitnessCommittment, t.WitnessCommittment)
+	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
+	for i,mb := range t.MerkleBranch {
+		copy(newtemplate.MerkleBranch[i][:], mb[:])
+	}
+	copy(newtemplate.MerkleRoot[:], t.MerkleRoot[:])
+	newtemplate.NetworkDiff = t.NetworkDiff
+	copy(newtemplate.Bits, t.Bits)
+	newtemplate.Subsidy = t.Subsidy
+	newtemplate.Height = t.Height
+	newtemplate.Clear = t.Clear
+	return &newtemplate
 }

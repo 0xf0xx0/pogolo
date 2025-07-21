@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	stratum "github.com/kbnchk/go-Stratum"
@@ -92,8 +93,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	if len(merkleBranches) > 1 {
 		merkleBranch = merkleBranches[1:]
 	}
-	/// FIXME: is this correct?
-	witnessCommit := blockchain.CalcMerkleRoot(txns, true)
+	witnessCommit := mining.AddWitnessCommitment(txns[0], txns)
 
 	msgTxns := make([]*wire.MsgTx, len(txns))
 	for idx, tx := range txns {
@@ -272,19 +272,22 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 	return tx
 }
 
+// like public-pools copyAndUpdateBlock, but without the copy
 func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, coinbase *btcutil.Tx) *wire.MsgBlock {
-	a := template.Block /// panic: runtime error: invalid memory address or nil pointer dereference
-	b := a.MsgBlock()
-	blockCopy := b.Copy()
-	blockCopy.Transactions[0] = coinbase.MsgTx()
+	msgBlock := template.Block.MsgBlock()
 
-	blockCopy.Header.Version = blockCopy.Header.Version ^ int32(client.VersionRollingMask)
-	nonceScript := hex.EncodeToString(blockCopy.Transactions[0].TxIn[0].SignatureScript)
+	msgBlock.Transactions[0] = coinbase.MsgTx()
+
+	msgBlock.Header.Nonce = share.Nonce
+
+	msgBlock.Header.Version = msgBlock.Header.Version ^ int32(client.VersionRollingMask)
+
+	nonceScript := hex.EncodeToString(msgBlock.Transactions[0].TxIn[0].SignatureScript)
 	updatedNonceScript := nonceScript[:len(nonceScript)-16] + client.ID.String() + hex.EncodeToString(share.ExtraNonce2)
-	println(nonceScript)
-	println(updatedNonceScript)
-	blockCopy.Transactions[0].TxIn[0].SignatureScript, _ = hex.DecodeString(updatedNonceScript)
-	blockCopy.Header.MerkleRoot = blockchain.CalcMerkleRoot([]*btcutil.Tx{coinbase}, false)
-	blockCopy.Header.Timestamp = time.Unix(int64(share.Time), 0)
-	return blockCopy
+	msgBlock.Transactions[0].TxIn[0].SignatureScript, _ = hex.DecodeString(updatedNonceScript)
+
+	msgBlock.Header.MerkleRoot = blockchain.CalcMerkleRoot([]*btcutil.Tx{coinbase}, false)
+	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
+
+	return msgBlock
 }

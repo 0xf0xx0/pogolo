@@ -29,7 +29,10 @@ type StratumClient struct {
 	//Password            string
 	config      map[string]any
 	conn        net.Conn
-	messageChan chan any ///TODO: some sort of messaging system
+	// messages to client
+	messageChan chan any
+	// winning block submissions
+	submissionChan chan MiningJob
 	CurrentJob  MiningJob
 	activeJobs  []stratum.NotifyParams
 }
@@ -47,7 +50,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	reader := bufio.NewReader(client.conn)
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 
-readloop:
+	readloop:
 	for {
 		if isAuthed && isConfigured && isSubscribed && !stratumInited {
 			/// TODO?
@@ -187,11 +190,7 @@ readloop:
 					panic(err)
 				}
 				/// TODO: validate share
-				updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.CoinbaseTx)
-				shareDiff, _ := CalcDifficulty(updatedBlock.Header)
-				println(fmt.Sprintf("%+v", s))
-				println(fmt.Sprintf("difficulty: %g (%f): %s %s", shareDiff, shareDiff, updatedBlock.Header.BlockHash(), updatedBlock.BlockHash()))
-				client.writeRes(stratum.BooleanResponse(m.MessageID, true))
+				client.validateShareSubmission(s, m)
 			}
 		default:
 			{
@@ -199,6 +198,13 @@ readloop:
 			}
 		}
 	}
+}
+
+func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
+	updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.CoinbaseTx)
+	shareDiff, _ := CalcDifficulty(updatedBlock.Header)
+	println(fmt.Sprintf("difficulty: %g (%f): %s %s", shareDiff, shareDiff, updatedBlock.Header.BlockHash(), updatedBlock.BlockHash()))
+	client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 }
 func (client *StratumClient) Stop() {
 	close(client.messageChan)
@@ -214,6 +220,9 @@ func (client *StratumClient) Addr() net.Addr {
 func (client *StratumClient) AdjustDifficulty(newDiff uint64) error {
 	return client.writeNotif(stratum.SetDifficulty(newDiff))
 }
+func (client *StratumClient) submitBlock(job MiningJob) {
+	//client.submissionChan <- job.Template.Block
+}
 func (client *StratumClient) writeChan(msg any) {
 	client.messageChan <- msg
 }
@@ -226,9 +235,7 @@ func (client *StratumClient) readChanRoutine() {
 			}
 		case *JobTemplate:
 			{
-				println("FUCK")
-				job := client.createJob(m)
-				println("n:", job.Template == nil)
+				job := client.createJob(DeepCopyTemplate(m))
 				client.CurrentJob = job
 				client.writeNotif(job.Notification)
 			}
@@ -284,11 +291,12 @@ func ClientIDHash() stratum.ID {
 	rand.Read(randomBytes)
 	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
 }
-func CreateClient(conn net.Conn) StratumClient {
+func CreateClient(conn net.Conn, submissionChannel chan MiningJob) StratumClient {
 	client := StratumClient{
 		conn:        conn,
 		ID:          ClientIDHash(),
 		messageChan: make(chan any),
+		submissionChan: submissionChannel,
 		Difficulty:  config.DEFAULT_DIFFICULTY,
 	}
 	return client

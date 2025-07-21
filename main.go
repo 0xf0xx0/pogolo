@@ -19,6 +19,7 @@ import (
 var (
 	clients      map[string]stratumclient.StratumClient
 	currTemplate *stratumclient.JobTemplate
+	submissionChan chan stratumclient.MiningJob
 )
 
 func main() {
@@ -28,6 +29,7 @@ func main() {
 	var wg sync.WaitGroup
 	shutdown := make(chan struct{})
 	conns := make(chan net.Conn)
+	submissionChan = make(chan stratumclient.MiningJob)
 	listener, err := net.Listen("tcp", "127.0.0.1:5661")
 	// listener, err := net.Listen("tcp", "10.42.0.1:3333")
 	if err != nil {
@@ -84,8 +86,9 @@ func main() {
 }
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
-	client := stratumclient.CreateClient(conn)
+	client := stratumclient.CreateClient(conn, submissionChan)
 	channel := client.Channel()
+	/// remove ourself from the client map
 	defer func() {
 		delete(clients, client.ID.String())
 	}()

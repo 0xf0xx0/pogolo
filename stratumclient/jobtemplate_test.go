@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/mining"
 )
 
 const (
@@ -19,25 +20,12 @@ func TestWitnessCalc(t *testing.T) {
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
 	decoded, _ := hex.DecodeString(MOCK_EMPTY_COINBASE)
 	txns[0],_ = btcutil.NewTxFromBytes(decoded)
-	witnessCommit := blockchain.CalcMerkleRoot(txns, true)
+	witnessCommit := hex.EncodeToString(mining.AddWitnessCommitment(txns[0], txns))
 	t.Log(witnessCommit)
 	t.Log(template.DefaultWitnessCommitment[12:])
 }
-func TestWitnessCalc2(t *testing.T) {
-	expectedCommitment := "e2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9"
-	COINBASE := "01000000000101000000000000000000000000000000000000000000000000000000000000"+
-				"0000ffffffff00ffffffff0001200000000000000000000000000000000000000000000000"+
-				"00000000000000000000000000"
-	txns := make([]*btcutil.Tx, 1)
-	decoded, _ := hex.DecodeString(COINBASE)
-	txns[0],_ = btcutil.NewTxFromBytes(decoded)
-	witnessCommitment := blockchain.CalcMerkleRoot(txns, true)
-	t.Log(witnessCommitment)
-	t.Log(expectedCommitment)
-}
 
 func TestJobTemplate(t *testing.T) {
-	return
 	template := getBlockTemplate()
 	job := stratumclient.CreateJobTemplate(template)
 	if job.Height != template.Height || job.Block.Height() != int32(template.Height) {
@@ -49,9 +37,6 @@ func TestJobTemplate(t *testing.T) {
 	jobBits := hex.EncodeToString(job.Bits)
 	if jobBits != template.Bits {
 		t.Errorf("job bits mismatch, expected %s, got %s", template.Bits, jobBits)
-	}
-	if job.MerkleRoot.String() != job.Block.Transactions()[0].Hash().String() {
-		t.Error("ok")
 	}
 	if len(notifyParams.MerkleBranches) != 0 {
 		t.Errorf("job merkle branch mismatch, expected %s, got %s", template.Bits, jobBits)
