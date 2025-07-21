@@ -8,7 +8,7 @@ const (
 )
 var (
 	COINBASE_TAG = "/pogolo - foss is freedom/"
-	CHAIN = &chaincfg.MainNetParams
+	CHAIN = &chaincfg.RegressionNetParams
 )
 type Config struct {
 	// Host `toml:"theme" comment:"Supports everything display.format does"`

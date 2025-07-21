@@ -12,14 +12,15 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
 // / state
 var (
-	clients      map[string]stratumclient.StratumClient
-	currTemplate *stratumclient.JobTemplate
-	submissionChan chan stratumclient.MiningJob
+	clients        map[string]stratumclient.StratumClient
+	currTemplate   *stratumclient.JobTemplate
+	submissionChan chan *btcutil.Block
 )
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	var wg sync.WaitGroup
 	shutdown := make(chan struct{})
 	conns := make(chan net.Conn)
-	submissionChan = make(chan stratumclient.MiningJob)
+	submissionChan = make(chan *btcutil.Block)
 	listener, err := net.Listen("tcp", "127.0.0.1:5661")
 	// listener, err := net.Listen("tcp", "10.42.0.1:3333")
 	if err != nil {
@@ -78,7 +79,7 @@ func main() {
 		}
 	}()
 	wg.Add(2)
-	go gbtRoutine()
+	go backendRoutine()
 	<-sigs
 	println()
 	println("closing")
@@ -106,11 +107,12 @@ func clientHandler(conn net.Conn) {
 	}
 }
 
-func gbtRoutine() {
+// handles templates and submissions
+func backendRoutine() {
 	homedir, _ := os.UserHomeDir()
-	client, err := rpcclient.New(&rpcclient.ConnConfig{
-		Host:                "127.0.0.1:8332",
-		CookiePath:          path.Join(homedir, ".bitcoin/rpc.cookie"),
+	backend, err := rpcclient.New(&rpcclient.ConnConfig{
+		Host:                "127.0.0.1:18443",
+		CookiePath:          path.Join(homedir, ".bitcoin/regtest/.cookie"),
 		DisableTLS:          true,
 		DisableConnectOnNew: true,
 		HTTPPostMode:        true,
@@ -118,8 +120,17 @@ func gbtRoutine() {
 	if err != nil {
 		panic(err)
 	}
+	go func() {
+		for {
+			block, ok := <-submissionChan
+			if !ok {
+				continue
+			}
+			backend.SubmitBlock(block, nil)
+		}
+	}()
 	for {
-		template, err := client.GetBlockTemplate(&btcjson.TemplateRequest{
+		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
 			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 			Mode:         "template",

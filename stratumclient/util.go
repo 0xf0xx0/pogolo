@@ -2,9 +2,11 @@ package stratumclient
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math"
 	"math/big"
 
+	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -37,11 +39,11 @@ func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
 // port of public-pools calculateDifficulty
 func CalcDifficulty(header wire.BlockHeader) (float64, big.Accuracy) {
 	hashResult := header.BlockHash()
-	s64 := big.Int{}
-	s64.SetString(hashResult.String(), 16)
+	s64 := blockchain.HashToBig(&hashResult)
 	trueDiff1 := big.Int{}
 	trueDiff1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
-	return new(big.Int).Div(&trueDiff1, &s64).Float64()
+	//return new(big.Int).Div(&trueDiff1, &s64).Float64()
+	return new(big.Float).Quo(new(big.Float).SetInt(&trueDiff1), new(big.Float).SetInt(s64)).Float64()
 }
 
 // port of public-pools calculateNetworkDifficulty
@@ -63,9 +65,14 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	for i,mb := range t.MerkleBranch {
 		copy(newtemplate.MerkleBranch[i][:], mb[:])
 	}
-	copy(newtemplate.MerkleRoot[:], t.MerkleRoot[:])
+	if t.MerkleRoot != nil {
+		newtemplate.MerkleRoot = &chainhash.Hash{}
+		copy(newtemplate.MerkleRoot[:], t.MerkleRoot[:])
+	}
 	newtemplate.NetworkDiff = t.NetworkDiff
-	copy(newtemplate.Bits, t.Bits)
+	/// why isnt this copyable???
+	newtemplate.Bits,_ = hex.DecodeString(hex.EncodeToString(t.Bits))
+
 	newtemplate.Subsidy = t.Subsidy
 	newtemplate.Height = t.Height
 	newtemplate.Clear = t.Clear

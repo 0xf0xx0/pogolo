@@ -19,22 +19,22 @@ import (
 
 type StratumClient struct {
 	ID                  stratum.ID
-	Difficulty          uint64
+	Difficulty          float64
 	VersionRolling      bool
 	VersionRollingMask  uint32
-	SuggestedDifficulty uint64
+	SuggestedDifficulty float64
 	UserAgent           string
 	User                *btcutil.Address
 	Worker              string
 	//Password            string
-	config      map[string]any
-	conn        net.Conn
+	config map[string]any
+	conn   net.Conn
 	// messages to client
 	messageChan chan any
 	// winning block submissions
-	submissionChan chan MiningJob
-	CurrentJob  MiningJob
-	activeJobs  []stratum.NotifyParams
+	submissionChan chan *btcutil.Block
+	CurrentJob     MiningJob
+	activeJobs     []stratum.NotifyParams
 }
 
 func (client *StratumClient) Run(noCleanup bool) {
@@ -44,15 +44,14 @@ func (client *StratumClient) Run(noCleanup bool) {
 	go client.readChanRoutine()
 	stratumInited := false
 	isAuthed := false
-	isConfigured := false
 	isSubscribed := false
 
 	reader := bufio.NewReader(client.conn)
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 
-	readloop:
+readloop:
 	for {
-		if isAuthed && isConfigured && isSubscribed && !stratumInited {
+		if isAuthed && isSubscribed && !stratumInited {
 			/// TODO?
 			stratumInited = true
 			/// the initial difficulty was set in CreateClient,
@@ -72,7 +71,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			break readloop
 		}
 		/// TODO/FIXME: 1 min deadline? 30s? 5 min?
-		client.conn.SetDeadline(time.Now().Add(time.Second * 15))
+		client.conn.SetDeadline(time.Now().Add(time.Minute * 25))
 		// println(fmt.Sprintf("data from %s (%s):\n\"\"\"\n%s\n\"\"\"", client.ID, client.conn.RemoteAddr(), strings.TrimSpace(string(line))))
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
@@ -110,7 +109,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 					}
 				}
 				client.writeRes(stratum.ConfigureResponse(m.MessageID, res))
-				isConfigured = true
 			}
 		case stratum.MiningAuthorize:
 			{
@@ -162,8 +160,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 					println("invalid difficulty from", client.ID, err.Error())
 					break
 				}
-				suggestedDiff := uint64(params.Difficulty.(float64))
-				if suggestedDiff > stratum.MinimumDifficulty &&
+				suggestedDiff := params.Difficulty.(float64)
+				if suggestedDiff > 0.1 &&
 					stratum.ValidDifficulty(suggestedDiff) &&
 					client.SuggestedDifficulty == 0 {
 					/// only accept a suggested difficulty
@@ -195,6 +193,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		default:
 			{
 				println(fmt.Sprintf("unhandled stratum message: %+v", m))
+				client.writeRes(stratum.NewErrorResponse(m.MessageID, stratum.Error{Code: 501, Message: "unknown method"}))
 			}
 		}
 	}
@@ -204,7 +203,16 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.CoinbaseTx)
 	shareDiff, _ := CalcDifficulty(updatedBlock.Header)
 	println(fmt.Sprintf("difficulty: %g (%f): %s %s", shareDiff, shareDiff, updatedBlock.Header.BlockHash(), updatedBlock.BlockHash()))
-	client.writeRes(stratum.BooleanResponse(m.MessageID, true))
+	if shareDiff >= float64(client.Difficulty) {
+		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
+			client.submitBlock(&client.CurrentJob.Template.Block)
+			println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
+			println(fmt.Sprintf("client: %s\ndifficulty: %g\nhash: %s", client.ID, shareDiff, updatedBlock.BlockHash().String()))
+		}
+		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
+	} else {
+		client.writeRes(stratum.NewErrorResponse(m.MessageID, stratum.Error{Code: 1, Message: "difficulty too low"}))
+	}
 }
 func (client *StratumClient) Stop() {
 	close(client.messageChan)
@@ -217,11 +225,11 @@ func (client *StratumClient) Channel() chan any {
 func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
-func (client *StratumClient) AdjustDifficulty(newDiff uint64) error {
+func (client *StratumClient) AdjustDifficulty(newDiff float64) error {
 	return client.writeNotif(stratum.SetDifficulty(newDiff))
 }
-func (client *StratumClient) submitBlock(job MiningJob) {
-	//client.submissionChan <- job.Template.Block
+func (client *StratumClient) submitBlock(block *btcutil.Block) {
+	client.submissionChan <- block
 }
 func (client *StratumClient) writeChan(msg any) {
 	client.messageChan <- msg
@@ -241,6 +249,7 @@ func (client *StratumClient) readChanRoutine() {
 			}
 		default:
 			{
+				println("closing chan")
 				/// closed
 				return
 			}
@@ -266,6 +275,10 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	partOneIndex := strings.Index(hex.EncodeToString(serializedCoinbaseTx), hex.EncodeToString(inputScript)) + len(inputScript)
+	if (partOneIndex < 0) {
+		panic("partOneIndex shoudnt be below 0")
+	}
+	println("bits:",hex.EncodeToString(template.Bits))
 	job := MiningJob{
 		Template:   template,
 		CoinbaseTx: coinbaseTx,
@@ -291,13 +304,13 @@ func ClientIDHash() stratum.ID {
 	rand.Read(randomBytes)
 	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
 }
-func CreateClient(conn net.Conn, submissionChannel chan MiningJob) StratumClient {
+func CreateClient(conn net.Conn, submissionChannel chan *btcutil.Block) StratumClient {
 	client := StratumClient{
-		conn:        conn,
-		ID:          ClientIDHash(),
-		messageChan: make(chan any),
+		conn:           conn,
+		ID:             ClientIDHash(),
+		messageChan:    make(chan any),
 		submissionChan: submissionChannel,
-		Difficulty:  config.DEFAULT_DIFFICULTY,
+		Difficulty:     config.DEFAULT_DIFFICULTY,
 	}
 	return client
 }

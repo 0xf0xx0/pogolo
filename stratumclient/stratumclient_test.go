@@ -8,11 +8,12 @@ import (
 	"pogolo/stratumclient"
 	"testing"
 
+	"github.com/btcsuite/btcd/btcutil"
 	stratum "github.com/kbnchk/go-Stratum"
 )
 
 func TestConfigure(t *testing.T) {
-	lpipe, client,_ := initClient()
+	lpipe, client, _ := initClient()
 
 	params := configureParams
 	req := configureReq
@@ -27,7 +28,7 @@ func TestConfigure(t *testing.T) {
 }
 
 func TestAuthorize(t *testing.T) {
-	lpipe, client,_ := initClient()
+	lpipe, client, _ := initClient()
 	params := authorizeParams
 	req := authorizeReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
@@ -46,7 +47,7 @@ func TestAuthorize(t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-	lpipe, client,_ := initClient()
+	lpipe, client, _ := initClient()
 
 	req := subscribeReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
@@ -70,7 +71,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func TestSuggestDifficulty(t *testing.T) {
-	lpipe, client,_ := initClient()
+	lpipe, client, _ := initClient()
 	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
 	client.Stop()
 	suggestDifficultyReq.MessageID = nil /// the request has a message id, but notifications dont
@@ -78,7 +79,7 @@ func TestSuggestDifficulty(t *testing.T) {
 }
 
 func TestInitSequence(t *testing.T) {
-	lpipe, client,_ := initClient()
+	lpipe, client, _ := initClient()
 
 	res := sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	validateRes(authorizeReq, res, t)
@@ -91,17 +92,6 @@ func TestInitSequence(t *testing.T) {
 
 	fmt.Printf("%+v\n", client)
 }
-
-// func TestSerialize(t *testing.T) {
-// 	decoded, _ := hex.DecodeString(MOCK_COINBASE)
-// 	tx, _ := btcutil.NewTxFromBytes(decoded)
-// 	serializedTx, _ := stratumclient.SerializeTx(tx.MsgTx(), true)
-// 	t.Logf("%x %s, %+v", serializedTx, tx.Hash(), tx)
-// 	if tx.WitnessHash().String() != tx0.Hash {
-// 		t.Logf("data: %x", serializedTx)
-// 		t.Fatalf("hash mismatch: expected %q, got %q", tx0.Hash, tx.Hash())
-// 	}
-// }
 
 func TestCoinbaseCreation(t *testing.T) {
 	lpipe, client, _ := initClient()
@@ -164,8 +154,8 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *stratumclient.StratumClient, chan stratumclient.MiningJob) {
-	submissionChan := make(chan stratumclient.MiningJob)
+func initClient() (net.Conn, *stratumclient.StratumClient, chan *btcutil.Block) {
+	submissionChan := make(chan *btcutil.Block)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
 	client := stratumclient.CreateClient(rpipe, submissionChan)

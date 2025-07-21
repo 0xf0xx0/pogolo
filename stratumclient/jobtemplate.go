@@ -1,6 +1,7 @@
 package stratumclient
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"pogolo/config"
@@ -110,7 +111,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		},
 		Transactions: msgTxns,
 	})
-	println(fmt.Sprintf("txns: %+v", txns))
 	block.SetHeight(int32(template.Height))
 
 	bits, _ := hex.DecodeString(template.Bits)
@@ -133,6 +133,15 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 func getNextTemplateID() string {
 	currTemplateID++
 	return fmt.Sprintf("%x", currTemplateID)
+}
+func CalcMerkleRootHash(newRoot *chainhash.Hash, branches []*chainhash.Hash) chainhash.Hash {
+	bothMerkles := make([]byte,64)
+	copy(bothMerkles, newRoot[:])
+	for _,branch := range branches {
+		copy(bothMerkles[32:], branch[:])
+		copy(bothMerkles, chainhash.HashB(bothMerkles))
+	}
+	return chainhash.Hash(bothMerkles)
 }
 func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
 	index := slices.Index(tree, leaf)
@@ -276,7 +285,7 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, coinbase *btcutil.Tx) *wire.MsgBlock {
 	msgBlock := template.Block.MsgBlock()
 
-	msgBlock.Transactions[0] = coinbase.MsgTx()
+	msgBlock.Transactions[0] = coinbase.MsgTx().Copy()
 
 	msgBlock.Header.Nonce = share.Nonce
 
@@ -286,8 +295,13 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	updatedNonceScript := nonceScript[:len(nonceScript)-16] + client.ID.String() + hex.EncodeToString(share.ExtraNonce2)
 	msgBlock.Transactions[0].TxIn[0].SignatureScript, _ = hex.DecodeString(updatedNonceScript)
 
-	msgBlock.Header.MerkleRoot = blockchain.CalcMerkleRoot([]*btcutil.Tx{coinbase}, false)
+	msgBlock.Header.MerkleRoot = CalcMerkleRootHash(coinbase.Hash(), template.MerkleBranch)
+	//msgBlock.Header.MerkleRoot = blockchain.CalcMerkleRoot([]*btcutil.Tx{coinbase}, false)
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
+	buf := bytes.NewBuffer([]byte{})
+	msgBlock.Header.Serialize(buf)
+	println(msgBlock.BlockHash().String())
+	println(hex.EncodeToString(buf.Bytes()))
 	return msgBlock
 }

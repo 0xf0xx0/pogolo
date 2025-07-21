@@ -10,5 +10,7 @@ password: <ignored>
 ```
 
 TODO
+- client difficulty adjustment
+- share replay mitigation
 - stratum keepalive?
 - public-pool compatible api?
