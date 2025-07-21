@@ -275,10 +275,10 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	partOneIndex := strings.Index(hex.EncodeToString(serializedCoinbaseTx), hex.EncodeToString(inputScript)) + len(inputScript)
-	if (partOneIndex < 0) {
+	if partOneIndex < 0 {
 		panic("partOneIndex shoudnt be below 0")
 	}
-	println("bits:",hex.EncodeToString(template.Bits))
+	println("bits:", hex.EncodeToString(template.Bits))
 	job := MiningJob{
 		Template:   template,
 		CoinbaseTx: coinbaseTx,

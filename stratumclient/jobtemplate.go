@@ -1,7 +1,6 @@
 package stratumclient
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"pogolo/config"
@@ -135,9 +134,9 @@ func getNextTemplateID() string {
 	return fmt.Sprintf("%x", currTemplateID)
 }
 func CalcMerkleRootHash(newRoot *chainhash.Hash, branches []*chainhash.Hash) chainhash.Hash {
-	bothMerkles := make([]byte,64)
+	bothMerkles := make([]byte, 64)
 	copy(bothMerkles, newRoot[:])
-	for _,branch := range branches {
+	for _, branch := range branches {
 		copy(bothMerkles[32:], branch[:])
 		copy(bothMerkles, chainhash.HashB(bothMerkles))
 	}
@@ -296,12 +295,7 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	msgBlock.Transactions[0].TxIn[0].SignatureScript, _ = hex.DecodeString(updatedNonceScript)
 
 	msgBlock.Header.MerkleRoot = CalcMerkleRootHash(coinbase.Hash(), template.MerkleBranch)
-	//msgBlock.Header.MerkleRoot = blockchain.CalcMerkleRoot([]*btcutil.Tx{coinbase}, false)
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
-	buf := bytes.NewBuffer([]byte{})
-	msgBlock.Header.Serialize(buf)
-	println(msgBlock.BlockHash().String())
-	println(hex.EncodeToString(buf.Bytes()))
 	return msgBlock
 }
