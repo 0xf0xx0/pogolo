@@ -288,12 +288,18 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 
 	msgBlock.Header.Nonce = share.Nonce
 
-	msgBlock.Header.Version = msgBlock.Header.Version ^ int32(client.VersionRollingMask)
+	if share.VersionMask != nil {
+		msgBlock.Header.Version = msgBlock.Header.Version + int32(*share.VersionMask)
+	}
 
 	nonceScript := hex.EncodeToString(msgBlock.Transactions[0].TxIn[0].SignatureScript)
 	updatedNonceScript := nonceScript[:len(nonceScript)-16] + client.ID.String() + hex.EncodeToString(share.ExtraNonce2)
-	msgBlock.Transactions[0].TxIn[0].SignatureScript, _ = hex.DecodeString(updatedNonceScript)
-
+	sigScript, err := hex.DecodeString(updatedNonceScript)
+	if err != nil {
+		/// FIXME: better error handling
+		panic(err)
+	}
+	msgBlock.Transactions[0].TxIn[0].SignatureScript = sigScript
 	msgBlock.Header.MerkleRoot = CalcMerkleRootHash(coinbase.Hash(), template.MerkleBranch)
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 

@@ -14,3 +14,4 @@ TODO
 - share replay mitigation
 - stratum keepalive?
 - public-pool compatible api?
+- client.reconnect on server restart?

@@ -57,6 +57,10 @@ func TestJobTemplate(t *testing.T) {
 	t.Logf("validated job: %+v", job)
 }
 
+func TestSubmission(t *testing.T) {
+
+}
+
 func TestCoinbaseWeight(t *testing.T) {
 	tx := getCoinbaseTx()
 	coinbaseWeight := blockchain.GetTransactionWeight(tx)
@@ -94,19 +98,4 @@ func TestValidateCoinbaseScript(t *testing.T) {
 		t.Errorf("coinbase script too long: %d, max %d", len(script), blockchain.MaxCoinbaseScriptLen)
 	}
 	t.Logf("script len: %d, max: %d", len(script), blockchain.MaxCoinbaseScriptLen)
-}
-
-func getAddr() btcutil.Address {
-	addr, _ := btcutil.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
-	return addr
-}
-func getCoinbaseTx() *btcutil.Tx {
-	addr := getAddr()
-	// en2, _ := strconv.ParseInt("0f100f", 16, 32)
-	job := stratumclient.CreateJobTemplate(getBlockTemplate())
-	tx := stratumclient.CreateCoinbaseTx(addr, *job, MOCK_CHAIN)
-	return tx
-}
-func getBlockTemplate() *btcjson.GetBlockTemplateResult {
-	return MOCK_BLOCK_TEMPLATE
 }

@@ -42,7 +42,6 @@ func CalcDifficulty(header wire.BlockHeader) (float64, big.Accuracy) {
 	s64 := blockchain.HashToBig(&hashResult)
 	trueDiff1 := big.Int{}
 	trueDiff1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
-	//return new(big.Int).Div(&trueDiff1, &s64).Float64()
 	return new(big.Float).Quo(new(big.Float).SetInt(&trueDiff1), new(big.Float).SetInt(s64)).Float64()
 }
 
@@ -62,7 +61,7 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	newtemplate.Block = *btcutil.NewBlock(t.Block.MsgBlock().Copy())
 	copy(newtemplate.WitnessCommittment, t.WitnessCommittment)
 	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
-	for i,mb := range t.MerkleBranch {
+	for i, mb := range t.MerkleBranch {
 		copy(newtemplate.MerkleBranch[i][:], mb[:])
 	}
 	if t.MerkleRoot != nil {
@@ -71,7 +70,7 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	}
 	newtemplate.NetworkDiff = t.NetworkDiff
 	/// why isnt this copyable???
-	newtemplate.Bits,_ = hex.DecodeString(hex.EncodeToString(t.Bits))
+	newtemplate.Bits, _ = hex.DecodeString(hex.EncodeToString(t.Bits))
 
 	newtemplate.Subsidy = t.Subsidy
 	newtemplate.Height = t.Height

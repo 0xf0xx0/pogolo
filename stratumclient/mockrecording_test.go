@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"pogolo/stratumclient"
 
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	stratum "github.com/kbnchk/go-Stratum"
 )
@@ -103,4 +105,18 @@ func notiFrom(r string) *stratum.Notification {
 	req := stratum.Notification{}
 	req.Unmarshal([]byte(r))
 	return &req
+}
+func getAddr() btcutil.Address {
+	addr, _ := btcutil.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
+	return addr
+}
+func getCoinbaseTx() *btcutil.Tx {
+	addr := getAddr()
+	// en2, _ := strconv.ParseInt("0f100f", 16, 32)
+	job := stratumclient.CreateJobTemplate(getBlockTemplate())
+	tx := stratumclient.CreateCoinbaseTx(addr, *job, MOCK_CHAIN)
+	return tx
+}
+func getBlockTemplate() *btcjson.GetBlockTemplateResult {
+	return MOCK_BLOCK_TEMPLATE
 }

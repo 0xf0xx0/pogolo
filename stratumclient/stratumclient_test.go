@@ -93,7 +93,7 @@ func TestInitSequence(t *testing.T) {
 	fmt.Printf("%+v\n", client)
 }
 
-func TestCoinbaseCreation(t *testing.T) {
+func TestFullBlock(t *testing.T) {
 	lpipe, client, _ := initClient()
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendReqAndWaitForRes(t, configureReq, lpipe)
@@ -116,6 +116,7 @@ func TestCoinbaseCreation(t *testing.T) {
 		t.Error(err)
 	}
 	t.Logf("final coinbase: %x", finalCoinbaseTx)
+	t.Logf("%+v", client.CurrentJob.Template.Block.MsgBlock().Header)
 }
 
 //
