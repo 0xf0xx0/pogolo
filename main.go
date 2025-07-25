@@ -126,7 +126,10 @@ func backendRoutine() {
 			if !ok {
 				continue
 			}
-			backend.SubmitBlock(block, nil)
+			err := backend.SubmitBlock(block, nil)
+			if err != nil {
+				println(fmt.Sprintf("error from backend while submitting block: %s", err))
+			}
 		}
 	}()
 	for {
@@ -142,6 +145,7 @@ func backendRoutine() {
 		/// this gets shipped to each StratumClient to become a full Job
 		currTemplate = stratumclient.CreateJobTemplate(template)
 
+		/// FIXME: doesnt work
 		notifyClients(currTemplate)
 		time.Sleep(time.Minute)
 	}
@@ -152,3 +156,13 @@ func notifyClients(n any) {
 		go func() { client.Channel() <- n }()
 	}
 }
+
+// var TEMPLATE = func() *btcjson.GetBlockTemplateResult {
+// 	gbt := btcjson.GetBlockTemplateResult{}
+// 	file, err := os.ReadFile("./stratumclient/mocktemplate.json")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	json.Unmarshal(file, &gbt)
+// 	return &gbt
+// }()

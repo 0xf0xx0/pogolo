@@ -1,14 +1,15 @@
 package stratumclient_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"pogolo/stratumclient"
 	"testing"
 
 	"github.com/btcsuite/btcd/blockchain"
-	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/mining"
+	stratum "github.com/kbnchk/go-Stratum"
 )
 
 const (
@@ -19,10 +20,34 @@ func TestWitnessCalc(t *testing.T) {
 	template := getBlockTemplate()
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
 	decoded, _ := hex.DecodeString(MOCK_EMPTY_COINBASE)
-	txns[0],_ = btcutil.NewTxFromBytes(decoded)
+	txns[0], _ = btcutil.NewTxFromBytes(decoded)
 	witnessCommit := hex.EncodeToString(mining.AddWitnessCommitment(txns[0], txns))
 	t.Log(witnessCommit)
 	t.Log(template.DefaultWitnessCommitment[12:])
+}
+
+func TestUpdateBlock(t *testing.T) {
+	expectedShareDiff := float64(0.22783314248308514)
+	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
+	user := getAddr()
+	client := &stratumclient.StratumClient{
+		ID:   id,
+		User: &user,
+	}
+	template := getBlockTemplate()
+	job := stratumclient.CreateJobTemplate(template)
+	job.UpdateBlock(client, submitParams, notifyParams)
+	shareDiff, _ := stratumclient.CalcDifficulty(job.Block.MsgBlock().Header)
+	if shareDiff != expectedShareDiff {
+		t.Fatalf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
+	}
+	serializedHeader := bytes.NewBuffer([]byte{})
+	job.Block.MsgBlock().Header.Serialize(serializedHeader)
+	t.Logf("sharediff: %g", shareDiff)
+	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
+	t.Logf("hash: %s", job.Block.Hash())
+	blk,_ := stratumclient.SerializeBlock(&job.Block)
+	t.Logf("block: %x", blk)
 }
 
 func TestJobTemplate(t *testing.T) {

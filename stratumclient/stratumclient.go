@@ -2,6 +2,7 @@ package stratumclient
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
@@ -59,7 +60,10 @@ readloop:
 			/// fully initialized
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
-				//client.AdjustDifficulty(client.Difficulty)
+				if strings.Contains(client.UserAgent, "cpuminer") {
+				client.Difficulty = 0.16
+				}
+				client.AdjustDifficulty(client.Difficulty)
 			}
 			client.messageChan <- "ready"
 		}
@@ -200,14 +204,21 @@ readloop:
 }
 
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
-	updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.CoinbaseTx)
+	notify := stratum.NotifyParams{}
+	notify.Read(&client.CurrentJob.Notification)
+	updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, notify)
 	shareDiff, _ := CalcDifficulty(updatedBlock.Header)
+	header := bytes.NewBuffer([]byte{})
+	updatedBlock.Header.Serialize(header)
+	println("header:", hex.EncodeToString(header.Bytes()))
+	println("coinbase hash:", updatedBlock.Transactions[0].TxHash().String())
 	println(fmt.Sprintf("difficulty: %g (%f): %s %s", shareDiff, shareDiff, updatedBlock.Header.BlockHash(), updatedBlock.BlockHash()))
 	if shareDiff >= float64(client.Difficulty) {
 		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
 			client.submitBlock(&client.CurrentJob.Template.Block)
 			println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
-			println(fmt.Sprintf("client: %s\ndifficulty: %g\nhash: %s", client.ID, shareDiff, updatedBlock.BlockHash().String()))
+			blkBytes,_ := SerializeBlock(&client.CurrentJob.Template.Block)
+			println(fmt.Sprintf("client: %s\ndifficulty: %g\nhash: %s\nblock: %x", client.ID, shareDiff, updatedBlock.BlockHash().String(), blkBytes))
 		}
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
@@ -267,32 +278,33 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 
 	blockHeader := template.Block.MsgBlock().Header
 	coinbaseTx := CreateCoinbaseTx(*client.User, *template, config.CHAIN)
-	/// this is serialized without the witness because its given to the client
-	/// we finish up the tx on a block-winning share submission
-	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
+	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), true)
 	if err != nil {
 		panic(err)
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
-	partOneIndex := strings.Index(hex.EncodeToString(serializedCoinbaseTx), hex.EncodeToString(inputScript)) + len(inputScript)
+	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
 	if partOneIndex < 0 {
 		panic("partOneIndex shoudnt be below 0")
 	}
-	println("bits:", hex.EncodeToString(template.Bits))
+	partOneIndex += len(inputScript)
+
+	params := stratum.NotifyParams{
+		JobID:          template.ID,
+		PrevBlockHash:  &blockHeader.PrevBlock,
+		MerkleBranches: merkleBranches,
+		Version:        uint32(blockHeader.Version),
+		Bits:           template.Bits,
+		Timestamp:      blockHeader.Timestamp,
+		CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-8],
+		CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
+		Clean:          template.Clear,
+	}
 	job := MiningJob{
 		Template:   template,
-		CoinbaseTx: coinbaseTx,
-		Notification: stratum.Notify(stratum.NotifyParams{
-			JobID:          template.ID,
-			PrevBlockHash:  blockHeader.PrevBlock[:],
-			MerkleBranches: merkleBranches,
-			Version:        uint32(blockHeader.Version),
-			Bits:           template.Bits,
-			Timestamp:      blockHeader.Timestamp,
-			CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-16],
-			CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
-			Clean:          template.Clear,
-		}),
+		//CoinbaseTx: coinbaseTx,
+		Notification: stratum.Notify(params),
+		NotifyParams: params,
 	}
 
 	return job

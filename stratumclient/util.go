@@ -35,6 +35,13 @@ func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
 	}
 	return serializedTx.Bytes(), nil
 }
+func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
+	buf := bytes.NewBuffer([]byte{})
+	if err := blk.MsgBlock().Serialize(buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
 // port of public-pools calculateDifficulty
 func CalcDifficulty(header wire.BlockHeader) (float64, big.Accuracy) {
@@ -59,7 +66,8 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	newtemplate := JobTemplate{}
 	newtemplate.ID = t.ID
 	newtemplate.Block = *btcutil.NewBlock(t.Block.MsgBlock().Copy())
-	copy(newtemplate.WitnessCommittment, t.WitnessCommittment)
+	newtemplate.WitnessCommittment = make([]byte, len(t.WitnessCommittment))
+	copy(newtemplate.WitnessCommittment[:], t.WitnessCommittment[:])
 	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
 	for i, mb := range t.MerkleBranch {
 		copy(newtemplate.MerkleBranch[i][:], mb[:])

@@ -2,6 +2,7 @@ package stratumclient
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"pogolo/config"
 	"slices"
@@ -38,6 +39,7 @@ type MiningJob struct {
 	Template     *JobTemplate
 	CoinbaseTx   *btcutil.Tx
 	Notification stratum.Notification
+	NotifyParams stratum.NotifyParams
 }
 
 var (
@@ -48,6 +50,8 @@ var (
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	clear := false
 
+	m, _ := json.Marshal(template)
+	println("template", string(m))
 	if currBlockHeight != uint64(template.Height) {
 		println("new block")
 		currBlockHeight = uint64(template.Height)
@@ -60,7 +64,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	}
 	headerBits, _ := strconv.ParseUint(template.Bits, 16, 32)
 	prevBlockHash, _ := chainhash.NewHashFromStr(template.PreviousHash)
-	// networkDiff := calcNetworkDifficulty()
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
 	for idx, templateTx := range template.Transactions {
 		decoded, err := hex.DecodeString(templateTx.Data)
@@ -116,7 +119,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	job := &JobTemplate{
 		ID:                 getNextTemplateID(),
 		Block:              *block,
-		WitnessCommittment: witnessCommit[:],
+		WitnessCommittment: witnessCommit,
 		MerkleBranch:       merkleBranch,
 		MerkleRoot:         merkleRoot,
 		Bits:               bits,
@@ -133,14 +136,14 @@ func getNextTemplateID() string {
 	currTemplateID++
 	return fmt.Sprintf("%x", currTemplateID)
 }
-func CalcMerkleRootHash(newRoot *chainhash.Hash, branches []*chainhash.Hash) chainhash.Hash {
-	bothMerkles := make([]byte, 64)
-	copy(bothMerkles, newRoot[:])
-	for _, branch := range branches {
-		copy(bothMerkles[32:], branch[:])
-		copy(bothMerkles, chainhash.HashB(bothMerkles))
+func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
+	root := branches[0]
+
+	for _, h := range branches[1:] {
+		newroot := chainhash.DoubleHashH(append(root[:], h[:]...))
+		root = &newroot
 	}
-	return chainhash.Hash(bothMerkles)
+	return root
 }
 func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
 	index := slices.Index(tree, leaf)
@@ -267,24 +270,29 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		PkScript: pkScript,
 	})
 	/// there has to be a way to use txscript, right?
-	/// OP_RETURN + magic_bytes from bip-141
-	magicBytes, _ := hex.DecodeString("6a24" + "aa21a9ed")
-	witnessCommit := append(magicBytes, template.WitnessCommittment...)
-	coinbaseTxMsg.AddTxOut(&wire.TxOut{
-		Value:    0,
-		PkScript: witnessCommit,
-	})
+
+	// witnessCommit := append(blockchain.WitnessMagicBytes, template.WitnessCommittment...)
+	// coinbaseTxMsg.AddTxOut(&wire.TxOut{
+	// 	Value:    0,
+	// 	PkScript: witnessCommit,
+	// })
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
+	mining.AddWitnessCommitment(tx, []*btcutil.Tx{tx})
 	return tx
 }
 
 // like public-pools copyAndUpdateBlock, but without the copy
-func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, coinbase *btcutil.Tx) *wire.MsgBlock {
+func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) *wire.MsgBlock {
 	msgBlock := template.Block.MsgBlock()
 
-	msgBlock.Transactions[0] = coinbase.MsgTx().Copy()
+	coinbase := hex.EncodeToString(notif.CoinbasePart1) + client.ID.String() +
+		hex.EncodeToString(share.ExtraNonce2) + hex.EncodeToString(notif.CoinbasePart2)
+	decodedCoinbase, _ := hex.DecodeString(coinbase)
+	tx, _ := btcutil.NewTxFromBytes(decodedCoinbase)
+
+	msgBlock.Transactions[0] = tx.MsgTx()
 
 	msgBlock.Header.Nonce = share.Nonce
 
@@ -292,15 +300,8 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 		msgBlock.Header.Version = msgBlock.Header.Version + int32(*share.VersionMask)
 	}
 
-	nonceScript := hex.EncodeToString(msgBlock.Transactions[0].TxIn[0].SignatureScript)
-	updatedNonceScript := nonceScript[:len(nonceScript)-16] + client.ID.String() + hex.EncodeToString(share.ExtraNonce2)
-	sigScript, err := hex.DecodeString(updatedNonceScript)
-	if err != nil {
-		/// FIXME: better error handling
-		panic(err)
-	}
-	msgBlock.Transactions[0].TxIn[0].SignatureScript = sigScript
-	msgBlock.Header.MerkleRoot = CalcMerkleRootHash(coinbase.Hash(), template.MerkleBranch)
+	branches := append([]*chainhash.Hash{tx.WitnessHash()}, template.MerkleBranch...)
+	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	return msgBlock
