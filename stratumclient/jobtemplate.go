@@ -113,7 +113,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		},
 		Transactions: msgTxns,
 	})
+	println("weh:", block.Height())
 	block.SetHeight(int32(template.Height))
+	println("weh:", block.Height())
 
 	bits, _ := hex.DecodeString(template.Bits)
 	job := &JobTemplate{
@@ -236,6 +238,7 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		panic(err)
 	}
 	height := template.Block.Height()
+	println("height:", height)
 	padding := [7]byte{} /// 8 bytes of padding, for extranonces
 	/// adding data pushes an extra byte for the opcode
 	coinbaseScript := txscript.NewScriptBuilder().
@@ -300,7 +303,7 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 		msgBlock.Header.Version = msgBlock.Header.Version + int32(*share.VersionMask)
 	}
 
-	branches := append([]*chainhash.Hash{tx.WitnessHash()}, template.MerkleBranch...)
+	branches := append([]*chainhash.Hash{tx.Hash()}, template.MerkleBranch...)
 	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 

@@ -278,7 +278,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 
 	blockHeader := template.Block.MsgBlock().Header
 	coinbaseTx := CreateCoinbaseTx(*client.User, *template, config.CHAIN)
-	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), true)
+	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
 		panic(err)
 	}

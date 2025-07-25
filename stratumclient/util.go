@@ -66,6 +66,7 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	newtemplate := JobTemplate{}
 	newtemplate.ID = t.ID
 	newtemplate.Block = *btcutil.NewBlock(t.Block.MsgBlock().Copy())
+	newtemplate.Block.SetHeight(t.Block.Height())
 	newtemplate.WitnessCommittment = make([]byte, len(t.WitnessCommittment))
 	copy(newtemplate.WitnessCommittment[:], t.WitnessCommittment[:])
 	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
