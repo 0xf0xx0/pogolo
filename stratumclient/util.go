@@ -2,13 +2,19 @@ package stratumclient
 
 import (
 	"bytes"
-	"encoding/hex"
 	"math"
 	"math/big"
+	"pogolo/config"
+	"pogolo/constants"
+	"slices"
 
 	"github.com/btcsuite/btcd/blockchain"
+	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/mining"
+	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	stratum "github.com/kbnchk/go-Stratum"
 )
@@ -21,14 +27,13 @@ func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
 	return &m, nil
 }
 func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
-	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
+	serializedTx := bytes.NewBuffer([]byte{})
 
 	if witness {
 		if err := tx.Serialize(serializedTx); err != nil {
 			return nil, err
 		}
 	} else {
-		serializedTx = bytes.NewBuffer(make([]byte, 0, tx.SerializeSizeStripped()))
 		if err := tx.SerializeNoWitness(serializedTx); err != nil {
 			return nil, err
 		}
@@ -43,13 +48,74 @@ func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// placeholder tx
+func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
+	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
+
+	height := template.Height
+	padding := [7]byte{} /// 8 bytes of padding, for extranonces
+	///                 /// adding data pushes an extra byte for the opcode
+	coinbaseScript := txscript.NewScriptBuilder().
+		/// bip-34
+		AddInt64(height).
+		AddData([]byte(config.COINBASE_TAG)).
+		AddData(padding[:])
+	encodedCoinbaseScript, err := coinbaseScript.Script()
+	if err != nil {
+		panic(err)
+	}
+	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
+		println("pool tag too long, removing")
+		coinbaseScript = coinbaseScript.Reset().
+			AddInt64(height).
+			AddData([]byte(constants.DEFAULT_COINBASE_TAG)).
+			AddData(padding[:])
+		encodedCoinbaseScript, err = coinbaseScript.Script()
+		if err != nil {
+			panic(err)
+		}
+	}
+	emptyWitness := [blockchain.CoinbaseWitnessDataLen]byte{}
+	coinbaseTxMsg.AddTxIn(&wire.TxIn{
+		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
+		SignatureScript:  encodedCoinbaseScript,
+		Sequence:         wire.MaxTxInSequenceNum,
+		/// TODO: remove? mining.AddWitnessCommitment sets the witness
+		Witness: wire.TxWitness{emptyWitness[:]}, /// 32 bytes of nothin
+	})
+
+	tx := btcutil.NewTx(coinbaseTxMsg)
+	tx.SetIndex(0)
+
+	return tx
+}
+
+// thank you btcd devs for doin all this boilerplate work
+func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chaincfg.Params) *btcutil.Tx {
+	pkScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		panic(err)
+	}
+
+	coinbase := template.Block.Transactions()[0]
+	coinbaseTxMsg := coinbase.MsgTx()
+	coinbaseTxMsg.AddTxOut(&wire.TxOut{
+		Value:    template.Subsidy,
+		PkScript: pkScript,
+	})
+	/// AND I AM ITS SOLE WITNESS
+	mining.AddWitnessCommitment(coinbase, template.Block.Transactions())
+	return coinbase
+}
+
 // port of public-pools calculateDifficulty
-func CalcDifficulty(header wire.BlockHeader) (float64, big.Accuracy) {
+func CalcDifficulty(header wire.BlockHeader) float64 {
 	hashResult := header.BlockHash()
 	s64 := blockchain.HashToBig(&hashResult)
 	trueDiff1 := big.Int{}
 	trueDiff1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
-	return new(big.Float).Quo(new(big.Float).SetInt(&trueDiff1), new(big.Float).SetInt(s64)).Float64()
+	diff, _ := new(big.Float).Quo(new(big.Float).SetInt(&trueDiff1), new(big.Float).SetInt(s64)).Float64()
+	return diff
 }
 
 // port of public-pools calculateNetworkDifficulty
@@ -64,26 +130,113 @@ func CalcNetworkDifficulty(nBits uint32) float64 {
 
 func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	newtemplate := JobTemplate{}
+
 	newtemplate.ID = t.ID
+
 	newtemplate.Block = *btcutil.NewBlock(t.Block.MsgBlock().Copy())
 	newtemplate.Block.SetHeight(t.Block.Height())
+
 	newtemplate.WitnessCommittment = make([]byte, len(t.WitnessCommittment))
 	copy(newtemplate.WitnessCommittment[:], t.WitnessCommittment[:])
+
 	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
 	for i, mb := range t.MerkleBranch {
 		newtemplate.MerkleBranch[i] = &chainhash.Hash{}
 		copy(newtemplate.MerkleBranch[i][:], mb[:])
 	}
+
 	if t.MerkleRoot != nil {
 		newtemplate.MerkleRoot = &chainhash.Hash{}
 		copy(newtemplate.MerkleRoot[:], t.MerkleRoot[:])
 	}
+
 	newtemplate.NetworkDiff = t.NetworkDiff
-	/// why isnt this copyable???
-	newtemplate.Bits, _ = hex.DecodeString(hex.EncodeToString(t.Bits))
+
+	newtemplate.Bits = make([]byte, len(t.Bits))
+	copy(newtemplate.Bits, t.Bits)
 
 	newtemplate.Subsidy = t.Subsidy
 	newtemplate.Height = t.Height
 	newtemplate.Clear = t.Clear
+
 	return &newtemplate
+}
+
+func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
+	root := branches[0]
+
+	for _, h := range branches[1:] {
+		newroot := chainhash.DoubleHashH(append(root[:], h[:]...))
+		root = &newroot
+	}
+	return root
+}
+func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
+	index := slices.Index(tree, leaf)
+
+	if index == -1 {
+		return nil
+	}
+
+	n := len(tree)
+	nodes := []*chainhash.Hash{}
+
+	z := calcTreeWidth(n, 1)
+	for z > 0 {
+		if treeNodeCount(z) == n {
+			break
+		}
+		z--
+	}
+	if z == 0 {
+		panic("shouldnt ever be reached")
+	}
+
+	height := 0
+	i := 0
+	for i < n-1 {
+		layerWidth := calcTreeWidth(z, height)
+		height++
+
+		odd := index%2 == 1
+		if odd {
+			index--
+		}
+		offset := i + index
+		left := tree[offset]
+		var right *chainhash.Hash
+		if index == layerWidth-1 {
+			right = left
+		} else {
+			right = tree[offset+1]
+		}
+
+		if i > 0 {
+			if odd {
+				nodes = append(nodes, left)
+				nodes = append(nodes, nil)
+			} else {
+				nodes = append(nodes, nil)
+				nodes = append(nodes, right)
+			}
+		} else {
+			nodes = append(nodes, left)
+			nodes = append(nodes, right)
+		}
+
+		index = (index / 2) | 0
+		i += layerWidth
+	}
+	nodes = append(nodes, tree[n-1])
+	return nodes
+}
+func calcTreeWidth(n, h int) int {
+	return (n + (1 << h) - 1) >> h
+}
+func treeNodeCount(leafCount int) int {
+	count := 1
+	for i := leafCount; i > 1; i = (i + 1) >> 1 {
+		count += i
+	}
+	return count
 }

@@ -103,13 +103,8 @@ func TestFullBlock(t *testing.T) {
 	template := stratumclient.CreateJobTemplate(getBlockTemplate())
 	job := client.CreateJob(template)
 	client.CurrentJob = job
-	serializedCoinbaseTx, err := stratumclient.SerializeTx(job.CoinbaseTx.MsgTx(), true)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("coinbase: %x", serializedCoinbaseTx)
 	t.Logf("sent: %+v", template)
-	t.Logf("got: %+v", job.Notification)
+	t.Logf("got: %+v", stratum.Notify(job.NotifyParams))
 	sendReqAndWaitForRes(t, submitReq, lpipe)
 	finalCoinbaseTx, err := stratumclient.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
 	if err != nil {

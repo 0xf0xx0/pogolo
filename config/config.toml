@@ -1,0 +1,17 @@
+[backend]
+host = "[::1]:8332"
+cookie = "~/.bitcoin/rpc.cookie"
+# optional, rpc user/pass
+rpcauth = "pogolo:hash"
+# mainnet | testnet | regtest
+chain = "regtest"
+
+[pogolo]
+# ipv4 or v6
+host = "[::1]:5661"
+# optional, required for clients if set
+#password = "x"
+# will be replaced by default tag if too long (see coinbase scriptsig limit)
+tag = "/pogolo - foss is freedom/"
+# minimum 0.16
+default_difficulty = 1024

@@ -26,6 +26,7 @@ var (
 func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	clients = make(map[string]stratumclient.StratumClient, 5)
 
 	var wg sync.WaitGroup
 	shutdown := make(chan struct{})
@@ -98,18 +99,32 @@ func clientHandler(conn net.Conn) {
 		switch msg := (<-channel).(type) {
 		case string:
 			{
-				if msg == "ready" {
-					fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
-					client.Channel() <- currTemplate
+				switch msg {
+				case "ready":
+					{
+						fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
+						/// i dont think the order matters, but lets send the current template
+						/// before adding to the client map, just in case notifyClients gets
+						/// called in between (and rapid-fires jobs)
+						client.Channel() <- currTemplate
+						clients[client.ID.String()] = client
+					}
+				case "done":
+					{
+						fmt.Print(fmt.Sprintf("client disconnect %q (%s)", client.ID, client.Addr()))
+						return
+					}
 				}
 			}
 		}
 	}
 }
 
-// handles templates and submissions
+// handles templates and block submissions
 func backendRoutine() {
 	homedir, _ := os.UserHomeDir()
+	/// TODO: longpoll?
+	/// TODO: do we need anything special for btcd/knots/etc?
 	backend, err := rpcclient.New(&rpcclient.ConnConfig{
 		Host:                "127.0.0.1:18443",
 		CookiePath:          path.Join(homedir, ".bitcoin/regtest/.cookie"),
@@ -122,47 +137,49 @@ func backendRoutine() {
 	}
 	go func() {
 		for {
+			/// furst come furst serve
 			block, ok := <-submissionChan
 			if !ok {
+				println("failed to receive block submission")
 				continue
 			}
 			err := backend.SubmitBlock(block, nil)
 			if err != nil {
 				println(fmt.Sprintf("error from backend while submitting block: %s", err))
 			}
+			println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
+			println(fmt.Sprintf("hash: %s", block.Hash().String()))
+			/// TODO: trigger new job template?
 		}
 	}()
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
-			Rules:        []string{"segwit"}, /// required by gbt
-			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
+			Rules: []string{"segwit"}, /// required by gbt
+			Capabilities: []string{"proposal", "coinbasevalue" /*, "longpoll"*/},
 			Mode:         "template",
 		})
-		println(fmt.Sprintf("new template with %d txns", len(template.Transactions)))
 		if err != nil {
 			panic(err)
 		}
-		/// this gets shipped to each StratumClient to become a full Job
+		println(fmt.Sprintf("new template with %d txns", len(template.Transactions)))
+		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = stratumclient.CreateJobTemplate(template)
-
-		/// FIXME: doesnt work
-		notifyClients(currTemplate)
+		go notifyClients(currTemplate) /// this might take a while
+		/// TODO: 30s?
 		time.Sleep(time.Minute)
 	}
 }
 
-func notifyClients(n any) {
+func notifyClients(n *stratumclient.JobTemplate) {
 	for _, client := range clients {
-		go func() { client.Channel() <- n }()
+		go func() {
+			/// TODO: remove? move up?
+			// defer func() {
+			// 	if r := recover(); r != nil {
+			// 		fmt.Println("recovered from a panic in notifyClients:", r)
+			// 	}
+			// }()
+			client.Channel() <- n
+		}()
 	}
 }
-
-// var TEMPLATE = func() *btcjson.GetBlockTemplateResult {
-// 	gbt := btcjson.GetBlockTemplateResult{}
-// 	file, err := os.ReadFile("./stratumclient/mocktemplate.json")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	json.Unmarshal(file, &gbt)
-// 	return &gbt
-// }()

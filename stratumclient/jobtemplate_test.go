@@ -37,7 +37,7 @@ func TestUpdateBlock(t *testing.T) {
 	template := getBlockTemplate()
 	job := stratumclient.CreateJobTemplate(template)
 	job.UpdateBlock(client, submitParams, notifyParams)
-	shareDiff, _ := stratumclient.CalcDifficulty(job.Block.MsgBlock().Header)
+	shareDiff := stratumclient.CalcDifficulty(job.Block.MsgBlock().Header)
 	if shareDiff != expectedShareDiff {
 		t.Fatalf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 	}
