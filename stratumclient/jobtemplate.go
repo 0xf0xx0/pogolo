@@ -272,17 +272,12 @@ func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chainc
 		Value:    template.Subsidy,
 		PkScript: pkScript,
 	})
-	/// there has to be a way to use txscript, right?
-
-	// witnessCommit := append(blockchain.WitnessMagicBytes, template.WitnessCommittment...)
-	// coinbaseTxMsg.AddTxOut(&wire.TxOut{
-	// 	Value:    0,
-	// 	PkScript: witnessCommit,
-	// })
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
-	mining.AddWitnessCommitment(tx, []*btcutil.Tx{tx})
+	/// AND I AM ITS SOLE WITNESS
+	commitment := mining.AddWitnessCommitment(tx, template.Block.Transactions())
+	println("commitment:", hex.EncodeToString(commitment))
 	return tx
 }
 
@@ -293,7 +288,10 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	coinbase := hex.EncodeToString(notif.CoinbasePart1) + client.ID.String() +
 		hex.EncodeToString(share.ExtraNonce2) + hex.EncodeToString(notif.CoinbasePart2)
 	decodedCoinbase, _ := hex.DecodeString(coinbase)
-	tx, _ := btcutil.NewTxFromBytes(decodedCoinbase)
+	tx, err := btcutil.NewTxFromBytes(decodedCoinbase)
+	if err != nil {
+		panic(err)
+	}
 
 	msgBlock.Transactions[0] = tx.MsgTx()
 

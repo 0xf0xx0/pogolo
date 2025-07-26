@@ -204,9 +204,7 @@ readloop:
 }
 
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
-	notify := stratum.NotifyParams{}
-	notify.Read(&client.CurrentJob.Notification)
-	updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, notify)
+	updatedBlock := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	shareDiff, _ := CalcDifficulty(updatedBlock.Header)
 	header := bytes.NewBuffer([]byte{})
 	updatedBlock.Header.Serialize(header)

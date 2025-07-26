@@ -71,6 +71,7 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 	copy(newtemplate.WitnessCommittment[:], t.WitnessCommittment[:])
 	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
 	for i, mb := range t.MerkleBranch {
+		newtemplate.MerkleBranch[i] = &chainhash.Hash{}
 		copy(newtemplate.MerkleBranch[i][:], mb[:])
 	}
 	if t.MerkleRoot != nil {
