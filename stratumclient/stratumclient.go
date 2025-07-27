@@ -165,7 +165,7 @@ readloop:
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
-				if suggestedDiff > 0.1 &&
+				if suggestedDiff > constants.MIN_DIFFICULTY &&
 					stratum.ValidDifficulty(suggestedDiff) &&
 					client.SuggestedDifficulty == 0 {
 					/// only accept a suggested difficulty
@@ -175,7 +175,7 @@ readloop:
 					/// and only send a mining.set_difficulty if accepted,
 					/// we wanna ignore
 					if err := client.AdjustDifficulty(client.Difficulty); err != nil {
-						panic(err)
+						client.error(fmt.Sprintf("failed to adjust difficulty: %s", err))
 					}
 				}
 			}
@@ -192,6 +192,10 @@ readloop:
 					panic(err)
 				}
 				client.validateShareSubmission(s, m)
+
+				if client.Stats.sharesAccepted%6 == 0 {
+					client.AdjustDifficulty(newDiff)
+				}
 			}
 		default:
 			{
@@ -205,21 +209,27 @@ readloop:
 // TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {
+		client.Stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
 		return
 	}
+
 	updatedBlock, err := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	if err != nil {
+		/// maybe add client.Stats.sharesLost? lmfao
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 		return
 	}
+
 	shareDiff := CalcDifficulty(updatedBlock.Header)
 	if shareDiff >= float64(client.Difficulty) {
 		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
 			client.submitBlock(&client.CurrentJob.Template.Block)
 		}
+		client.Stats.sharesAccepted++
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
+		client.Stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
 }
@@ -290,9 +300,10 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		Version:        uint32(blockHeader.Version),
 		Bits:           template.Bits,
 		Timestamp:      blockHeader.Timestamp,
-		CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-8],
-		CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
-		Clean:          template.Clear,
+		/// minus 8 cause we wanna lop off the extranonce padding
+		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-8],
+		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
+		Clean:         template.Clear,
 	}
 	job := MiningJob{
 		Template:     template,

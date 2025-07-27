@@ -50,7 +50,8 @@ func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// 32-bit (4-byte) hash used for client id and extranonce1
+// 32-bit (4-byte) uint32 used for client id and extranonce1
+// TODO: hash client local ip address? for no reason other than being different
 func ClientIDHash() stratum.ID {
 	randomBytes := make([]byte, config.EXTRANONCE_SIZE)
 	rand.Read(randomBytes)
