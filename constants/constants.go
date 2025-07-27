@@ -8,7 +8,7 @@ const (
 	EXTRANONCE_SIZE      = 4          // bytes
 	DEFAULT_DIFFICULTY   = 1024
 	DEFAULT_COINBASE_TAG = "/pogolo - foss is freedom/"
-	MIN_DIFFICULTY = 0.16
+	MIN_DIFFICULTY = 0.16 // soft min for clients, server can set whatever
 )
 
 // errors can be anything, so i chose http-ish codes :3

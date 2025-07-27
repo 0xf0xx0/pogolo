@@ -18,6 +18,7 @@ import (
 
 // stats for the api
 type ClientStats struct {
+	lastSubmission time.Time
 	sharesAccepted,
 	sharesRejected uint64
 	bestDiff,
@@ -69,6 +70,7 @@ readloop:
 				}
 				client.AdjustDifficulty(client.Difficulty)
 			}
+			go client.adjustDiffRoutine()
 			client.messageChan <- "ready"
 		}
 
@@ -192,10 +194,6 @@ readloop:
 					panic(err)
 				}
 				client.validateShareSubmission(s, m)
-
-				if client.Stats.sharesAccepted%6 == 0 {
-					client.AdjustDifficulty(newDiff)
-				}
 			}
 		default:
 			{
@@ -205,7 +203,13 @@ readloop:
 		}
 	}
 }
+// TODO
+func (client *StratumClient) adjustDiffRoutine() {
+	// if no shares in a minute
+	if time.Now().Sub(client.Stats.lastSubmission) > time.Minute {
 
+	}
+}
 // TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {

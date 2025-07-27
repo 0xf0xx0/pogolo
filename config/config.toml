@@ -1,3 +1,15 @@
+[pogolo]
+# ipv4 or v6
+host = "[::1]:5661"
+# takes precedence over host, will listen on all ips
+interface = "wlan0"
+# optional, required for clients if set
+#password = "x"
+# will be replaced by default tag if too long (see coinbase scriptsig limit)
+tag = "/pogolo - foss is freedom/"
+# minimum 0.16
+default_difficulty = 1024
+
 [backend]
 host = "[::1]:8332"
 cookie = "~/.bitcoin/rpc.cookie"
@@ -5,13 +17,3 @@ cookie = "~/.bitcoin/rpc.cookie"
 #rpcauth = "pogolo:hash"
 # mainnet | testnet | regtest
 chain = "regtest"
-
-[pogolo]
-# ipv4 or v6
-host = "[::1]:5661"
-# optional, required for clients if set
-#password = "x"
-# will be replaced by default tag if too long (see coinbase scriptsig limit)
-tag = "/pogolo - foss is freedom/"
-# minimum 0.16
-default_difficulty = 1024

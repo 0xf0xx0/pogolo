@@ -5,7 +5,14 @@ infinite thanks to btcd for bitcoin tooling and public-pool for reference
 extremely minimal, start it, point your miners to it, and watch the logs roll by
 
 # setup
+## install
 ```
+go install https://github.com/0xf0xx0/pogolo@latest
+pogolo
+```
+## miner config
+```
+host: stratum+tcp://<your lan ip>:5661
 username: <your address>[.<worker name>]
 password: <optional, ignored by default>
 ```
@@ -17,6 +24,7 @@ password: <optional, ignored by default>
 - miners needing extranonce.subscribe
 
 TODO
+- listen on interfaces
 - proper error handling (reduce panics)
 - full test suite
 - document code for future viewers
