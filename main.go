@@ -1,54 +1,110 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
-	"path"
+	"path/filepath"
+	"pogolo/config"
 	"pogolo/stratumclient"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/urfave/cli/v3"
 )
 
-// / state
+// state
 var (
+	conf           config.Config
+	backendChain   *chaincfg.Params
 	clients        map[string]stratumclient.StratumClient
 	currTemplate   *stratumclient.JobTemplate
 	submissionChan chan *btcutil.Block
 )
 
 func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	clients = make(map[string]stratumclient.StratumClient, 5)
+	app := &cli.Command{
+		Name:                   "pogolo",
+		Version:                "0.0.1",
+		Usage:                  "local go pool",
+		UsageText:              "pogolo [options]",
+		UseShortOptionHandling: true,
+		EnableShellCompletion:  true,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "conf",
+				Usage: "config file `path` (or 'none')",
+				Value: filepath.Join(config.ROOT, "pogolo.toml"),
+			},
+		},
+		Action: func(_ context.Context, ctx *cli.Command) error {
+			/// set defaults
+			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
+			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
+				config.LoadConfig(passedConfig, &conf)
+			}
+			switch conf.Backend.Chain {
+				case "mainnet": {
+					backendChain = &chaincfg.MainNetParams
+				}
+				case "testnet": {
+					/// TODO: replace with testnet4 next btcd update
+					backendChain = &chaincfg.TestNet3Params
+				}
+				case "regtest": {
+					backendChain = &chaincfg.RegressionNetParams
+				}
+				case "signet": {
+					backendChain = &chaincfg.SigNetParams
+				}
+				default: {
+					return cli.Exit("unknown backend chain", 3)
+				}
+			}
 
+			/// start
+			return startup()
+		},
+	}
+	if err := app.Run(context.Background(), os.Args); err != nil {
+		println(fmt.Sprint(err))
+	}
+}
+
+func startup() error {
 	var wg sync.WaitGroup
+	sigs := make(chan os.Signal, 1)
 	shutdown := make(chan struct{})
+
 	conns := make(chan net.Conn)
+	clients = make(map[string]stratumclient.StratumClient, 5)
 	submissionChan = make(chan *btcutil.Block)
-	listener, err := net.Listen("tcp", "127.0.0.1:5661")
-	// listener, err := net.Listen("tcp", "10.42.0.1:3333")
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	listener, err := net.Listen("tcp", conf.Pogolo.Host)
 	if err != nil {
-		panic(err)
+		return cli.Exit(err.Error(), 1)
 	}
 	defer listener.Close()
 	/// listener
 	go func() {
 		defer wg.Done()
-		println("srv start")
+		fmt.Printf("srv start, listening on %s", listener.Addr())
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				select {
 				case <-shutdown:
 					{
-						println("srv shutdown")
+						fmt.Print("srv shutdown")
 						return
 					}
 				default:
@@ -64,12 +120,12 @@ func main() {
 	/// connections
 	go func() {
 		defer wg.Done()
-		println("conns start")
+		fmt.Print("conns start")
 		for {
 			select {
 			case <-shutdown:
 				{
-					println("conns shutdown")
+					fmt.Print("conns shutdown")
 					return
 				}
 			case conn := <-conns:
@@ -80,12 +136,17 @@ func main() {
 		}
 	}()
 	wg.Add(2)
+
 	go backendRoutine()
+
+	// wait for exit
 	<-sigs
-	println()
-	println("closing")
+	fmt.Print("\nclosing")
 	close(shutdown)
+	return nil
 }
+
+// handles incoming conns
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := stratumclient.CreateClient(conn, submissionChan)
@@ -102,7 +163,7 @@ func clientHandler(conn net.Conn) {
 				switch msg {
 				case "ready":
 					{
-						fmt.Print(fmt.Sprintf("new client %q (%s)", client.ID, client.Addr()))
+						fmt.Printf("new client %q (%s)", client.ID, client.Addr())
 						/// i dont think the order matters, but lets send the current template
 						/// before adding to the client map, just in case notifyClients gets
 						/// called in between (and rapid-fires jobs)
@@ -111,7 +172,7 @@ func clientHandler(conn net.Conn) {
 					}
 				case "done":
 					{
-						fmt.Print(fmt.Sprintf("client disconnect %q (%s)", client.ID, client.Addr()))
+						fmt.Printf("client disconnect %q (%s)", client.ID, client.Addr())
 						return
 					}
 				}
@@ -122,16 +183,31 @@ func clientHandler(conn net.Conn) {
 
 // handles templates and block submissions
 func backendRoutine() {
-	homedir, _ := os.UserHomeDir()
 	/// TODO: longpoll?
 	/// TODO: do we need anything special for btcd/knots/etc?
-	backend, err := rpcclient.New(&rpcclient.ConnConfig{
-		Host:                "127.0.0.1:18443",
-		CookiePath:          path.Join(homedir, ".bitcoin/regtest/.cookie"),
-		DisableTLS:          true,
-		DisableConnectOnNew: true,
-		HTTPPostMode:        true,
-	}, nil)
+	var backend *rpcclient.Client
+	var err error
+	if conf.Backend.Cookie != "" {
+		backend, err = rpcclient.New(&rpcclient.ConnConfig{
+			Host:                conf.Backend.Host,
+			CookiePath:          conf.Backend.Cookie,
+			DisableTLS:          true,
+			DisableConnectOnNew: true,
+			HTTPPostMode:        true,
+		}, nil)
+	} else if conf.Backend.Rpcauth != "" && strings.Contains(conf.Backend.Rpcauth, ":") {
+		auth := strings.Split(conf.Backend.Rpcauth, ":")
+		backend, err = rpcclient.New(&rpcclient.ConnConfig{
+			Host:                conf.Backend.Host,
+			User:                auth[0],
+			Pass:                auth[1],
+			DisableTLS:          true,
+			DisableConnectOnNew: true,
+			HTTPPostMode:        true,
+		}, nil)
+	} else {
+		err = cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -154,14 +230,14 @@ func backendRoutine() {
 	}()
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
-			Rules: []string{"segwit"}, /// required by gbt
+			Rules:        []string{"segwit"}, /// required by gbt
 			Capabilities: []string{"proposal", "coinbasevalue" /*, "longpoll"*/},
 			Mode:         "template",
 		})
 		if err != nil {
 			panic(err)
 		}
-		println(fmt.Sprintf("new template with %d txns", len(template.Transactions)))
+		fmt.Printf("new template with %d txns", len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = stratumclient.CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while
@@ -169,6 +245,8 @@ func backendRoutine() {
 		time.Sleep(time.Minute)
 	}
 }
+
+// func apiServer() {}
 
 func notifyClients(n *stratumclient.JobTemplate) {
 	for _, client := range clients {

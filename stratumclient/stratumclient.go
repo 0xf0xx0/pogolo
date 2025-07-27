@@ -12,10 +12,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/0xf0xx0/stratum"
+	"github.com/btcsuite/btcd/btcutil"
 )
 
+// stats for the api
+type ClientStats struct {
+	sharesAccepted,
+	sharesRejected uint64
+	bestDiff,
+	hashrate float64
+}
 type StratumClient struct {
 	ID                  stratum.ID
 	User                btcutil.Address
@@ -23,14 +30,15 @@ type StratumClient struct {
 	Password            string
 	UserAgent           string
 	Difficulty          float64
+	SuggestedDifficulty float64
 	VersionRolling      bool
 	VersionRollingMask  uint32
-	SuggestedDifficulty float64
 	/// internal
 	conn           net.Conn
 	messageChan    chan any // messages to/from client
 	submissionChan chan<- *btcutil.Block
 	CurrentJob     MiningJob
+	Stats          ClientStats
 	//activeJobs []stratum.NotifyParams 	// TODO: remove? maybe have only 2 jobs (the current and the previous)?
 }
 
@@ -44,7 +52,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 	isSubscribed := false
 
 	reader := bufio.NewReader(client.conn)
-	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
+	/// 15 secs to send the initial stratum message
+	client.conn.SetDeadline(time.Now().Add(time.Second * 15))
 
 readloop:
 	for {
@@ -62,17 +71,18 @@ readloop:
 			}
 			client.messageChan <- "ready"
 		}
+
 		line, err := reader.ReadBytes([]byte("\n")[0])
 		if err != nil {
 			if err != io.ErrClosedPipe {
-				client.log(fmt.Sprintf("read error: %s", err))
+				client.error(fmt.Sprintf("read error: %s", err))
 			}
 			break readloop
 		}
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
-			client.log(fmt.Sprintf("stratum decode error: %s", err))
+			client.error(fmt.Sprintf("stratum decode error: %s", err))
 			break readloop
 		}
 
@@ -90,10 +100,13 @@ readloop:
 
 						err = res.Add(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
 						if err != nil {
+							/// uhhhhhhhhhhhhhhhh
+							/// honestly just leave this as a panic
 							panic(err)
 						}
 					} else {
-						/// uhhhhhhhhhhhhhhhh
+						/// *uhhhhhhhhhhhhhhhh*
+						client.error("couldnt read version rolling mask? shouldnt happen i *think*")
 						break readloop
 					}
 				}
@@ -110,7 +123,7 @@ readloop:
 				split := strings.Split(params.Username, ".")
 				decoded, err := btcutil.DecodeAddress(split[0], config.CHAIN)
 				if err != nil {
-					client.log(fmt.Sprintf("failed decoding address: %s", err))
+					client.error(fmt.Sprintf("failed decoding address: %s", err))
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					return
 				}
@@ -148,7 +161,7 @@ readloop:
 				params := stratum.SuggestDifficultyParams{}
 
 				if err := params.Read(m); err != nil {
-					println("invalid difficulty from", client.ID, err.Error())
+					client.error(fmt.Sprintf("couldnt read mining.suggest_difficulty: %s", err))
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
@@ -170,7 +183,7 @@ readloop:
 			{
 				/// TODO: adjust diff every 6 submissions
 				if !stratumInited {
-					println("submit before subscribe")
+					client.error("submit before subscribe")
 					return
 				}
 				s := stratum.Share{}
@@ -178,13 +191,12 @@ readloop:
 				if err != nil {
 					panic(err)
 				}
-				/// TODO: validate share
 				client.validateShareSubmission(s, m)
 			}
 		default:
 			{
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
-				client.log(fmt.Sprintf("unhandled stratum message: %+v", m))
+				client.error(fmt.Sprintf("unhandled stratum message: %+v", m))
 			}
 		}
 	}
@@ -224,11 +236,13 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 func (client *StratumClient) AdjustDifficulty(newDiff float64) error {
+	client.log(fmt.Sprintf("set new diff: %g", newDiff))
 	return client.writeNotif(stratum.SetDifficulty(newDiff))
 }
 func (client *StratumClient) readChanRoutine() {
 	for {
 		switch m := (<-client.messageChan).(type) {
+		/// TODO: remove?
 		case string:
 			{
 				//println(m)
@@ -291,11 +305,12 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 // TODO: how to get errors back?
 func (client *StratumClient) submitBlock(block *btcutil.Block) {
 	client.submissionChan <- block
+	client.log("block submitted")
 }
 func (client *StratumClient) writeRes(res stratum.Response) error {
 	bytes, err := res.Marshal()
 	if err != nil {
-		client.log(fmt.Sprintf("failed to marshal response: %s", err))
+		client.error(fmt.Sprintf("failed to marshal response: %s", err))
 		return err
 	}
 
@@ -304,7 +319,7 @@ func (client *StratumClient) writeRes(res stratum.Response) error {
 func (client *StratumClient) writeNotif(n stratum.Notification) error {
 	bytes, err := n.Marshal()
 	if err != nil {
-		client.log(fmt.Sprintf("failed to marshal notification: %s", err))
+		client.error(fmt.Sprintf("failed to marshal notification: %s", err))
 		return err
 	}
 
@@ -320,7 +335,18 @@ func (client *StratumClient) writeChan(msg any) {
 	client.messageChan <- msg
 }
 func (client *StratumClient) log(s string) {
-	println(fmt.Sprintf("%s: %s", client.ID.String(), s))
+	if client.Worker != "" {
+		fmt.Printf("%s (%s): %s", client.Worker, client.ID.String(), s)
+	} else {
+		fmt.Printf("%s: %s", client.ID.String(), s)
+	}
+}
+func (client *StratumClient) error(s string) {
+	if client.Worker != "" {
+		println(fmt.Sprintf("%s (%s): %s", client.Worker, client.ID.String(), s))
+	} else {
+		println(fmt.Sprintf("%s: %s", client.ID.String(), s))
+	}
 }
 
 func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) StratumClient {

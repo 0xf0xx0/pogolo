@@ -21,8 +21,8 @@ TODO
 - full test suite
 - document code for future viewers
 - client difficulty adjustment
+- public-pool compatible api
 - 0.1% dev fee for large miners
 - share replay mitigation?
 - stratum keepalive?
-- public-pool compatible api?
 - client.reconnect on server restart?

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/pelletier/go-toml/v2"
@@ -16,6 +17,7 @@ const (
 )
 
 var (
+	ROOT         = getConfigDir()
 	COINBASE_TAG = "/pogolo - foss is freedom/"
 	CHAIN        = &chaincfg.RegressionNetParams
 )
@@ -31,23 +33,22 @@ type Backend struct {
 	Chain   string `toml:"chain" comment:"mainnet | testnet | regtest"`
 }
 type Pogolo struct {
-	Host              string  `toml:"host" comment:"host:port to listen on"`
+	Host              string  `toml:"host" comment:"host:port to listen on, preferably lan"`
 	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
 	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.16"`
 }
 
-//
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
-		Host: "[::1]:8332",
-		Cookie: "~/.bitcoin/regtest/.cookie",
-		Chain: "regtest",
+		Host:    "[::1]:8332",
+		Cookie:  "~/.bitcoin/regtest/.cookie",
+		Chain:   "regtest",
 		Rpcauth: "pogolo:hash",
 	},
 	Pogolo: Pogolo{
-		Host: "[::1]:5661",
-		Tag: "/pogolo - foss is freedom/",
+		Host:              "[::1]:5661",
+		Tag:               "/pogolo - foss is freedom/",
 		DefaultDifficulty: 1024,
 	},
 }
@@ -71,4 +72,16 @@ func writeDefaultConfig(path string) error {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
 	}
 	return nil
+}
+func getConfigDir() string {
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		println(fmt.Sprintf("error getting config dir: %s", err))
+		os.Exit(1)
+	}
+	return filepath.Join(userConfigDir, "./pogolo")
+}
+func DeepCopyConfig(dest, src *Config) {
+	dest.Backend = src.Backend
+	dest.Pogolo = src.Pogolo
 }
