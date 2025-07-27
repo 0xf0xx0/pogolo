@@ -13,7 +13,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/wire"
-	stratum "github.com/kbnchk/go-Stratum"
+	"github.com/0xf0xx0/stratum"
 )
 
 //////
@@ -155,7 +155,7 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	msgBlock.Header.Nonce = share.Nonce
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
-	if share.VersionMask != nil {
+	if share.VersionMask != nil && *share.VersionMask != 0 {
 		msgBlock.Header.Version = msgBlock.Header.Version ^ int32(*share.VersionMask)
 	}
 

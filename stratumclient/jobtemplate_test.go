@@ -9,7 +9,7 @@ import (
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/mining"
-	stratum "github.com/kbnchk/go-Stratum"
+	"github.com/0xf0xx0/stratum"
 )
 
 const (
@@ -32,7 +32,7 @@ func TestUpdateBlock(t *testing.T) {
 	user := getAddr()
 	client := &stratumclient.StratumClient{
 		ID:   id,
-		User: &user,
+		User: user,
 	}
 	template := getBlockTemplate()
 	job := stratumclient.CreateJobTemplate(template)

@@ -2,6 +2,8 @@ package stratumclient
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/binary"
 	"math"
 	"math/big"
 	"pogolo/config"
@@ -16,7 +18,7 @@ import (
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	stratum "github.com/kbnchk/go-Stratum"
+	"github.com/0xf0xx0/stratum"
 )
 
 func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
@@ -46,6 +48,14 @@ func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// 32-bit (4-byte) hash used for client id and extranonce1
+func ClientIDHash() stratum.ID {
+	randomBytes := make([]byte, config.EXTRANONCE_SIZE)
+	rand.Read(randomBytes)
+	/// im 90% sure this needs to be BE
+	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
 }
 
 // placeholder tx

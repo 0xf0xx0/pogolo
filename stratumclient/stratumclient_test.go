@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcutil"
-	stratum "github.com/kbnchk/go-Stratum"
+	"github.com/0xf0xx0/stratum"
 )
 
 func TestConfigure(t *testing.T) {
@@ -39,8 +39,8 @@ func TestAuthorize(t *testing.T) {
 	if resp.Result == false {
 		t.Error("result was false")
 	}
-	t.Logf("user: %q, worker: %q", *client.User, client.Worker)
-	rebuiltUser := fmt.Sprintf("%s.%s", *client.User, client.Worker)
+	t.Logf("user: %q, worker: %q", client.User, client.Worker)
+	rebuiltUser := fmt.Sprintf("%s.%s", client.User, client.Worker)
 	if rebuiltUser != params.Username {
 		t.Errorf("username mismatch: expected %q, got %q", params.Username, rebuiltUser)
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	stratum "github.com/kbnchk/go-Stratum"
+	"github.com/0xf0xx0/stratum"
 )
 
 // recorded from/with https://github.com/benjamin-wilson/public-pool

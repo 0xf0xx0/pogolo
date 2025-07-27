@@ -1,6 +1,13 @@
 package config
 
-import "github.com/btcsuite/btcd/chaincfg"
+import (
+	"fmt"
+	"os"
+
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/pelletier/go-toml/v2"
+	"github.com/urfave/cli/v3"
+)
 
 const (
 	VERSION_ROLLING_MASK = 0x1fffe000 // bip 320
@@ -20,7 +27,7 @@ type Config struct {
 type Backend struct {
 	Host    string `toml:"host" comment:"RPC host:port"`
 	Cookie  string `toml:"cookie,commented" comment:"RPC cookie path"`
-	Rpcauth string `toml:"rpcauth,commented" comment:"RPC auth user:pass"`
+	Rpcauth string `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
 	Chain   string `toml:"chain" comment:"mainnet | testnet | regtest"`
 }
 type Pogolo struct {
@@ -28,4 +35,40 @@ type Pogolo struct {
 	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
 	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.16"`
+}
+
+//
+var DEFAULT_CONFIG = Config{
+	Backend: Backend{
+		Host: "[::1]:8332",
+		Cookie: "~/.bitcoin/regtest/.cookie",
+		Chain: "regtest",
+		Rpcauth: "pogolo:hash",
+	},
+	Pogolo: Pogolo{
+		Host: "[::1]:5661",
+		Tag: "/pogolo - foss is freedom/",
+		DefaultDifficulty: 1024,
+	},
+}
+
+func LoadConfig(path string, conf *Config) {
+	configfile, err := os.Open(path)
+	if err != nil {
+		println(fmt.Sprintf("failed to load config at %s: %s", path, err))
+		return
+	}
+	d := toml.NewDecoder(configfile)
+	d.DisallowUnknownFields()
+	if err := d.Decode(conf); err != nil {
+		println(fmt.Sprintf("failed to decode config at %s: %s", path, err))
+		os.Exit(1)
+	}
+}
+func writeDefaultConfig(path string) error {
+	conf, _ := toml.Marshal(DEFAULT_CONFIG)
+	if err := os.WriteFile(path, conf, 0755); err != nil {
+		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
+	}
+	return nil
 }

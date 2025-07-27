@@ -2,7 +2,7 @@
 host = "[::1]:8332"
 cookie = "~/.bitcoin/rpc.cookie"
 # optional, rpc user/pass
-rpcauth = "pogolo:hash"
+#rpcauth = "pogolo:hash"
 # mainnet | testnet | regtest
 chain = "regtest"
 

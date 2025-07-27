@@ -3,8 +3,6 @@ package stratumclient
 import (
 	"bufio"
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -15,28 +13,25 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
-	stratum "github.com/kbnchk/go-Stratum"
+	"github.com/0xf0xx0/stratum"
 )
 
 type StratumClient struct {
 	ID                  stratum.ID
+	User                btcutil.Address
+	Worker              string
+	Password            string
+	UserAgent           string
 	Difficulty          float64
 	VersionRolling      bool
 	VersionRollingMask  uint32
 	SuggestedDifficulty float64
-	UserAgent           string
-	User                *btcutil.Address
-	Worker              string
-	//Password            string
-	config map[string]any
-	conn   net.Conn
-	// messages to/from client
-	messageChan chan any
-	// winning block submissions
+	/// internal
+	conn           net.Conn
+	messageChan    chan any // messages to/from client
 	submissionChan chan<- *btcutil.Block
 	CurrentJob     MiningJob
-	// TODO: remove? maybe have only 2 jobs (the current and the previous)?
-	activeJobs     []stratum.NotifyParams
+	//activeJobs []stratum.NotifyParams 	// TODO: remove? maybe have only 2 jobs (the current and the previous)?
 }
 
 func (client *StratumClient) Run(noCleanup bool) {
@@ -54,10 +49,9 @@ func (client *StratumClient) Run(noCleanup bool) {
 readloop:
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
-			/// TODO?
 			stratumInited = true
 			/// the initial difficulty was set in CreateClient,
-			/// but the client may also suggest a difficulty before
+			/// but the client may also suggested a difficulty before
 			/// fully initialized
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
@@ -75,8 +69,7 @@ readloop:
 			}
 			break readloop
 		}
-		/// TODO/FIXME: 1 min deadline? 30s? 5 min?
-		client.conn.SetDeadline(time.Now().Add(time.Minute * 25))
+		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
 			client.log(fmt.Sprintf("stratum decode error: %s", err))
@@ -86,21 +79,14 @@ readloop:
 		switch m.GetMethod() {
 		case stratum.MiningConfigure:
 			{
-				/// assert the stupid type cause i cant just
-				/// m.Params[0].([]string)
-				supported := make([]string, 0)
-				for _, param := range m.Params[0].([]interface{}) {
-					supported = append(supported, param.(string))
-				}
-				params := stratum.ConfigureParams{
-					Supported:  supported,
-					Parameters: m.Params[1].(map[string]interface{}),
-				}
+				params := stratum.ConfigureParams{}
+				params.Read(m)
 				res := stratum.ConfigureResult{}
 				if slices.Contains(params.Supported, "version-rolling") {
 					if _, ok := params.Parameters["version-rolling.mask"]; ok {
 						client.VersionRolling = true
-						client.VersionRollingMask = config.VERSION_ROLLING_MASK
+						client.VersionRollingMask = 0xffffffff
+						//client.VersionRollingMask = mask ^ constants.VERSION_ROLLING_MASK
 
 						err = res.Add(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
 						if err != nil {
@@ -115,6 +101,7 @@ readloop:
 			}
 		case stratum.MiningAuthorize:
 			{
+				/// TODO: disconnect?
 				if isAuthed {
 					break
 				}
@@ -123,13 +110,15 @@ readloop:
 				split := strings.Split(params.Username, ".")
 				decoded, err := btcutil.DecodeAddress(split[0], config.CHAIN)
 				if err != nil {
-					println(err.Error())
+					client.log(fmt.Sprintf("failed decoding address: %s", err))
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
+					return
 				}
-				client.User = &decoded
+				client.User = decoded
 				if len(split) > 1 {
 					client.Worker = split[1]
 				}
-				//client.password = params.Password
+				client.Password = params.Password
 				client.writeRes(stratum.AuthorizeResponse(m.MessageID, true))
 				isAuthed = true
 			}
@@ -201,16 +190,18 @@ readloop:
 	}
 }
 
-// TODO:
+// TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
+	if s.JobID != client.CurrentJob.NotifyParams.JobID {
+		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
+		return
+	}
 	updatedBlock, err := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	if err != nil {
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 		return
 	}
 	shareDiff := CalcDifficulty(updatedBlock.Header)
-	header := bytes.NewBuffer([]byte{})
-	updatedBlock.Header.Serialize(header)
 	if shareDiff >= float64(client.Difficulty) {
 		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
 			client.submitBlock(&client.CurrentJob.Template.Block)
@@ -265,7 +256,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	blockHeader := template.Block.MsgBlock().Header
-	coinbaseTx := CreateCoinbaseTx(*client.User, *template, config.CHAIN)
+	coinbaseTx := CreateCoinbaseTx(client.User, *template, config.CHAIN)
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
 		panic(err)
@@ -297,22 +288,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	return job
 }
 
-// 32-bit (4-byte) hash used for client id and extranonce1
-func ClientIDHash() stratum.ID {
-	randomBytes := make([]byte, config.EXTRANONCE_SIZE)
-	rand.Read(randomBytes)
-	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
-}
-func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) StratumClient {
-	client := StratumClient{
-		conn:           conn,
-		ID:             ClientIDHash(),
-		messageChan:    make(chan any),
-		submissionChan: submissionChannel,
-		Difficulty:     config.DEFAULT_DIFFICULTY,
-	}
-	return client
-}
 // TODO: how to get errors back?
 func (client *StratumClient) submitBlock(block *btcutil.Block) {
 	client.submissionChan <- block
@@ -339,10 +314,22 @@ func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
 	return err
 }
+
 // pass a message back to the server
 func (client *StratumClient) writeChan(msg any) {
 	client.messageChan <- msg
 }
 func (client *StratumClient) log(s string) {
 	println(fmt.Sprintf("%s: %s", client.ID.String(), s))
+}
+
+func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) StratumClient {
+	client := StratumClient{
+		conn:           conn,
+		ID:             ClientIDHash(),
+		messageChan:    make(chan any),
+		submissionChan: submissionChannel,
+		Difficulty:     config.DEFAULT_DIFFICULTY,
+	}
+	return client
 }
