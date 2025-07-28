@@ -1,4 +1,4 @@
-package pogolo_test
+package main_test
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ const (
 func TestWitnessCalc(t *testing.T) {
 	template := getBlockTemplate()
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
-	decoded, _ := hex.DecodeString(MOCK_EMPTY_COINBASE)
+	decoded, _ := hex.DecodeString(MOCK_)
 	txns[0], _ = btcutil.NewTxFromBytes(decoded)
 	witnessCommit := hex.EncodeToString(mining.AddWitnessCommitment(txns[0], txns))
 	t.Log(witnessCommit)
@@ -30,14 +30,14 @@ func TestUpdateBlock(t *testing.T) {
 	expectedShareDiff := float64(0.22783314248308514)
 	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
 	user := getAddr()
-	client := &pogolo.StratumClient{
+	client := &main.StratumClient{
 		ID:   id,
 		User: user,
 	}
 	template := getBlockTemplate()
-	job := pogolo.CreateJobTemplate(template)
+	job := main.CreateJobTemplate(template)
 	job.UpdateBlock(client, submitParams, notifyParams)
-	shareDiff := pogolo.CalcDifficulty(job.Block.MsgBlock().Header)
+	shareDiff := main.CalcDifficulty(job.Block.MsgBlock().Header)
 	if shareDiff != expectedShareDiff {
 		t.Fatalf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 	}
@@ -46,13 +46,13 @@ func TestUpdateBlock(t *testing.T) {
 	t.Logf("sharediff: %g", shareDiff)
 	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
 	t.Logf("hash: %s", job.Block.Hash())
-	blk, _ := pogolo.SerializeBlock(&job.Block)
+	blk, _ := main.SerializeBlock(&job.Block)
 	t.Logf("block: %x", blk)
 }
 
 func TestJobTemplate(t *testing.T) {
 	template := getBlockTemplate()
-	job := pogolo.CreateJobTemplate(template)
+	job := main.CreateJobTemplate(template)
 	if job.Height != template.Height || job.Block.Height() != int32(template.Height) {
 		t.Errorf("job height mismatch: expected %d, got %d and %d", template.Height, job.Height, job.Block.Height())
 	}

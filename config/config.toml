@@ -1,8 +1,9 @@
 [pogolo]
-# ipv4 or v6
-host = "[::1]:5661"
-# takes precedence over host, will listen on all ips
+# takes precedence over ip, will listen on all interface ips
 interface = "wlan0"
+# ipv4 or v6
+ip = "[::1]"
+port = 5661
 # optional, required for clients if set
 #password = "x"
 # will be replaced by default tag if too long (see coinbase scriptsig limit)

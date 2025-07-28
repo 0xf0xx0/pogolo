@@ -1,4 +1,4 @@
-package pogolo
+package main
 
 import (
 	"encoding/hex"
@@ -42,6 +42,8 @@ var (
 )
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
+	/// TODO/MAYBE: false and keep track of multiple jobs
+	/// is it neccesary?
 	clear := true
 
 	if currBlockHeight != uint64(template.Height) {

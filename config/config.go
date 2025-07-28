@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/pelletier/go-toml/v2"
@@ -19,10 +20,10 @@ type Config struct {
 	Pogolo  Pogolo  `toml:"pogolo"`
 }
 type Backend struct {
-	Host        string `toml:"host" comment:"RPC host:port"`
-	Cookie      string `toml:"cookie,commented" comment:"RPC cookie path"`
-	Rpcauth     string `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
-	Chain       string `toml:"chain" comment:"mainnet | testnet | regtest"`
+	Host        string           `toml:"host" comment:"RPC host:port"`
+	Cookie      string           `toml:"cookie,commented" comment:"RPC cookie path"`
+	Rpcauth     string           `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
+	Chain       string           `toml:"chain" comment:"mainnet | testnet | regtest"`
 	ChainParams *chaincfg.Params // internal
 }
 type Pogolo struct {
@@ -35,11 +36,10 @@ type Pogolo struct {
 
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
-		Host:        "[::1]:8332",
-		Cookie:      "~/.bitcoin/regtest/.cookie",
+		Host:        "[::1]:18443",
+		Cookie:      resolvePath("~/.bitcoin/regtest/.cookie"),
 		Chain:       "regtest",
 		ChainParams: &chaincfg.RegressionNetParams,
-		Rpcauth:     "pogolo:hash",
 	},
 	Pogolo: Pogolo{
 		Host:              "[::1]:5661",
@@ -60,6 +60,7 @@ func LoadConfig(path string, conf *Config) {
 		println(fmt.Sprintf("failed to decode config at %s: %s", path, err))
 		os.Exit(1)
 	}
+	conf.Backend.Cookie = resolvePath(conf.Backend.Cookie)
 }
 func writeDefaultConfig(path string) error {
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
@@ -79,4 +80,16 @@ func getConfigDir() string {
 func DeepCopyConfig(dest, src *Config) {
 	dest.Backend = src.Backend
 	dest.Pogolo = src.Pogolo
+}
+
+// resolves ~ and cleans path
+// https://stackoverflow.com/a/17617721
+func resolvePath(path string) string {
+	if strings.HasPrefix(path, "~") {
+		// Use strings.HasPrefix so we don't match paths like
+		// "/something/~/something/"
+		home, _ := os.UserHomeDir()
+		path = filepath.Join(home, path[1:])
+	}
+	return path
 }

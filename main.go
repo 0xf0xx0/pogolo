@@ -1,4 +1,4 @@
-package pogolo
+package main
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func main() {
 			&cli.StringFlag{
 				Name:  "conf",
 				Usage: "config file `path` (or 'none')",
-				Value: filepath.Join(config.ROOT, "pogolo.toml"),
+				Value: filepath.Join(config.ROOT, "main.toml"),
 			},
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
@@ -51,20 +51,25 @@ func main() {
 				config.LoadConfig(passedConfig, &conf)
 			}
 			switch conf.Backend.Chain {
-				case "mainnet": {
+			case "mainnet":
+				{
 					backendChain = &chaincfg.MainNetParams
 				}
-				case "testnet": {
+			case "testnet":
+				{
 					/// TODO: replace with testnet4 next btcd update
 					backendChain = &chaincfg.TestNet3Params
 				}
-				case "regtest": {
+			case "regtest":
+				{
 					backendChain = &chaincfg.RegressionNetParams
 				}
-				case "signet": {
+			case "signet":
+				{
 					backendChain = &chaincfg.SigNetParams
 				}
-				default: {
+			default:
+				{
 					return cli.Exit("unknown backend chain", 3)
 				}
 			}
@@ -88,7 +93,13 @@ func startup() error {
 	submissionChan = make(chan *btcutil.Block)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	listener, err := net.Listen("tcp", conf.Pogolo.Host)
+	var listener net.Listener
+	var err error
+	if conf.Pogolo.Interface != "" {
+		net.InterfaceByName(conf.Pogolo.Interface)
+	} else {
+		listener, err = net.Listen("tcp", conf.Pogolo.Host)
+	}
 	if err != nil {
 		return cli.Exit(err.Error(), 1)
 	}
@@ -96,14 +107,14 @@ func startup() error {
 	/// listener
 	go func() {
 		defer wg.Done()
-		fmt.Printf("srv start, listening on %s", listener.Addr())
+		fmt.Printf("srv start, listening on %s\n", listener.Addr())
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				select {
 				case <-shutdown:
 					{
-						fmt.Print("srv shutdown")
+						fmt.Println("srv shutdown")
 						return
 					}
 				default:
@@ -119,12 +130,12 @@ func startup() error {
 	/// connections
 	go func() {
 		defer wg.Done()
-		fmt.Print("conns start")
+		fmt.Println("conns start")
 		for {
 			select {
 			case <-shutdown:
 				{
-					fmt.Print("conns shutdown")
+					fmt.Println("conns shutdown")
 					return
 				}
 			case conn := <-conns:
@@ -140,7 +151,7 @@ func startup() error {
 
 	// wait for exit
 	<-sigs
-	fmt.Print("\nclosing")
+	fmt.Println("\nclosing")
 	close(shutdown)
 	return nil
 }
@@ -162,7 +173,7 @@ func clientHandler(conn net.Conn) {
 				switch msg {
 				case "ready":
 					{
-						fmt.Printf("new client %q (%s)", client.ID, client.Addr())
+						fmt.Printf("new client %q (%s)\n", client.ID, client.Addr())
 						/// i dont think the order matters, but lets send the current template
 						/// before adding to the client map, just in case notifyClients gets
 						/// called in between (and rapid-fires jobs)
@@ -171,7 +182,7 @@ func clientHandler(conn net.Conn) {
 					}
 				case "done":
 					{
-						fmt.Printf("client disconnect %q (%s)", client.ID, client.Addr())
+						fmt.Printf("client disconnect %q (%s)\n", client.ID, client.Addr())
 						return
 					}
 				}
@@ -208,7 +219,8 @@ func backendRoutine() {
 		err = cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
 	}
 	if err != nil {
-		panic(err)
+		fmt.Printf("%s\n", err)
+		return
 	}
 	go func() {
 		for {
@@ -221,27 +233,33 @@ func backendRoutine() {
 			err := backend.SubmitBlock(block, nil)
 			if err != nil {
 				println(fmt.Sprintf("error from backend while submitting block: %s", err))
+				continue
 			}
-			println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
-			println(fmt.Sprintf("hash: %s", block.Hash().String()))
+			fmt.Println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
+			fmt.Printf("hash: %s\n", block.Hash().String())
 			/// TODO: trigger new job template?
 		}
 	}()
+	/// TODO: poll getmininginfo/getblockcount
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
-			Capabilities: []string{"proposal", "coinbasevalue" /*, "longpoll"*/},
+			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 			Mode:         "template",
 		})
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("new template with %d txns", len(template.Transactions))
+		fmt.Printf("new template with %d txns\n", len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while
 		/// TODO: 30s?
-		time.Sleep(time.Minute)
+		select {
+			case <-time.After(time.Minute): {}
+			// case <-newBlockFound: {}
+		}
+		//time.Sleep(time.Minute)
 	}
 }
 

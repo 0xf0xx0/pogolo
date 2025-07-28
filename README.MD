@@ -1,4 +1,4 @@
-solo db-less ui-less bitcoin-only mining pool  
+solo db-less bitcoin-only mining pool  
 meant for lan swarms, not the internet  
 think of this as public-pool but for self-sovereign nerds  
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
@@ -8,7 +8,6 @@ extremely minimal, start it, point your miners to it, and watch the logs roll by
 ## install
 ```
 go install https://github.com/0xf0xx0/pogolo@latest
-pogolo
 ```
 ## miner config
 ```
@@ -32,5 +31,6 @@ TODO
 - public-pool compatible api
 - 0.1% dev fee for large miners
 - share replay mitigation?
+- multiple active jobs?
 - stratum keepalive?
 - client.reconnect on server restart?

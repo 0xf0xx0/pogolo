@@ -1,4 +1,4 @@
-package pogolo
+package main
 
 import (
 	"bytes"

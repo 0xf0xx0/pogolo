@@ -1,4 +1,4 @@
-package pogolo
+package main
 
 import (
 	"bufio"
@@ -352,9 +352,9 @@ func (client *StratumClient) writeChan(msg any) {
 }
 func (client *StratumClient) log(s string) {
 	if client.Worker != "" {
-		fmt.Printf("%s (%s): %s", client.Worker, client.ID.String(), s)
+		fmt.Printf("%s (%s): %s\n", client.Worker, client.ID.String(), s)
 	} else {
-		fmt.Printf("%s: %s", client.ID.String(), s)
+		fmt.Printf("%s: %s\n", client.ID.String(), s)
 	}
 }
 func (client *StratumClient) error(s string) {

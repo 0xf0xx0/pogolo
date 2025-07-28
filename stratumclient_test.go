@@ -1,4 +1,4 @@
-package pogolo_test
+package main_test
 
 import (
 	"bufio"
@@ -100,13 +100,13 @@ func TestFullBlock(t *testing.T) {
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 
-	template := pogolo.CreateJobTemplate(getBlockTemplate())
+	template := main.CreateJobTemplate(getBlockTemplate())
 	job := client.CreateJob(template)
 	client.CurrentJob = job
 	t.Logf("sent: %+v", template)
 	t.Logf("got: %+v", stratum.Notify(job.NotifyParams))
 	sendReqAndWaitForRes(t, submitReq, lpipe)
-	finalCoinbaseTx, err := pogolo.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
+	finalCoinbaseTx, err := main.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -150,11 +150,11 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *pogolo.StratumClient, chan *btcutil.Block) {
+func initClient() (net.Conn, *main.StratumClient, chan *btcutil.Block) {
 	submissionChan := make(chan *btcutil.Block)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
-	client := pogolo.CreateClient(rpipe, submissionChan)
+	client := main.CreateClient(rpipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(true)
 	return lpipe, &client, submissionChan
