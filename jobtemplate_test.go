@@ -1,15 +1,15 @@
-package stratumclient_test
+package pogolo_test
 
 import (
 	"bytes"
 	"encoding/hex"
-	"pogolo/stratumclient"
+	"pogolo"
 	"testing"
 
+	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/mining"
-	"github.com/0xf0xx0/stratum"
 )
 
 const (
@@ -30,14 +30,14 @@ func TestUpdateBlock(t *testing.T) {
 	expectedShareDiff := float64(0.22783314248308514)
 	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
 	user := getAddr()
-	client := &stratumclient.StratumClient{
+	client := &pogolo.StratumClient{
 		ID:   id,
 		User: user,
 	}
 	template := getBlockTemplate()
-	job := stratumclient.CreateJobTemplate(template)
+	job := pogolo.CreateJobTemplate(template)
 	job.UpdateBlock(client, submitParams, notifyParams)
-	shareDiff := stratumclient.CalcDifficulty(job.Block.MsgBlock().Header)
+	shareDiff := pogolo.CalcDifficulty(job.Block.MsgBlock().Header)
 	if shareDiff != expectedShareDiff {
 		t.Fatalf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 	}
@@ -46,13 +46,13 @@ func TestUpdateBlock(t *testing.T) {
 	t.Logf("sharediff: %g", shareDiff)
 	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
 	t.Logf("hash: %s", job.Block.Hash())
-	blk,_ := stratumclient.SerializeBlock(&job.Block)
+	blk, _ := pogolo.SerializeBlock(&job.Block)
 	t.Logf("block: %x", blk)
 }
 
 func TestJobTemplate(t *testing.T) {
 	template := getBlockTemplate()
-	job := stratumclient.CreateJobTemplate(template)
+	job := pogolo.CreateJobTemplate(template)
 	if job.Height != template.Height || job.Block.Height() != int32(template.Height) {
 		t.Errorf("job height mismatch: expected %d, got %d and %d", template.Height, job.Height, job.Block.Height())
 	}

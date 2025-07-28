@@ -1,4 +1,4 @@
-package stratumclient
+package pogolo
 
 import (
 	"encoding/hex"

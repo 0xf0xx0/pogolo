@@ -1,4 +1,4 @@
-package main
+package pogolo
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"pogolo/config"
-	"pogolo/stratumclient"
 	"strings"
 	"sync"
 	"syscall"
@@ -25,8 +24,8 @@ import (
 var (
 	conf           config.Config
 	backendChain   *chaincfg.Params
-	clients        map[string]stratumclient.StratumClient
-	currTemplate   *stratumclient.JobTemplate
+	clients        map[string]StratumClient
+	currTemplate   *JobTemplate
 	submissionChan chan *btcutil.Block
 )
 
@@ -85,7 +84,7 @@ func startup() error {
 	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
-	clients = make(map[string]stratumclient.StratumClient, 5)
+	clients = make(map[string]StratumClient, 5)
 	submissionChan = make(chan *btcutil.Block)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -149,7 +148,7 @@ func startup() error {
 // handles incoming conns
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
-	client := stratumclient.CreateClient(conn, submissionChan)
+	client := CreateClient(conn, submissionChan)
 	channel := client.Channel()
 	/// remove ourself from the client map
 	defer func() {
@@ -239,7 +238,7 @@ func backendRoutine() {
 		}
 		fmt.Printf("new template with %d txns", len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
-		currTemplate = stratumclient.CreateJobTemplate(template)
+		currTemplate = CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while
 		/// TODO: 30s?
 		time.Sleep(time.Minute)
@@ -248,7 +247,7 @@ func backendRoutine() {
 
 // func apiServer() {}
 
-func notifyClients(n *stratumclient.JobTemplate) {
+func notifyClients(n *JobTemplate) {
 	for _, client := range clients {
 		go func() {
 			/// TODO: remove? move up?

@@ -1,19 +1,20 @@
-package stratumclient_test
+package pogolo_test
 
-// just for storing the data as variables
+// this file is just for storing the data as variables
 import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"pogolo/stratumclient"
+	"pogolo"
 
+	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/0xf0xx0/stratum"
 )
 
 // recorded from/with https://github.com/benjamin-wilson/public-pool
+// TODO/FIXME: replace with working pogolo data :D
 const (
 	MOCK_ADDRESS                   = "bcrt1qv2w0jh49962fc0qw63aqlw6p567qkx2dj5kpg4"
 	MOCK_EXTRANONCE                = "00353c99"
@@ -113,8 +114,8 @@ func getAddr() btcutil.Address {
 func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
 	// en2, _ := strconv.ParseInt("0f100f", 16, 32)
-	job := stratumclient.CreateJobTemplate(getBlockTemplate())
-	tx := stratumclient.CreateCoinbaseTx(addr, *job, MOCK_CHAIN)
+	job := pogolo.CreateJobTemplate(getBlockTemplate())
+	tx := pogolo.CreateCoinbaseTx(addr, *job, MOCK_CHAIN)
 	return tx
 }
 func getBlockTemplate() *btcjson.GetBlockTemplateResult {

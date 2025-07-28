@@ -1,15 +1,15 @@
-package stratumclient_test
+package pogolo_test
 
 import (
 	"bufio"
 	"fmt"
 	"net"
-	"pogolo/config"
-	"pogolo/stratumclient"
+	"pogolo"
+	"pogolo/constants"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/0xf0xx0/stratum"
+	"github.com/btcsuite/btcd/btcutil"
 )
 
 func TestConfigure(t *testing.T) {
@@ -22,7 +22,7 @@ func TestConfigure(t *testing.T) {
 	validateRes(req, res, t)
 	t.Logf("is ver rolling: %v, ver rolling mask: %x, supported: %v", client.VersionRolling, client.VersionRollingMask, params.Supported)
 	if client.VersionRolling == false ||
-		client.VersionRollingMask != config.VERSION_ROLLING_MASK {
+		client.VersionRollingMask != constants.VERSION_ROLLING_MASK {
 		t.Error("version rolling or mask is wrong")
 	}
 }
@@ -60,9 +60,9 @@ func TestSubscribe(t *testing.T) {
 	if r.ExtraNonce1 != client.ID {
 		t.Errorf("extranonce1 mismatch: expected %q, got %q", client.ID, r.ExtraNonce1)
 	}
-	if r.ExtraNonce2Size != config.EXTRANONCE_SIZE {
+	if r.ExtraNonce2Size != constants.EXTRANONCE_SIZE {
 		t.Errorf("extranonce2 size mismatch: expected %d, got %d",
-			config.EXTRANONCE_SIZE, r.ExtraNonce2Size)
+			constants.EXTRANONCE_SIZE, r.ExtraNonce2Size)
 	}
 	if r.Subscriptions[0].Method != stratum.MiningNotify {
 		t.Errorf("subscription method mismatch: expected %q, got %q", stratum.MiningNotify, r.Subscriptions[0].Method)
@@ -100,13 +100,13 @@ func TestFullBlock(t *testing.T) {
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 
-	template := stratumclient.CreateJobTemplate(getBlockTemplate())
+	template := pogolo.CreateJobTemplate(getBlockTemplate())
 	job := client.CreateJob(template)
 	client.CurrentJob = job
 	t.Logf("sent: %+v", template)
 	t.Logf("got: %+v", stratum.Notify(job.NotifyParams))
 	sendReqAndWaitForRes(t, submitReq, lpipe)
-	finalCoinbaseTx, err := stratumclient.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
+	finalCoinbaseTx, err := pogolo.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -150,11 +150,11 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *stratumclient.StratumClient, chan *btcutil.Block) {
+func initClient() (net.Conn, *pogolo.StratumClient, chan *btcutil.Block) {
 	submissionChan := make(chan *btcutil.Block)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
-	client := stratumclient.CreateClient(rpipe, submissionChan)
+	client := pogolo.CreateClient(rpipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(true)
 	return lpipe, &client, submissionChan

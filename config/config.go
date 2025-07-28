@@ -5,12 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
 
 var (
-	ROOT         = getConfigDir()
+	ROOT = getConfigDir()
 )
 
 type Config struct {
@@ -18,10 +19,11 @@ type Config struct {
 	Pogolo  Pogolo  `toml:"pogolo"`
 }
 type Backend struct {
-	Host    string `toml:"host" comment:"RPC host:port"`
-	Cookie  string `toml:"cookie,commented" comment:"RPC cookie path"`
-	Rpcauth string `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
-	Chain   string `toml:"chain" comment:"mainnet | testnet | regtest"`
+	Host        string `toml:"host" comment:"RPC host:port"`
+	Cookie      string `toml:"cookie,commented" comment:"RPC cookie path"`
+	Rpcauth     string `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
+	Chain       string `toml:"chain" comment:"mainnet | testnet | regtest"`
+	ChainParams *chaincfg.Params // internal
 }
 type Pogolo struct {
 	Interface         string  `toml:"interface" comment:"takes precedence over host, will listen on all ips"`
@@ -33,10 +35,11 @@ type Pogolo struct {
 
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
-		Host:    "[::1]:8332",
-		Cookie:  "~/.bitcoin/regtest/.cookie",
-		Chain:   "regtest",
-		Rpcauth: "pogolo:hash",
+		Host:        "[::1]:8332",
+		Cookie:      "~/.bitcoin/regtest/.cookie",
+		Chain:       "regtest",
+		ChainParams: &chaincfg.RegressionNetParams,
+		Rpcauth:     "pogolo:hash",
 	},
 	Pogolo: Pogolo{
 		Host:              "[::1]:5661",

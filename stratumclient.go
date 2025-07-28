@@ -1,4 +1,4 @@
-package stratumclient
+package pogolo
 
 import (
 	"bufio"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"pogolo/config"
 	"pogolo/constants"
 	"slices"
 	"strings"
@@ -123,7 +122,7 @@ readloop:
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
 				split := strings.Split(params.Username, ".")
-				decoded, err := btcutil.DecodeAddress(split[0], conf.CHAIN)
+				decoded, err := btcutil.DecodeAddress(split[0], backendChain)
 				if err != nil {
 					client.error(fmt.Sprintf("failed decoding address: %s", err))
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
@@ -286,7 +285,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	blockHeader := template.Block.MsgBlock().Header
-	coinbaseTx := CreateCoinbaseTx(client.User, *template, config.CHAIN)
+	coinbaseTx := CreateCoinbaseTx(client.User, *template, conf.Backend.ChainParams)
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
 		panic(err)
@@ -372,7 +371,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) Stratu
 		ID:             ClientIDHash(),
 		messageChan:    make(chan any),
 		submissionChan: submissionChannel,
-		Difficulty:     config.DEFAULT_DIFFICULTY,
+		Difficulty:     conf.Pogolo.DefaultDifficulty,
 	}
 	return client
 }

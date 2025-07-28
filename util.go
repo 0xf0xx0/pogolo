@@ -1,4 +1,4 @@
-package stratumclient
+package pogolo
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"math"
 	"math/big"
-	"pogolo/config"
 	"pogolo/constants"
 	"slices"
 
@@ -53,7 +52,7 @@ func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
 // 32-bit (4-byte) uint32 used for client id and extranonce1
 // TODO: hash client local ip address? for no reason other than being different
 func ClientIDHash() stratum.ID {
-	randomBytes := make([]byte, config.EXTRANONCE_SIZE)
+	randomBytes := make([]byte, constants.EXTRANONCE_SIZE)
 	rand.Read(randomBytes)
 	/// im 90% sure this needs to be BE
 	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
@@ -69,7 +68,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
-		AddData([]byte(config.COINBASE_TAG)).
+		AddData([]byte(conf.Pogolo.Tag)).
 		AddData(padding[:])
 	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
