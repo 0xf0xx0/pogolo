@@ -58,7 +58,7 @@ func ClientIDHash() stratum.ID {
 	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
 }
 
-// placeholder tx
+// placeholder tx, filled with MiningJob
 func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 

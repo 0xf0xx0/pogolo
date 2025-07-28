@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"pogolo"
-	"pogolo/constants"
 	"testing"
+
+	main "pogolo"
+	"pogolo/constants"
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
@@ -74,7 +75,6 @@ func TestSuggestDifficulty(t *testing.T) {
 	lpipe, client, _ := initClient()
 	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
 	client.Stop()
-	suggestDifficultyReq.MessageID = nil /// the request has a message id, but notifications dont
 	validateRes(suggestDifficultyReq, res, t)
 }
 
@@ -98,14 +98,14 @@ func TestFullBlock(t *testing.T) {
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendReqAndWaitForRes(t, configureReq, lpipe)
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
-	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
+	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE_MERKLE)
 
-	template := main.CreateJobTemplate(getBlockTemplate())
+	template := main.CreateJobTemplate(MOCK_BLOCK_TEMPLATE_MERKLE)
 	job := client.CreateJob(template)
 	client.CurrentJob = job
-	t.Logf("sent: %+v", template)
-	t.Logf("got: %+v", stratum.Notify(job.NotifyParams))
-	sendReqAndWaitForRes(t, submitReq, lpipe)
+	/// FIXME: send notif
+	//sendReqAndWaitForRes(t, stratum.Notify(job.NotifyParams), lpipe)
+	sendReqAndWaitForRes(t, submitReqMerkle, lpipe)
 	finalCoinbaseTx, err := main.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
 	if err != nil {
 		t.Error(err)

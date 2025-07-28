@@ -1,0 +1,23 @@
+{
+    "capabilities": ["proposal"],
+    "version": 536870912,
+    "rules": ["csv", "!segwit", "taproot", "testdummy"],
+    "vbavailable": {},
+    "vbrequired": 0,
+    "previousblockhash": "000000058ea0028d3d70dbf02bd1189e55b38e5d3f162963ec01061d6f83e6be",
+    "transactions": [],
+    "coinbaseaux": {},
+    "coinbasevalue": 625000000,
+    "longpollid": "000000058ea0028d3d70dbf02bd1189e55b38e5d3f162963ec01061d6f83e6be504",
+    "target": "7fffff0000000000000000000000000000000000000000000000000000000000",
+    "mintime": 1752989064,
+    "mutable": ["time", "transactions", "prevblock"],
+    "noncerange": "00000000ffffffff",
+    "sigoplimit": 80000,
+    "sizelimit": 4000000,
+    "weightlimit": 4000000,
+    "curtime": 1752989132,
+    "bits": "207fffff",
+    "height": 504,
+    "default_witness_commitment": "6a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9"
+}

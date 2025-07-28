@@ -20,6 +20,8 @@ var (
 
 	// client errors
 	ERROR_NOT_SUBBED   = stratum.Error{Code: 401, Message: "not subscribed"}
+	// for data we understand but will ignore
+	ERROR_NOT_ACCEPTED = stratum.Error{Code: 403, Message: "not accepted"}
 	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 406, Message: "difficulty too low"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}
 )

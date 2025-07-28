@@ -177,12 +177,14 @@ readloop:
 					/// we wanna ignore
 					if err := client.AdjustDifficulty(client.Difficulty); err != nil {
 						client.error(fmt.Sprintf("failed to adjust difficulty: %s", err))
+						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
 				}
+				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 			}
 		case stratum.MiningSubmit:
 			{
-				/// TODO: adjust diff every 6 submissions
+				/// TODO: adjust diff every 6 submissions?
 				if !stratumInited {
 					client.error("submit before subscribe")
 					return
@@ -208,6 +210,27 @@ func (client *StratumClient) adjustDiffRoutine() {
 	// if no shares in a minute
 	if time.Now().Sub(client.Stats.lastSubmission) > time.Minute {
 
+	}
+}
+func (client *StratumClient) readChanRoutine() {
+	for {
+		switch m := (<-client.messageChan).(type) {
+		/// TODO: remove?
+		case string:
+			{
+				//println(m)
+			}
+		case *JobTemplate:
+			{
+				client.CurrentJob = client.createJob(DeepCopyTemplate(m))
+				client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
+			}
+		default:
+			{
+				/// closed
+				return
+			}
+		}
 	}
 }
 
@@ -253,27 +276,6 @@ func (client *StratumClient) Addr() net.Addr {
 func (client *StratumClient) AdjustDifficulty(newDiff float64) error {
 	client.log(fmt.Sprintf("set new diff: %g", newDiff))
 	return client.writeNotif(stratum.SetDifficulty(newDiff))
-}
-func (client *StratumClient) readChanRoutine() {
-	for {
-		switch m := (<-client.messageChan).(type) {
-		/// TODO: remove?
-		case string:
-			{
-				//println(m)
-			}
-		case *JobTemplate:
-			{
-				client.CurrentJob = client.createJob(DeepCopyTemplate(m))
-				client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
-			}
-		default:
-			{
-				/// closed
-				return
-			}
-		}
-	}
 }
 func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 	return client.createJob(template)

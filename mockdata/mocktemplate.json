@@ -1,23 +1,39 @@
 {
-    "capabilities": ["proposal"],
-    "version": 536870912,
-    "rules": ["csv", "!segwit", "taproot", "testdummy"],
-    "vbavailable": {},
-    "vbrequired": 0,
-    "previousblockhash": "000000058ea0028d3d70dbf02bd1189e55b38e5d3f162963ec01061d6f83e6be",
-    "transactions": [],
-    "coinbaseaux": {},
-    "coinbasevalue": 625000000,
-    "longpollid": "000000058ea0028d3d70dbf02bd1189e55b38e5d3f162963ec01061d6f83e6be504",
-    "target": "7fffff0000000000000000000000000000000000000000000000000000000000",
-    "mintime": 1752989064,
-    "mutable": ["time", "transactions", "prevblock"],
-    "noncerange": "00000000ffffffff",
+    "bits": "207fffff",
+    "curtime": 1753503332,
+    "height": 152,
+    "previousblockhash": "000000007b3ccb15be67ce3be8e70ca904b5de8db6b57fd93353af7797a5b125",
     "sigoplimit": 80000,
     "sizelimit": 4000000,
     "weightlimit": 4000000,
-    "curtime": 1752989132,
-    "bits": "207fffff",
-    "height": 504,
-    "default_witness_commitment": "6a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9"
+    "transactions": [
+        {
+            "data": "02000000000101b6c6f1549d05f3af230387bb1605d001485d0f3f7be29dc2aae195d9060f2dfc0000000000fdffffff02c4ee3477000000001600141455543ebb5f1e4bfc2813e1fafd25d1ae9d4b85005ed0b200000000160014ca76711bf3c06e5c4808af498eb4ea025aa1d5f9024730440220725a896411ba422d89c3b7d9aeb600827299f4755fa925790925b0816c79449d02204834a2a0369b5b41590c24d45b69a482f598f16729712d46b96be875eebb07240121030c7c8aba93a2c2cd1a4a8b098f7aba3e15396262f40c01250c008aaa641eb62697000000",
+            "hash": "2d03e6199fa53df180486032942b00c2f1d87a3300086dd91db5af9c6730ef20",
+            "txid": "8586ee3f2cbd74f6e31ebdfbc51e070e7fa495841a04445531cf4611b0ee220a",
+            "depends": [],
+            "fee": 42300,
+            "sigops": 1,
+            "weight": 561
+        },
+        {
+            "data": "02000000000101369184345e7e9caa7fc5d78cf2e0f941851513541d360472a98bc28cea82e6760000000000fdffffff02005ed0b200000000160014ca76711bf3c06e5c4808af498eb4ea025aa1d5f9ff6d3577000000001600148b6dd76d665e3d60dd55352d66b19ebe2792a42f02473044022058d3167f2f1b096ba398f457fd89b21b557148da85072681e3064bdcc3c1617c02206eaca52b39f8ea4fee219d487432eb1c26c4f3840995e4d438f9bf01fe382eb90121030c7c8aba93a2c2cd1a4a8b098f7aba3e15396262f40c01250c008aaa641eb62697000000",
+            "hash": "facbdfa0c419f9db8adff7678d2616451fde360fd03121a1c9033b776ff1b849",
+            "txid": "3de81513eaaff222021df32a9f6f929090c64f424ea04c27a68ba3bc3470c79f",
+            "depends": [],
+            "fee": 9729,
+            "sigops": 1,
+            "weight": 561
+        }
+    ],
+    "version": 805306368,
+    "coinbaseaux": { "flags": "" },
+    "coinbasevalue": 2500052029,
+    "default_witness_commitment": "6a24aa21a9eddaa2ef8f94277097f2e6f4c51f63cff7aac266edfbda60842baeb5b25acde7bb",
+    "longpollid": "000000007b3ccb15be67ce3be8e70ca904b5de8db6b57fd93353af7797a5b1252",
+    "target": "7fffff0000000000000000000000000000000000000000000000000000000000",
+    "mintime": 1753476409,
+    "mutable": ["time", "transactions", "prevblock"],
+    "noncerange": "00000000ffffffff",
+    "capabilities": ["proposal"]
 }
