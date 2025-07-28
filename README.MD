@@ -37,5 +37,6 @@ TODO
 - 0.1% dev fee for large miners
 - share replay mitigation?
 - multiple active jobs?
+- extranonce subscription?
 - stratum keepalive?
 - client.reconnect on server restart?

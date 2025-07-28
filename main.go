@@ -193,6 +193,7 @@ func backendRoutine() {
 	/// TODO: do we need anything special for btcd/knots/etc?
 	var backend *rpcclient.Client
 	var err error
+	triggerGBT := make(chan bool)
 	if conf.Backend.Cookie != "" {
 		backend, err = rpcclient.New(&rpcclient.ConnConfig{
 			Host:                conf.Backend.Host,
@@ -236,7 +237,23 @@ func backendRoutine() {
 			/// TODO: trigger new job template?
 		}
 	}()
-	/// TODO: poll getmininginfo/getblockcount
+	/// poll getblockcount
+	go func() {
+		for {
+			count, err := backend.GetBlockCount()
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			/// we're mining on this height
+			if count == currTemplate.Height {
+				println("someone else mined a block:", count)
+				triggerGBT <- true
+			}
+			time.Sleep(time.Millisecond * 500)
+		}
+	}()
+
+	/// maingbt loop
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
@@ -255,7 +272,7 @@ func backendRoutine() {
 		case <-time.After(time.Minute):
 			{
 			}
-			// case <-newBlockFound: {}
+			case <-triggerGBT: {}
 		}
 		//time.Sleep(time.Minute)
 	}
