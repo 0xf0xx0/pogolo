@@ -1,9 +1,9 @@
 [pogolo]
+port = 5661
 # takes precedence over ip, will listen on all interface ips
-interface = "wlan0"
+interface = "lo"
 # ipv4 or v6
 ip = "[::1]"
-port = 5661
 # optional, required for clients if set
 #password = "x"
 # will be replaced by default tag if too long (see coinbase scriptsig limit)
@@ -13,8 +13,8 @@ default_difficulty = 1024
 
 [backend]
 host = "[::1]:8332"
-cookie = "~/.bitcoin/rpc.cookie"
+cookie = "~/.bitcoin/.cookie"
 # optional, rpc user/pass
 #rpcauth = "pogolo:hash"
 # mainnet | testnet | regtest
-chain = "regtest"
+chain = "mainnet"

@@ -28,9 +28,9 @@ type Backend struct {
 	ChainParams *chaincfg.Params // internal
 }
 type Pogolo struct {
+	Port              uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	Interface         string  `toml:"interface,commented" comment:"takes precedence over ip, will listen on all interface ips"`
 	IP                string  `toml:"ip,commented" comment:"ipv4 or v6"`
-	Port              uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
 	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.16"`

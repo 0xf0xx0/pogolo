@@ -122,7 +122,7 @@ readloop:
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
 				split := strings.Split(params.Username, ".")
-				decoded, err := btcutil.DecodeAddress(split[0], backendChain)
+				decoded, err := btcutil.DecodeAddress(split[0], conf.Backend.ChainParams)
 				if err != nil {
 					client.error(fmt.Sprintf("failed decoding address: %s", err))
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))

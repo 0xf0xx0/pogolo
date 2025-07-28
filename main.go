@@ -23,7 +23,6 @@ import (
 // state
 var (
 	conf           config.Config
-	backendChain   *chaincfg.Params
 	clients        map[string]StratumClient
 	currTemplate   *JobTemplate
 	submissionChan chan *btcutil.Block
@@ -40,33 +39,33 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "conf",
-				Usage: "config file `path` (or 'none')",
-				Value: filepath.Join(config.ROOT, "main.toml"),
+				Usage: "config file `path`",
+				Value: filepath.Join(config.ROOT, "pogolo.toml"),
 			},
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
-			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
+			if passedConfig := ctx.String("conf"); passedConfig != "" {
 				config.LoadConfig(passedConfig, &conf)
 			}
 			switch conf.Backend.Chain {
 			case "mainnet":
 				{
-					backendChain = &chaincfg.MainNetParams
+					conf.Backend.ChainParams = &chaincfg.MainNetParams
 				}
 			case "testnet":
 				{
 					/// TODO: replace with testnet4 next btcd update
-					backendChain = &chaincfg.TestNet3Params
+					conf.Backend.ChainParams = &chaincfg.TestNet3Params
 				}
 			case "regtest":
 				{
-					backendChain = &chaincfg.RegressionNetParams
+					conf.Backend.ChainParams = &chaincfg.RegressionNetParams
 				}
 			case "signet":
 				{
-					backendChain = &chaincfg.SigNetParams
+					conf.Backend.ChainParams = &chaincfg.SigNetParams
 				}
 			default:
 				{
@@ -79,7 +78,7 @@ func main() {
 		},
 	}
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		println(fmt.Sprint(err))
+		println(fmt.Sprintf("%s", err))
 	}
 }
 
