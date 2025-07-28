@@ -242,6 +242,7 @@ func backendRoutine() {
 	}()
 	/// poll getblockcount
 	go func() {
+		time.Sleep(time.Second)
 		for {
 			count, err := backend.GetBlockCount()
 			if err != nil {
@@ -277,6 +278,8 @@ func backendRoutine() {
 			}
 		case <-triggerGBT:
 			{
+				/// TODO: figure out why i need to do this
+				time.Sleep(time.Millisecond*33)
 			}
 		}
 	}

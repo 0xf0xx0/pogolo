@@ -222,8 +222,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 }
 func (client *StratumClient) readChanRoutine() {
 	for {
-		/// FIXME: this stops reading when a block is submitted, why?
-		m, ok := (<-client.messageChan)
+		m, ok := <-client.messageChan
 		if !ok {
 			/// closed
 			return
