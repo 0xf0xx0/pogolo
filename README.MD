@@ -7,7 +7,7 @@ extremely minimal, start it, point your miners to it, and watch the logs roll by
 # setup
 ## install
 ```
-go install https://github.com/0xf0xx0/pogolo@latest
+go install github.com/0xf0xx0/pogolo@latest
 ```
 ## miner config
 ```
