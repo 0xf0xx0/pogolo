@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/0xf0xx0/stratum"
 )
 
 //////

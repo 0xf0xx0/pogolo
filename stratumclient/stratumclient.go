@@ -123,7 +123,7 @@ readloop:
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
 				split := strings.Split(params.Username, ".")
-				decoded, err := btcutil.DecodeAddress(split[0], config.CHAIN)
+				decoded, err := btcutil.DecodeAddress(split[0], conf.CHAIN)
 				if err != nil {
 					client.error(fmt.Sprintf("failed decoding address: %s", err))
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
@@ -203,6 +203,7 @@ readloop:
 		}
 	}
 }
+
 // TODO
 func (client *StratumClient) adjustDiffRoutine() {
 	// if no shares in a minute
@@ -210,6 +211,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 
 	}
 }
+
 // TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {

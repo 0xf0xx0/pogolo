@@ -5,21 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
 
-const (
-	VERSION_ROLLING_MASK = 0x1fffe000 // bip 320
-	EXTRANONCE_SIZE      = 4          // bytes
-	DEFAULT_DIFFICULTY   = 1024
-)
-
 var (
 	ROOT         = getConfigDir()
-	COINBASE_TAG = "/pogolo - foss is freedom/"
-	CHAIN        = &chaincfg.RegressionNetParams
 )
 
 type Config struct {
@@ -33,6 +24,7 @@ type Backend struct {
 	Chain   string `toml:"chain" comment:"mainnet | testnet | regtest"`
 }
 type Pogolo struct {
+	Interface         string  `toml:"interface" comment:"takes precedence over host, will listen on all ips"`
 	Host              string  `toml:"host" comment:"host:port to listen on, preferably lan"`
 	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
