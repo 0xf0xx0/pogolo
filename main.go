@@ -162,7 +162,11 @@ func clientHandler(conn net.Conn) {
 	}()
 	go client.Run(false)
 	for {
-		switch msg := (<-channel).(type) {
+		msg, ok := <-channel
+		if !ok {
+			return
+		}
+		switch msg.(type) {
 		case string:
 			{
 				switch msg {

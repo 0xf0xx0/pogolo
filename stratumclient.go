@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"pogolo/constants"
 	"slices"
@@ -223,21 +222,17 @@ func (client *StratumClient) adjustDiffRoutine() {
 }
 func (client *StratumClient) readChanRoutine() {
 	for {
-		switch m := (<-client.messageChan).(type) {
-		/// TODO: remove?
-		case string:
-			{
-				//println(m)
-			}
+		/// FIXME: this stops reading when a block is submitted, why?
+		m, ok := (<-client.messageChan)
+		if !ok {
+			/// closed
+			return
+		}
+		switch m.(type) {
 		case *JobTemplate:
 			{
-				client.CurrentJob = client.createJob(DeepCopyTemplate(m))
+				client.CurrentJob = client.createJob(DeepCopyTemplate(m.(*JobTemplate)))
 				client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
-			}
-		default:
-			{
-				/// closed
-				return
 			}
 		}
 	}
