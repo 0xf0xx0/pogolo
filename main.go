@@ -113,19 +113,20 @@ func startup() error {
 			if err != nil {
 				return cli.Exit(err.Error(), 1)
 			}
-			go listenerRoutine(&wg, shutdown, conns, listener)
+			go listenerRoutine(shutdown, conns, listener)
 		}
 	} else {
 		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
 		if err != nil {
 			return cli.Exit(err.Error(), 1)
 		}
-		go listenerRoutine(&wg, shutdown, conns, listener)
+		go listenerRoutine(shutdown, conns, listener)
 	}
 
 	/// connections
 	go func() {
 		defer wg.Done()
+		wg.Add(1)
 		fmt.Println("conns start")
 		for {
 			select {
@@ -141,15 +142,14 @@ func startup() error {
 			}
 		}
 	}()
-	wg.Add(2)
 
 	go backendRoutine()
 
 	// wait for exit
 	<-sigs
-	fmt.Println("\nclosing")
+	fmt.Println("\nstopping")
 	close(shutdown)
-	//wg.Wait()
+	wg.Wait()
 	return nil
 }
 
@@ -263,10 +263,8 @@ func backendRoutine() {
 }
 
 // listens on one ip
-func listenerRoutine(wg *sync.WaitGroup, shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
-	wg.Add(1)
+func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
 	defer listener.Close()
-	defer wg.Done()
 	fmt.Printf("listening on %s\n", listener.Addr())
 	for {
 		conn, err := listener.Accept()
@@ -274,7 +272,7 @@ func listenerRoutine(wg *sync.WaitGroup, shutdown chan struct{}, conns chan net.
 			select {
 			case <-shutdown:
 				{
-					fmt.Println("srv shutdown")
+					//fmt.Println("srv shutdown")
 					return
 				}
 			default:
