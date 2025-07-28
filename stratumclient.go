@@ -267,6 +267,10 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	} else {
 		client.Stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
+		hdr := bytes.NewBuffer([]byte{})
+		updatedBlock.Header.Serialize(hdr)
+		println("share:", fmt.Sprintf("%+v", s))
+		println(fmt.Sprintf("header: %x",hdr))
 	}
 }
 func (client *StratumClient) Stop() {

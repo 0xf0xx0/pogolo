@@ -158,7 +158,11 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	if share.VersionMask != nil && *share.VersionMask != 0 {
-		msgBlock.Header.Version = msgBlock.Header.Version ^ int32(*share.VersionMask)
+		println(fmt.Sprintf("%x %x", msgBlock.Header.Version, *share.VersionMask))
+		/// FIXME: broken :c
+		msgBlock.Header.Version = msgBlock.Header.Version + int32(*share.VersionMask)
+		println(fmt.Sprintf("%x", msgBlock.Header.Version))
+
 	}
 
 	/// coinbase was changed, thus recalc the root
