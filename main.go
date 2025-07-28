@@ -103,10 +103,9 @@ func startup() error {
 			return cli.Exit(err.Error(), 1)
 		}
 		for _, addr := range addrs {
-			/// FIXME: ew, there has to be a better way
 			addr := strings.Split(addr.String(), "/")[0]
 			if strings.Contains(addr, ":") {
-				addr = "["+addr+"]"
+				addr = "[" + addr + "]"
 			}
 			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, conf.Pogolo.Port))
 			if err != nil {
@@ -234,7 +233,7 @@ func backendRoutine() {
 			}
 			fmt.Println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
 			fmt.Printf("hash: %s\n", block.Hash().String())
-			/// TODO: trigger new job template?
+			triggerGBT <- true
 		}
 	}()
 	/// poll getblockcount
@@ -267,14 +266,15 @@ func backendRoutine() {
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while
-		/// TODO: 30s?
 		select {
+		/// TODO: 30s?
 		case <-time.After(time.Minute):
 			{
 			}
-			case <-triggerGBT: {}
+		case <-triggerGBT:
+			{
+			}
 		}
-		//time.Sleep(time.Minute)
 	}
 }
 

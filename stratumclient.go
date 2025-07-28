@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"pogolo/constants"
 	"slices"
@@ -17,7 +18,8 @@ import (
 
 // stats for the api
 type ClientStats struct {
-	lastSubmission time.Time
+	lastSubmission     time.Time
+	avgSubmissionDelta uint64
 	sharesAccepted,
 	sharesRejected uint64
 	bestDiff,
@@ -115,7 +117,6 @@ readloop:
 			}
 		case stratum.MiningAuthorize:
 			{
-				/// TODO: disconnect?
 				if isAuthed {
 					break
 				}
@@ -205,12 +206,20 @@ readloop:
 	}
 }
 
-// TODO
 func (client *StratumClient) adjustDiffRoutine() {
-	// if no shares in a minute
-	if time.Now().Sub(client.Stats.lastSubmission) > time.Minute {
-
-	}
+	// time.Sleep(time.Minute)
+	// for {
+	// 	/// if no shares in over a minute
+	// 	if time.Now().Sub(client.Stats.lastSubmission) > time.Minute {
+	// 		client.AdjustDifficulty(math.Max(client.Difficulty/2, constants.MIN_DIFFICULTY))
+	// 	}
+	// 	/// if too many shares
+	// 	/// TODO: what should we aim for? anything between 5-60s is good
+	// 	if client.Stats.avgSubmissionDelta < uint64(time.Second*10) {
+	// 		client.AdjustDifficulty(client.Difficulty * 2)
+	// 	}
+	// 	time.Sleep(time.Minute)
+	// }
 }
 func (client *StratumClient) readChanRoutine() {
 	for {
@@ -255,6 +264,11 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			client.submitBlock(&client.CurrentJob.Template.Block)
 		}
 		client.Stats.sharesAccepted++
+		now := time.Now()
+		if client.Stats.lastSubmission.Unix() > 0 {
+			client.Stats.avgSubmissionDelta = uint64(now.Sub(client.Stats.lastSubmission))
+		}
+		client.Stats.lastSubmission = now
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
@@ -281,13 +295,15 @@ func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 	return client.createJob(template)
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
+	blockHeader := template.Block.MsgBlock().Header
+
 	merkleBranches := make([][]byte, len(template.MerkleBranch))
 	for i, branch := range template.MerkleBranch {
 		merkleBranches[i] = branch[:]
 	}
 
-	blockHeader := template.Block.MsgBlock().Header
 	coinbaseTx := CreateCoinbaseTx(client.User, *template, conf.Backend.ChainParams)
+	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
 		panic(err)

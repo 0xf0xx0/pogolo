@@ -28,13 +28,12 @@ password: <optional, ignored by default>
 - miners needing extranonce.subscribe
 
 TODO
-- listen on interfaces
 - proper error handling (reduce panics)
 - full test suite
 - document code for future viewers
-- client difficulty adjustment
 - public-pool compatible api
 - 0.1% dev fee for large miners
+- better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - share replay mitigation?
 - multiple active jobs?
 - extranonce subscription?
