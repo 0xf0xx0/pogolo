@@ -93,41 +93,36 @@ func startup() error {
 	submissionChan = make(chan *btcutil.Block)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	var listener net.Listener
-	var err error
-	if conf.Pogolo.Interface != "" {
-		/// TODO
-		net.InterfaceByName(conf.Pogolo.Interface)
-	} else {
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
-	}
-	if err != nil {
-		return cli.Exit(err.Error(), 1)
-	}
-	defer listener.Close()
 	/// listener
-	go func() {
-		defer wg.Done()
-		fmt.Printf("srv start, listening on %s\n", listener.Addr())
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				select {
-				case <-shutdown:
-					{
-						fmt.Println("srv shutdown")
-						return
-					}
-				default:
-					{
-						println(err.Error())
-						continue
-					}
-				}
-			}
-			conns <- conn
+	if conf.Pogolo.Interface != "" {
+		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
+		if err != nil {
+			return cli.Exit(err.Error(), 1)
 		}
-	}()
+		addrs, err := inter.Addrs()
+		if err != nil {
+			return cli.Exit(err.Error(), 1)
+		}
+		for _, addr := range addrs {
+			/// FIXME: ew, there has to be a better way
+			addr := strings.Split(addr.String(), "/")[0]
+			if strings.Contains(addr, ":") {
+				addr = "["+addr+"]"
+			}
+			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, conf.Pogolo.Port))
+			if err != nil {
+				return cli.Exit(err.Error(), 1)
+			}
+			go listenerRoutine(&wg, shutdown, conns, listener)
+		}
+	} else {
+		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
+		if err != nil {
+			return cli.Exit(err.Error(), 1)
+		}
+		go listenerRoutine(&wg, shutdown, conns, listener)
+	}
+
 	/// connections
 	go func() {
 		defer wg.Done()
@@ -154,6 +149,7 @@ func startup() error {
 	<-sigs
 	fmt.Println("\nclosing")
 	close(shutdown)
+	//wg.Wait()
 	return nil
 }
 
@@ -263,6 +259,32 @@ func backendRoutine() {
 			// case <-newBlockFound: {}
 		}
 		//time.Sleep(time.Minute)
+	}
+}
+
+// listens on one ip
+func listenerRoutine(wg *sync.WaitGroup, shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
+	wg.Add(1)
+	defer listener.Close()
+	defer wg.Done()
+	fmt.Printf("listening on %s\n", listener.Addr())
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			select {
+			case <-shutdown:
+				{
+					fmt.Println("srv shutdown")
+					return
+				}
+			default:
+				{
+					println(err.Error())
+					continue
+				}
+			}
+		}
+		conns <- conn
 	}
 }
 

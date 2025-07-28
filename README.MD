@@ -9,6 +9,11 @@ extremely minimal, start it, point your miners to it, and watch the logs roll by
 ```
 go install github.com/0xf0xx0/pogolo@latest
 ```
+
+## server config
+see [pogolo.example.toml](./pogolo.example.toml)  
+default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml
+
 ## miner config
 ```
 host: stratum+tcp://<your lan ip>:5661

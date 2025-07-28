@@ -44,7 +44,9 @@ var DEFAULT_CONFIG = Config{
 		ChainParams: &chaincfg.RegressionNetParams,
 	},
 	Pogolo: Pogolo{
+		Interface:         "lo",
 		IP:                "[::1]",
+		Port:              5661,
 		Tag:               constants.DEFAULT_COINBASE_TAG,
 		DefaultDifficulty: constants.DEFAULT_DIFFICULTY,
 	},
