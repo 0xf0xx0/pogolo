@@ -96,9 +96,10 @@ func startup() error {
 	var listener net.Listener
 	var err error
 	if conf.Pogolo.Interface != "" {
+		/// TODO
 		net.InterfaceByName(conf.Pogolo.Interface)
 	} else {
-		listener, err = net.Listen("tcp", conf.Pogolo.Host)
+		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
 	}
 	if err != nil {
 		return cli.Exit(err.Error(), 1)
@@ -256,7 +257,9 @@ func backendRoutine() {
 		go notifyClients(currTemplate) /// this might take a while
 		/// TODO: 30s?
 		select {
-			case <-time.After(time.Minute): {}
+		case <-time.After(time.Minute):
+			{
+			}
 			// case <-newBlockFound: {}
 		}
 		//time.Sleep(time.Minute)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"pogolo/constants"
 	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
@@ -27,8 +28,9 @@ type Backend struct {
 	ChainParams *chaincfg.Params // internal
 }
 type Pogolo struct {
-	Interface         string  `toml:"interface" comment:"takes precedence over host, will listen on all ips"`
-	Host              string  `toml:"host" comment:"host:port to listen on, preferably lan"`
+	Interface         string  `toml:"interface,commented" comment:"takes precedence over ip, will listen on all interface ips"`
+	IP                string  `toml:"ip,commented" comment:"ipv4 or v6"`
+	Port              uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
 	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.16"`
@@ -42,9 +44,9 @@ var DEFAULT_CONFIG = Config{
 		ChainParams: &chaincfg.RegressionNetParams,
 	},
 	Pogolo: Pogolo{
-		Host:              "[::1]:5661",
-		Tag:               "/pogolo - foss is freedom/",
-		DefaultDifficulty: 1024,
+		IP:                "[::1]",
+		Tag:               constants.DEFAULT_COINBASE_TAG,
+		DefaultDifficulty: constants.DEFAULT_DIFFICULTY,
 	},
 }
 

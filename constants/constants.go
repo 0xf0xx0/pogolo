@@ -2,7 +2,6 @@ package constants
 
 import (
 	"github.com/0xf0xx0/stratum"
-	"github.com/btcsuite/btcd/chaincfg"
 )
 
 const (
@@ -19,13 +18,9 @@ var (
 	ERROR_UNK_METHOD = stratum.Error{Code: 501, Message: "unknown method"}
 
 	// client errors
-	ERROR_NOT_SUBBED   = stratum.Error{Code: 401, Message: "not subscribed"}
+	ERROR_NOT_SUBBED = stratum.Error{Code: 401, Message: "not subscribed"}
 	// for data we understand but will ignore
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 403, Message: "not accepted"}
 	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 406, Message: "difficulty too low"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}
-)
-
-var (
-	DEFAULT_CHAIN = &chaincfg.RegressionNetParams
 )
