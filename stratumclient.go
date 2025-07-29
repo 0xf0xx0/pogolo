@@ -263,6 +263,7 @@ func (client *StratumClient) adjustDifficulty(newDiff float64) error {
 	client.Difficulty = newDiff
 	return nil
 }
+
 // TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {
@@ -291,8 +292,11 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		now := time.Now()
 		if client.Stats.lastSubmission.Unix() > 0 {
 			/// rolling avg
+			/// wikipedia my beloved
+			/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
+			submission := uint64(now.Sub(client.Stats.lastSubmission).Seconds())
 			client.Stats.avgSubmissionDelta =
-				client.Stats.avgSubmissionDelta*(constants.SUBMISSION_DELTA_WINDOW-1)/constants.SUBMISSION_DELTA_WINDOW + uint64(now.Sub(client.Stats.lastSubmission).Seconds())/constants.SUBMISSION_DELTA_WINDOW
+				((client.Stats.avgSubmissionDelta*(constants.SUBMISSION_DELTA_WINDOW-1))+submission)/constants.SUBMISSION_DELTA_WINDOW
 		}
 		client.Stats.lastSubmission = now
 		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), job avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta))
