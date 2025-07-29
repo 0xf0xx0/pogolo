@@ -32,7 +32,7 @@ var (
 func main() {
 	app := &cli.Command{
 		Name:                   "pogolo",
-		Version:                "0.0.1",
+		Version:                "0.0.2",
 		Usage:                  "local go pool",
 		UsageText:              "pogolo [options]",
 		UseShortOptionHandling: true,

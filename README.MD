@@ -16,7 +16,8 @@ pogolo
 ```
 
 ## server config
-see [pogolo.example.toml](./pogolo.example.toml)  
+by default, pogolo runs on regtest and listens on localhost (loopback).  
+see [pogolo.example.toml](./pogolo.example.toml) for configuration.  
 default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml
 
 ## miner config
