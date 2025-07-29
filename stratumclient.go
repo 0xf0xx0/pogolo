@@ -224,7 +224,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		if client.Stats.avgSubmissionDelta == 0 {
 			continue
 		}
-		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta / 1000)
+		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta/1000)
 		/// natural variance is +- 3s
 		if +difference <= 3 {
 			continue
@@ -306,8 +306,13 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			/// wikipedia my beloved
 			/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
 			submission := uint64(now.Sub(client.Stats.lastSubmission).Milliseconds())
-			client.Stats.avgSubmissionDelta =
-				((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
+			/// start the avg calc with the furst delta, not 0
+			if client.Stats.avgSubmissionDelta == 0 {
+				client.Stats.avgSubmissionDelta = submission
+			} else {
+				client.Stats.avgSubmissionDelta =
+					((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
+			}
 		}
 		client.Stats.lastSubmission = now
 		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta/1000))
