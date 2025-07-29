@@ -68,9 +68,9 @@ readloop:
 				if strings.Contains(client.UserAgent, "cpuminer") {
 					client.Difficulty = 0.16
 				}
-				client.AdjustDifficulty(client.Difficulty)
+				client.adjustDifficulty(client.Difficulty)
 			}
-			go client.adjustDiffRoutine()
+			//go client.adjustDiffRoutine()
 			client.messageChan <- "ready"
 		}
 
@@ -122,6 +122,13 @@ readloop:
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
 				split := strings.Split(params.Username, ".")
+				if len(split) > 1 {
+					client.Worker = split[1]
+				}
+				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
+					client.error("invalid password")
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+				}
 				decoded, err := btcutil.DecodeAddress(split[0], conf.Backend.ChainParams)
 				if err != nil {
 					client.error(fmt.Sprintf("failed decoding address: %s", err))
@@ -129,9 +136,6 @@ readloop:
 					return
 				}
 				client.User = decoded
-				if len(split) > 1 {
-					client.Worker = split[1]
-				}
 				client.Password = params.Password
 				client.writeRes(stratum.AuthorizeResponse(m.MessageID, true))
 				isAuthed = true
@@ -172,15 +176,15 @@ readloop:
 					/// only accept a suggested difficulty
 					/// if we haven't got one before
 					client.SuggestedDifficulty = suggestedDiff
-					client.Difficulty = suggestedDiff
 					/// and only send a mining.set_difficulty if accepted,
 					/// we wanna ignore
-					if err := client.AdjustDifficulty(client.Difficulty); err != nil {
+					if err := client.adjustDifficulty(suggestedDiff); err != nil {
 						client.error(fmt.Sprintf("failed to adjust difficulty: %s", err))
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
+				} else {
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
-				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 			}
 		case stratum.MiningSubmit:
 			{
@@ -236,7 +240,29 @@ func (client *StratumClient) readChanRoutine() {
 		}
 	}
 }
+func (client *StratumClient) Stop() {
+	client.writeChan("done")
+	close(client.messageChan)
+	client.conn.Close()
+}
 
+func (client *StratumClient) Channel() chan any {
+	return client.messageChan
+}
+func (client *StratumClient) Addr() net.Addr {
+	return client.conn.RemoteAddr()
+}
+func (client *StratumClient) adjustDifficulty(newDiff float64) error {
+	if newDiff == client.Difficulty {
+		return nil
+	}
+	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
+		return err
+	}
+	client.log(fmt.Sprintf("set new diff: %g", newDiff))
+	client.Difficulty = newDiff
+	return nil
+}
 // TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {
@@ -258,37 +284,30 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			client.submitBlock(&client.CurrentJob.Template.Block)
 		}
 		client.Stats.sharesAccepted++
+		if shareDiff > client.Stats.bestDiff {
+			client.Stats.bestDiff = shareDiff
+			client.log("new best session diff!")
+		}
 		now := time.Now()
 		if client.Stats.lastSubmission.Unix() > 0 {
-			client.Stats.avgSubmissionDelta = uint64(now.Sub(client.Stats.lastSubmission))
+			/// rolling avg
+			client.Stats.avgSubmissionDelta =
+				client.Stats.avgSubmissionDelta*(constants.SUBMISSION_DELTA_WINDOW-1)/constants.SUBMISSION_DELTA_WINDOW + uint64(now.Sub(client.Stats.lastSubmission).Seconds())/constants.SUBMISSION_DELTA_WINDOW
 		}
 		client.Stats.lastSubmission = now
+		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), job avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
+		client.log(fmt.Sprintf("share rejected: diff %f", shareDiff))
+
 		hdr := bytes.NewBuffer([]byte{})
 		updatedBlock.Header.Serialize(hdr)
 		println("share:", fmt.Sprintf("%+v", s))
-		println(fmt.Sprintf("header: %x",hdr))
-		println(fmt.Sprintf("diff: %g", shareDiff))
+		println(fmt.Sprintf("header: %x", hdr))
+		println(fmt.Sprintf("diff: %f", shareDiff))
 	}
-}
-func (client *StratumClient) Stop() {
-	client.writeChan("done")
-	close(client.messageChan)
-	client.conn.Close()
-}
-
-func (client *StratumClient) Channel() chan any {
-	return client.messageChan
-}
-func (client *StratumClient) Addr() net.Addr {
-	return client.conn.RemoteAddr()
-}
-func (client *StratumClient) AdjustDifficulty(newDiff float64) error {
-	client.log(fmt.Sprintf("set new diff: %g", newDiff))
-	return client.writeNotif(stratum.SetDifficulty(newDiff))
 }
 func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 	return client.createJob(template)
@@ -369,9 +388,9 @@ func (client *StratumClient) writeChan(msg any) {
 }
 func (client *StratumClient) log(s string) {
 	if client.Worker != "" {
-		fmt.Printf("%s (%s): %s\n", client.Worker, client.ID.String(), s)
+		fmt.Printf("%s: %s\n", client.Worker, s)
 	} else {
-		fmt.Printf("%s: %s\n", client.ID.String(), s)
+		fmt.Printf("(%s): %s\n", client.ID.String(), s)
 	}
 }
 func (client *StratumClient) error(s string) {

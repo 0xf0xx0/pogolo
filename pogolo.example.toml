@@ -8,8 +8,10 @@ ip = "[::1]"
 #password = "x"
 # will be replaced by default tag if too long (see coinbase scriptsig limit)
 tag = "/pogolo - foss is freedom/"
-# minimum 0.16
+# minimum 0.01
 default_difficulty = 1024
+# in seconds
+job_interval = 60
 
 [backend]
 host = "[::1]:8332"
@@ -18,3 +20,5 @@ cookie = "~/.bitcoin/.cookie"
 #rpcauth = "pogolo:hash"
 # mainnet | testnet | regtest
 chain = "mainnet"
+# in milliseconds, how quickly to poll for block updates
+poll_interval = 500

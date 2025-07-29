@@ -235,8 +235,12 @@ func backendRoutine() {
 				println(fmt.Sprintf("error from backend while submitting block: %s", err))
 				continue
 			}
-			fmt.Println("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====")
-			fmt.Printf("hash: %s\n", block.Hash().String())
+			fmt.Println(
+				"==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!==\n"+
+				/// MAYBE: log worker?
+				fmt.Sprintf("hash: %s", block.Hash().String()),
+			)
+
 			triggerGBT <- true
 		}
 	}()
@@ -263,7 +267,7 @@ func backendRoutine() {
 		}
 	}()
 
-	/// maingbt loop
+	/// main gbt loop
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
@@ -273,7 +277,7 @@ func backendRoutine() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("new template with %d txns\n", len(template.Transactions))
+		fmt.Printf("===<new template with %d txns>===\n", len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while

@@ -1,5 +1,5 @@
-github.com/0xf0xx0/stratum v0.0.1 h1:hegaQTfqiBVS1q8IXWh82gDC6tFXjqXUFKCFRzJPT8Q=
-github.com/0xf0xx0/stratum v0.0.1/go.mod h1:QXda4L8aiDCynA0mOhgvJgVPGBh5MRDwEhyGTkFh/L8=
+github.com/0xf0xx0/stratum v0.0.2 h1:dB4b9CkDyWGrK8mT+2XJwSoy4nl+uqjqme65/WCv13w=
+github.com/0xf0xx0/stratum v0.0.2/go.mod h1:QXda4L8aiDCynA0mOhgvJgVPGBh5MRDwEhyGTkFh/L8=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=

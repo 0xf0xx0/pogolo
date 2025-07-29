@@ -47,7 +47,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	clear := true
 
 	if currBlockHeight != uint64(template.Height) {
-		println("new block")
+		println("new bl00k")
 		currBlockHeight = uint64(template.Height)
 		clear = true
 	}
@@ -158,11 +158,7 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	if share.VersionMask != 0 {
-		println(fmt.Sprintf("%x %x", msgBlock.Header.Version, share.VersionMask))
-		/// FIXME: broken :c
 		msgBlock.Header.Version += int32(share.VersionMask)
-		println(fmt.Sprintf("%x", msgBlock.Header.Version))
-
 	}
 
 	/// coinbase was changed, thus recalc the root

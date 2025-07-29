@@ -33,9 +33,12 @@ TODO
 - document code for future viewers
 - public-pool compatible api
 - 0.1% dev fee for large miners
+    - calc hashrate
+- colorize logs
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - share replay mitigation?
 - multiple active jobs?
 - extranonce subscription?
+- variable extranonce size?
 - stratum keepalive?
 - client.reconnect on server restart?

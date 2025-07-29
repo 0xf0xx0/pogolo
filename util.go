@@ -9,6 +9,7 @@ import (
 	"pogolo/constants"
 	"slices"
 
+	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
@@ -17,7 +18,6 @@ import (
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/0xf0xx0/stratum"
 )
 
 func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
@@ -75,7 +75,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 		panic(err)
 	}
 	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
-		println("pool tag too long, removing")
+		println("pool tag too long, resetting to default")
 		coinbaseScript = coinbaseScript.Reset().
 			AddInt64(height).
 			AddData([]byte(constants.DEFAULT_COINBASE_TAG)).
