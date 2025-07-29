@@ -310,7 +310,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 				((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
 		}
 		client.Stats.lastSubmission = now
-		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), job avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta/1000))
+		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta/1000))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++

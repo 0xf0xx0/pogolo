@@ -73,7 +73,7 @@ func main() {
 					return cli.Exit("unknown backend chain", 3)
 				}
 			}
-			color.Green("running on %s", color.YellowString(conf.Backend.ChainParams.Name))
+			color.Cyan("running on %s", color.YellowString(conf.Backend.ChainParams.Name))
 
 			/// start
 			return startup()
@@ -127,12 +127,12 @@ func startup() error {
 	go func() {
 		defer wg.Done()
 		wg.Add(1)
-		color.Green("conns start")
+		color.Cyan("conns start")
 		for {
 			select {
 			case <-shutdown:
 				{
-					color.Green("conns shutdown")
+					color.Cyan("conns shutdown")
 					return
 				}
 			case conn := <-conns:
@@ -153,7 +153,7 @@ func startup() error {
 	return nil
 }
 
-// handles incoming conns
+// handles individual conns
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := CreateClient(conn, submissionChan)
@@ -174,7 +174,7 @@ func clientHandler(conn net.Conn) {
 				switch msg {
 				case "ready":
 					{
-						color.Green("new client \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
+						color.Blue("new client \"%s\" %s\n", client.ID, color.WhiteString(client.Addr().String()))
 						/// i dont think the order matters, but lets send the current template
 						/// before adding to the client map, just in case notifyClients gets
 						/// called in between (and rapid-fires jobs)
@@ -183,7 +183,7 @@ func clientHandler(conn net.Conn) {
 					}
 				case "done":
 					{
-						color.Green("client disconnect \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
+						color.Blue("client disconnect \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
 						return
 					}
 				}
@@ -239,16 +239,11 @@ func backendRoutine() {
 				println(block.Hash().String())
 				continue
 			}
+			boldGreen := color.New(color.Bold, color.FgGreen).Sprint
 			fmt.Println(
-				func() string {
-					/// this is ugly
-					sep := color.YellowString("==%s==%==", color.RedString("!"), color.RedString("!"))
-					msg := color.GreenString("BLOCK FOUND")
-					joined := strings.Repeat(fmt.Sprint(sep, msg), 3)
-					return fmt.Sprintln(joined, sep)
-				}() +
+				boldGreen("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====") +
 					/// MAYBE: log worker?
-					fmt.Sprintf("hash: %s", block.Hash().String()),
+					fmt.Sprintf("\nhash: %s", boldGreen(block.Hash().String())),
 			)
 
 			triggerGBT <- true
@@ -270,7 +265,9 @@ func backendRoutine() {
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				color.Green("someone else mined a bl00k! %d", count)
+				color.Cyan("a bl00k was mined! %d", count)
+				/// FIXME/MAYBE: skip when we mine a block?
+				/// it triggers gbt before the winning block trigger completes sometimes
 				triggerGBT <- true
 			}
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
@@ -287,7 +284,7 @@ func backendRoutine() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("===<new template with %d txns>===\n", len(template.Transactions))
+		color.Cyan("===<new template with %d txns>===\n", len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while
@@ -307,7 +304,7 @@ func backendRoutine() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
 	defer listener.Close()
-	color.Green("listening on %s\n", color.WhiteString(listener.Addr().String()))
+	color.Cyan("listening on %s\n", color.WhiteString(listener.Addr().String()))
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
