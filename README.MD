@@ -39,7 +39,7 @@ TODO
 - 0.1% dev fee for large miners
     - calc hashrate
 - colorize logs
-- client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
+- better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - share replay mitigation?
 - multiple active jobs?
 - extranonce subscription?

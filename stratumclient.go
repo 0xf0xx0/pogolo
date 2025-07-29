@@ -19,7 +19,7 @@ import (
 // stats for the api
 type ClientStats struct {
 	lastSubmission     time.Time
-	avgSubmissionDelta uint64
+	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
 	sharesRejected uint64
 	bestDiff,
@@ -213,22 +213,23 @@ readloop:
 
 func (client *StratumClient) adjustDiffRoutine() {
 	for {
-		time.Sleep(time.Minute*3)
+		time.Sleep(time.Minute * 3)
 		if client.Stats.avgSubmissionDelta == 0 {
 			continue
 		}
-		diff := conf.Pogolo.TargetShareInterval - (client.Stats.avgSubmissionDelta / 1000)
+		delta := conf.Pogolo.TargetShareInterval - (client.Stats.avgSubmissionDelta / 1000)
 		/// natural variance is +- 3s
-		if +diff <= 3 {
+		if +delta <= 3 {
 			continue
 		}
-		val := math.Pow(2, float64(+diff))
-		client.log(fmt.Sprintf("diff: %d adjust: %f", diff, val))
-		if diff < 0 {
-			client.adjustDifficulty(client.Difficulty - val)
+		/// cap the adjustment at +-2^16
+		adj := min(math.Pow(2, float64(+delta)), 65536)
+		if delta < 0 {
+			client.adjustDifficulty(client.Difficulty - adj)
 		} else {
-			client.adjustDifficulty(client.Difficulty + val)
+			client.adjustDifficulty(client.Difficulty + adj)
 		}
+		client.log(fmt.Sprintf("adjusted share target: %f", client.Difficulty))
 	}
 }
 func (client *StratumClient) readChanRoutine() {
