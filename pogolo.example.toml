@@ -2,7 +2,7 @@
 port = 5661
 # takes precedence over ip, will listen on all interface ips
 interface = "lo"
-# ipv4 or v6
+# ipv4, v6, or domain (domain will only resolve the first ip)
 ip = "[::1]"
 # optional, required for clients if set
 #password = "x"
@@ -10,7 +10,7 @@ ip = "[::1]"
 tag = "/pogolo - foss is freedom/"
 # minimum 0.01
 default_difficulty = 1024
-# in seconds
+# how often to send new work to clients, in seconds
 job_interval = 60
 
 [backend]
@@ -20,5 +20,5 @@ cookie = "~/.bitcoin/.cookie"
 #rpcauth = "pogolo:hash"
 # mainnet | testnet | regtest
 chain = "mainnet"
-# in milliseconds, how quickly to poll for block updates
+# how quickly to poll for block updates, in milliseconds
 poll_interval = 500

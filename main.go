@@ -236,9 +236,9 @@ func backendRoutine() {
 				continue
 			}
 			fmt.Println(
-				"==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!==\n"+
-				/// MAYBE: log worker?
-				fmt.Sprintf("hash: %s", block.Hash().String()),
+				"==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!==\n" +
+					/// MAYBE: log worker?
+					fmt.Sprintf("hash: %s", block.Hash().String()),
 			)
 
 			triggerGBT <- true
@@ -263,7 +263,7 @@ func backendRoutine() {
 				println("someone else mined a block:", count)
 				triggerGBT <- true
 			}
-			time.Sleep(time.Millisecond * 500)
+			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 		}
 	}()
 
@@ -282,14 +282,13 @@ func backendRoutine() {
 		currTemplate = CreateJobTemplate(template)
 		go notifyClients(currTemplate) /// this might take a while
 		select {
-		/// TODO: 30s?
-		case <-time.After(time.Minute):
+		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
 			{
 			}
 		case <-triggerGBT:
 			{
 				/// TODO: figure out why i need to do this
-				time.Sleep(time.Millisecond*33)
+				time.Sleep(time.Millisecond * 33)
 			}
 		}
 	}

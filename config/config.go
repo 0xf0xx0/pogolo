@@ -21,11 +21,12 @@ type Config struct {
 	Pogolo  Pogolo  `toml:"pogolo"`
 }
 type Backend struct {
-	Host        string           `toml:"host" comment:"RPC host:port"`
-	Cookie      string           `toml:"cookie,commented" comment:"RPC cookie path"`
-	Rpcauth     string           `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
-	Chain       string           `toml:"chain" comment:"mainnet | testnet | regtest"`
-	ChainParams *chaincfg.Params // internal
+	Host         string           `toml:"host" comment:"RPC host:port"`
+	Cookie       string           `toml:"cookie,commented" comment:"RPC cookie path"`
+	Rpcauth      string           `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
+	Chain        string           `toml:"chain" comment:"mainnet | testnet | regtest"`
+	ChainParams  *chaincfg.Params // internal
+	PollInterval uint64           `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds"`
 }
 type Pogolo struct {
 	Port              uint16  `toml:"port" comment:"use 0 to pick a random port"`
@@ -33,15 +34,17 @@ type Pogolo struct {
 	IP                string  `toml:"ip,commented" comment:"ipv4 or v6"`
 	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
-	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.16"`
+	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.01"`
+	JobInterval       uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 }
 
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
-		Host:        "[::1]:18443",
-		Cookie:      resolvePath("~/.bitcoin/regtest/.cookie"),
-		Chain:       "regtest",
-		ChainParams: &chaincfg.RegressionNetParams,
+		Host:         "[::1]:18443",
+		Cookie:       resolvePath("~/.bitcoin/regtest/.cookie"),
+		Chain:        "regtest",
+		ChainParams:  &chaincfg.RegressionNetParams,
+		PollInterval: 500,
 	},
 	Pogolo: Pogolo{
 		Interface:         "lo",
@@ -49,6 +52,7 @@ var DEFAULT_CONFIG = Config{
 		Port:              5661,
 		Tag:               constants.DEFAULT_COINBASE_TAG,
 		DefaultDifficulty: constants.DEFAULT_DIFFICULTY,
+		JobInterval:       60,
 	},
 }
 

@@ -10,6 +10,11 @@ extremely minimal, start it, point your miners to it, and watch the logs roll by
 go install github.com/0xf0xx0/pogolo@latest
 ```
 
+## run
+```
+pogolo
+```
+
 ## server config
 see [pogolo.example.toml](./pogolo.example.toml)  
 default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml
@@ -28,14 +33,13 @@ password: <optional, ignored by default>
 - miners needing extranonce.subscribe
 
 TODO
-- proper error handling (reduce panics)
-- full test suite
+- full test suite (almost done)
 - document code for future viewers
 - public-pool compatible api
 - 0.1% dev fee for large miners
     - calc hashrate
 - colorize logs
-- better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
+- client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - share replay mitigation?
 - multiple active jobs?
 - extranonce subscription?
