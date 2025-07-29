@@ -224,19 +224,19 @@ func (client *StratumClient) adjustDiffRoutine() {
 		if client.Stats.avgSubmissionDelta == 0 {
 			continue
 		}
-		delta := conf.Pogolo.TargetShareInterval - (client.Stats.avgSubmissionDelta / 1000)
+		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta / 1000)
 		/// natural variance is +- 3s
-		if +delta <= 3 {
+		if +difference <= 3 {
 			continue
 		}
-		/// cap the adjustment at +-2^8
-		adj := min(math.Pow(2, float64(+delta)), 256)
-		if delta < 0 {
-			client.setDifficulty(client.Difficulty - adj)
+		/// cap the adjustment at +-2^12
+		delta := min(math.Pow(2, float64(+difference)), 4096)
+		if difference < 0 {
+			client.setDifficulty(client.Difficulty - delta)
 		} else {
-			client.setDifficulty(client.Difficulty + adj)
+			client.setDifficulty(client.Difficulty + delta)
 		}
-		client.log(fmt.Sprintf("adjusted share target: %f", client.Difficulty))
+		client.log(fmt.Sprintf("adjusted share target: %f (delta: %d)", client.Difficulty, delta))
 	}
 }
 func (client *StratumClient) readChanRoutine() {

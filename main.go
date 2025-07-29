@@ -267,7 +267,7 @@ func backendRoutine() {
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				color.Cyan("a bl00k was mined! %d", count)
+				color.Cyan("new bl00k in chain! %d", count)
 				/// FIXME/MAYBE: skip when we mine a block?
 				/// it triggers gbt before the winning block trigger completes sometimes
 				triggerGBT <- true
