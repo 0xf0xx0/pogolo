@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"pogolo/constants"
 	"slices"
@@ -68,9 +69,9 @@ readloop:
 				if strings.Contains(client.UserAgent, "cpuminer") {
 					client.Difficulty = 0.16
 				}
-				client.adjustDifficulty(client.Difficulty)
+				client.adjustDifficulty(conf.Pogolo.DefaultDifficulty)
 			}
-			//go client.adjustDiffRoutine()
+			go client.adjustDiffRoutine()
 			client.messageChan <- "ready"
 		}
 
@@ -210,19 +211,20 @@ readloop:
 }
 
 func (client *StratumClient) adjustDiffRoutine() {
-	// time.Sleep(time.Minute)
-	// for {
-	// 	/// if no shares in over a minute
-	// 	if time.Now().Sub(client.Stats.lastSubmission) > time.Minute {
-	// 		client.AdjustDifficulty(math.Max(client.Difficulty/2, constants.MIN_DIFFICULTY))
-	// 	}
-	// 	/// if too many shares
-	// 	/// TODO: what should we aim for? anything between 5-60s is good
-	// 	if client.Stats.avgSubmissionDelta < uint64(time.Second*10) {
-	// 		client.AdjustDifficulty(client.Difficulty * 2)
-	// 	}
-	// 	time.Sleep(time.Minute)
-	// }
+	time.Sleep(time.Minute*2) /// let shares pile in
+	for {
+		diff := uint64(time.Second*time.Duration(conf.Pogolo.TargetShareInterval)) - client.Stats.avgSubmissionDelta
+		if diff != 0 {
+			val := math.Pow(2, float64(+diff))
+			client.log(fmt.Sprintf("diff: %d adjust: %f", diff, val))
+			if diff < 0 {
+				client.adjustDifficulty(client.Difficulty - val)
+			} else {
+				client.adjustDifficulty(client.Difficulty + val)
+			}
+		}
+		time.Sleep(time.Minute)
+	}
 }
 func (client *StratumClient) readChanRoutine() {
 	for {
@@ -254,12 +256,13 @@ func (client *StratumClient) Addr() net.Addr {
 }
 func (client *StratumClient) adjustDifficulty(newDiff float64) error {
 	if newDiff == client.Difficulty {
+		client.error(fmt.Sprintf("failed to set new diff %f: old %f", newDiff, client.Difficulty))
 		return nil
 	}
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
 		return err
 	}
-	client.log(fmt.Sprintf("set new diff: %g", newDiff))
+	client.log(fmt.Sprintf("set new diff: %f", newDiff))
 	client.Difficulty = newDiff
 	return nil
 }
@@ -294,12 +297,12 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			/// rolling avg
 			/// wikipedia my beloved
 			/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
-			submission := uint64(now.Sub(client.Stats.lastSubmission).Seconds())
+			submission := uint64(now.Sub(client.Stats.lastSubmission).Milliseconds())
 			client.Stats.avgSubmissionDelta =
-				((client.Stats.avgSubmissionDelta*(constants.SUBMISSION_DELTA_WINDOW-1))+submission)/constants.SUBMISSION_DELTA_WINDOW
+				((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
 		}
 		client.Stats.lastSubmission = now
-		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), job avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta))
+		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), job avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta/1000))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
@@ -411,7 +414,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) Stratu
 		ID:             ClientIDHash(),
 		messageChan:    make(chan any),
 		submissionChan: submissionChannel,
-		Difficulty:     conf.Pogolo.DefaultDifficulty,
+		Difficulty:     1,
 	}
 	return client
 }
