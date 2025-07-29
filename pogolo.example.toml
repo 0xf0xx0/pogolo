@@ -12,6 +12,8 @@ tag = "/pogolo - foss is freedom/"
 default_difficulty = 1024
 # how often to send new work to clients, in seconds
 job_interval = 60
+# how often we want shares on average, in seconds
+target_share_interval = 10
 
 [backend]
 host = "[::1]:8332"

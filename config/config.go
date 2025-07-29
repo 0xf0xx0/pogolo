@@ -29,13 +29,14 @@ type Backend struct {
 	PollInterval uint64           `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds"`
 }
 type Pogolo struct {
-	Port              uint16  `toml:"port" comment:"use 0 to pick a random port"`
-	Interface         string  `toml:"interface,commented" comment:"takes precedence over ip, will listen on all interface ips"`
-	IP                string  `toml:"ip,commented" comment:"ipv4 or v6"`
-	Password          string  `toml:"password,commented" comment:"optional, required for clients if set"`
-	Tag               string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
-	DefaultDifficulty float64 `toml:"default_difficulty" comment:"minimum 0.01"`
-	JobInterval       uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
+	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
+	Interface           string  `toml:"interface,commented" comment:"takes precedence over ip, will listen on all interface ips"`
+	IP                  string  `toml:"ip,commented" comment:"ipv4 or v6"`
+	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
+	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
+	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.01"`
+	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
+	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 }
 
 var DEFAULT_CONFIG = Config{
@@ -47,12 +48,13 @@ var DEFAULT_CONFIG = Config{
 		PollInterval: 500,
 	},
 	Pogolo: Pogolo{
-		Interface:         "lo",
-		IP:                "[::1]",
-		Port:              5661,
-		Tag:               constants.DEFAULT_COINBASE_TAG,
-		DefaultDifficulty: constants.DEFAULT_DIFFICULTY,
-		JobInterval:       60,
+		Interface:           "lo",
+		IP:                  "[::1]",
+		Port:                5661,
+		Tag:                 constants.DEFAULT_COINBASE_TAG,
+		DefaultDifficulty:   constants.DEFAULT_DIFFICULTY,
+		JobInterval:         60,
+		TargetShareInterval: 10,
 	},
 }
 
