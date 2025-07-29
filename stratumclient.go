@@ -218,7 +218,8 @@ func (client *StratumClient) adjustDiffRoutine() {
 			continue
 		}
 		diff := conf.Pogolo.TargetShareInterval - (client.Stats.avgSubmissionDelta / 1000)
-		if diff == 0 {
+		/// natural variance is +- 3s
+		if +diff <= 3 {
 			continue
 		}
 		val := math.Pow(2, float64(+diff))
