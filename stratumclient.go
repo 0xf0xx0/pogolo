@@ -69,7 +69,7 @@ readloop:
 				if strings.Contains(client.UserAgent, "cpuminer") {
 					client.Difficulty = 0.16
 				}
-				client.adjustDifficulty(conf.Pogolo.DefaultDifficulty)
+				client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 			}
 			go client.adjustDiffRoutine()
 			client.messageChan <- "ready"
@@ -180,7 +180,7 @@ readloop:
 					client.SuggestedDifficulty = suggestedDiff
 					/// and only send a mining.set_difficulty if accepted,
 					/// we wanna ignore
-					if err := client.adjustDifficulty(suggestedDiff); err != nil {
+					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error(fmt.Sprintf("failed to adjust difficulty: %s", err))
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
@@ -210,6 +210,11 @@ readloop:
 		}
 	}
 }
+func (client *StratumClient) Stop() {
+	client.writeChan("done")
+	close(client.messageChan)
+	client.conn.Close()
+}
 
 func (client *StratumClient) adjustDiffRoutine() {
 	for {
@@ -225,9 +230,9 @@ func (client *StratumClient) adjustDiffRoutine() {
 		/// cap the adjustment at +-2^16
 		adj := min(math.Pow(2, float64(+delta)), 65536)
 		if delta < 0 {
-			client.adjustDifficulty(client.Difficulty - adj)
+			client.setDifficulty(client.Difficulty - adj)
 		} else {
-			client.adjustDifficulty(client.Difficulty + adj)
+			client.setDifficulty(client.Difficulty + adj)
 		}
 		client.log(fmt.Sprintf("adjusted share target: %f", client.Difficulty))
 	}
@@ -248,11 +253,6 @@ func (client *StratumClient) readChanRoutine() {
 		}
 	}
 }
-func (client *StratumClient) Stop() {
-	client.writeChan("done")
-	close(client.messageChan)
-	client.conn.Close()
-}
 
 func (client *StratumClient) Channel() chan any {
 	return client.messageChan
@@ -260,7 +260,7 @@ func (client *StratumClient) Channel() chan any {
 func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
-func (client *StratumClient) adjustDifficulty(newDiff float64) error {
+func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.Difficulty {
 		client.error(fmt.Sprintf("failed to set new diff %f: old %f", newDiff, client.Difficulty))
 		return nil

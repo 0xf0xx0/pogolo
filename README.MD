@@ -34,10 +34,11 @@ password: <optional, ignored by default>
 
 TODO
 - full test suite (almost done)
-- document code for future viewers
 - public-pool compatible api
 - 0.1% dev fee for large miners
     - calc hashrate
+- document code for future viewers
+- logs with personality
 - colorize logs
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - share replay mitigation?
@@ -45,4 +46,6 @@ TODO
 - extranonce subscription?
 - variable extranonce size?
 - stratum keepalive?
+- longpoll?
+- zmq for block notifs?
 - client.reconnect on server restart?
