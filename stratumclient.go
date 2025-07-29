@@ -271,6 +271,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		updatedBlock.Header.Serialize(hdr)
 		println("share:", fmt.Sprintf("%+v", s))
 		println(fmt.Sprintf("header: %x",hdr))
+		println(fmt.Sprintf("diff: %g", shareDiff))
 	}
 }
 func (client *StratumClient) Stop() {

@@ -243,7 +243,12 @@ func backendRoutine() {
 	/// poll getblockcount
 	go func() {
 		/// needed to start after the gbt loop
-		time.Sleep(time.Second)
+		for {
+			if currTemplate != nil {
+				break
+			}
+			time.Sleep(time.Second)
+		}
 		for {
 			count, err := backend.GetBlockCount()
 			if err != nil {

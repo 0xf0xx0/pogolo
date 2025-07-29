@@ -138,9 +138,9 @@ func getNextTemplateID() string {
 	return fmt.Sprintf("%x", currTemplateID)
 }
 
-// like public-pools copyAndUpdateBlock, but without the copy
+// like public-pools copyAndUpdateBlock
 func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
-	msgBlock := template.Block.MsgBlock()
+	msgBlock := template.Block.MsgBlock().Copy()
 
 	coinbase := hex.EncodeToString(notif.CoinbasePart1) + client.ID.String() +
 		hex.EncodeToString(share.ExtraNonce2) + hex.EncodeToString(notif.CoinbasePart2)
@@ -157,10 +157,10 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	msgBlock.Header.Nonce = share.Nonce
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
-	if share.VersionMask != nil && *share.VersionMask != 0 {
-		println(fmt.Sprintf("%x %x", msgBlock.Header.Version, *share.VersionMask))
+	if share.VersionMask != 0 {
+		println(fmt.Sprintf("%x %x", msgBlock.Header.Version, share.VersionMask))
 		/// FIXME: broken :c
-		msgBlock.Header.Version = msgBlock.Header.Version + int32(*share.VersionMask)
+		msgBlock.Header.Version += int32(share.VersionMask)
 		println(fmt.Sprintf("%x", msgBlock.Header.Version))
 
 	}

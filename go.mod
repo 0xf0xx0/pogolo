@@ -2,6 +2,8 @@ module pogolo
 
 go 1.24.3
 
+//replace github.com/0xf0xx0/stratum => ../stratum
+
 require (
 	github.com/0xf0xx0/stratum v0.0.1
 	github.com/btcsuite/btcd v0.24.2
