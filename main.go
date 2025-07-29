@@ -27,6 +27,7 @@ var (
 	clients        map[string]StratumClient
 	currTemplate   *JobTemplate
 	submissionChan chan *btcutil.Block
+	serverStartTime time.Time
 )
 
 func main() {
@@ -145,6 +146,7 @@ func startup() error {
 
 	go backendRoutine()
 
+	serverStartTime = time.Now()
 	// wait for exit
 	<-sigs
 	color.Yellow("\nstopping")

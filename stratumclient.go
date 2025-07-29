@@ -229,12 +229,12 @@ func (client *StratumClient) adjustDiffRoutine() {
 		if +delta <= 3 {
 			continue
 		}
-		/// cap the adjustment at +-2^16
-		adj := min(math.Pow(2, float64(+delta)), 65536)
+		/// cap the adjustment at +-2^8
+		adj := min(math.Pow(2, float64(+delta)), 256)
 		if delta < 0 {
-			client.setDifficulty(client.Difficulty - adj)
-		} else {
 			client.setDifficulty(client.Difficulty + adj)
+		} else {
+			client.setDifficulty(client.Difficulty - adj)
 		}
 		client.log(fmt.Sprintf("adjusted share target: %f", client.Difficulty))
 	}
