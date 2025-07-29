@@ -171,11 +171,12 @@ readloop:
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
-				if suggestedDiff > constants.MIN_DIFFICULTY &&
-					stratum.ValidDifficulty(suggestedDiff) &&
-					client.SuggestedDifficulty == 0 {
-					/// only accept a suggested difficulty
-					/// if we haven't got one before
+				/// only accept a suggested difficulty
+				/// if we haven't got one before
+				if client.SuggestedDifficulty == 0 &&
+					suggestedDiff != client.Difficulty &&
+					suggestedDiff > constants.MIN_DIFFICULTY &&
+					stratum.ValidDifficulty(suggestedDiff) {
 					client.SuggestedDifficulty = suggestedDiff
 					/// and only send a mining.set_difficulty if accepted,
 					/// we wanna ignore
@@ -211,19 +212,22 @@ readloop:
 }
 
 func (client *StratumClient) adjustDiffRoutine() {
-	time.Sleep(time.Minute*2) /// let shares pile in
 	for {
-		diff := uint64(time.Second*time.Duration(conf.Pogolo.TargetShareInterval)) - client.Stats.avgSubmissionDelta
-		if diff != 0 {
-			val := math.Pow(2, float64(+diff))
-			client.log(fmt.Sprintf("diff: %d adjust: %f", diff, val))
-			if diff < 0 {
-				client.adjustDifficulty(client.Difficulty - val)
-			} else {
-				client.adjustDifficulty(client.Difficulty + val)
-			}
+		time.Sleep(time.Minute*3)
+		if client.Stats.avgSubmissionDelta == 0 {
+			continue
 		}
-		time.Sleep(time.Minute)
+		diff := conf.Pogolo.TargetShareInterval - (client.Stats.avgSubmissionDelta / 1000)
+		if diff == 0 {
+			continue
+		}
+		val := math.Pow(2, float64(+diff))
+		client.log(fmt.Sprintf("diff: %d adjust: %f", diff, val))
+		if diff < 0 {
+			client.adjustDifficulty(client.Difficulty - val)
+		} else {
+			client.adjustDifficulty(client.Difficulty + val)
+		}
 	}
 }
 func (client *StratumClient) readChanRoutine() {
