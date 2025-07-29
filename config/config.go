@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/fatih/color"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
@@ -61,13 +62,13 @@ var DEFAULT_CONFIG = Config{
 func LoadConfig(path string, conf *Config) {
 	configfile, err := os.Open(path)
 	if err != nil {
-		println(fmt.Sprintf("failed to load config at %s: %s", path, err))
+		println(color.YellowString("failed to load config at %s: %s", path, err))
 		return
 	}
 	d := toml.NewDecoder(configfile)
 	d.DisallowUnknownFields()
 	if err := d.Decode(conf); err != nil {
-		println(fmt.Sprintf("failed to decode config at %s: %s", path, err))
+		println(color.RedString("failed to decode config at %s: %s", path, err))
 		os.Exit(1)
 	}
 	conf.Backend.Cookie = resolvePath(conf.Backend.Cookie)
@@ -82,7 +83,7 @@ func writeDefaultConfig(path string) error {
 func getConfigDir() string {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
-		println(fmt.Sprintf("error getting config dir: %s", err))
+		println(color.RedString("error getting config dir: %s", err))
 		os.Exit(1)
 	}
 	return filepath.Join(userConfigDir, "./pogolo")

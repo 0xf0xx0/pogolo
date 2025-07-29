@@ -48,18 +48,16 @@ func TestUpdateBlock(t *testing.T) {
 		User: getAddr(),
 	}
 	job := main.CreateJobTemplate(template)
-	job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
-	shareDiff := main.CalcDifficulty(job.Block.MsgBlock().Header)
+	blk,_ := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
+	shareDiff := main.CalcDifficulty(blk.Header)
 	if shareDiff != expectedShareDiff {
-		t.Fatalf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
+		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 	}
 	serializedHeader := bytes.NewBuffer([]byte{})
-	job.Block.MsgBlock().Header.Serialize(serializedHeader)
+	blk.Header.Serialize(serializedHeader)
 	t.Logf("sharediff: %g", shareDiff)
 	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
-	t.Logf("hash: %s", job.Block.Hash())
-	// blk, _ := main.SerializeBlock(&job.Block)
-	// t.Logf("block: %x", blk)
+	t.Logf("hash: %s", blk.BlockHash())
 }
 
 func TestCreateJobTemplate(t *testing.T) {

@@ -17,6 +17,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 )
 
@@ -72,13 +73,14 @@ func main() {
 					return cli.Exit("unknown backend chain", 3)
 				}
 			}
+			color.Green("running on %s", color.YellowString(conf.Backend.ChainParams.Name))
 
 			/// start
 			return startup()
 		},
 	}
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		println(fmt.Sprintf("%s", err))
+		println(color.RedString("%s", err))
 	}
 }
 
@@ -125,12 +127,12 @@ func startup() error {
 	go func() {
 		defer wg.Done()
 		wg.Add(1)
-		fmt.Println("conns start")
+		color.Green("conns start")
 		for {
 			select {
 			case <-shutdown:
 				{
-					fmt.Println("conns shutdown")
+					color.Green("conns shutdown")
 					return
 				}
 			case conn := <-conns:
@@ -145,7 +147,7 @@ func startup() error {
 
 	// wait for exit
 	<-sigs
-	fmt.Println("\nstopping")
+	color.Yellow("\nstopping")
 	close(shutdown)
 	wg.Wait()
 	return nil
@@ -172,7 +174,7 @@ func clientHandler(conn net.Conn) {
 				switch msg {
 				case "ready":
 					{
-						fmt.Printf("new client %q (%s)\n", client.ID, client.Addr())
+						color.Green("new client \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
 						/// i dont think the order matters, but lets send the current template
 						/// before adding to the client map, just in case notifyClients gets
 						/// called in between (and rapid-fires jobs)
@@ -181,7 +183,7 @@ func clientHandler(conn net.Conn) {
 					}
 				case "done":
 					{
-						fmt.Printf("client disconnect %q (%s)\n", client.ID, client.Addr())
+						color.Green("client disconnect \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
 						return
 					}
 				}
@@ -222,6 +224,7 @@ func backendRoutine() {
 		fmt.Printf("%s\n", err)
 		return
 	}
+	/// block submissions
 	go func() {
 		for {
 			/// furst come furst serve
@@ -233,10 +236,17 @@ func backendRoutine() {
 			err := backend.SubmitBlock(block, nil)
 			if err != nil {
 				println(fmt.Sprintf("error from backend while submitting block: %s", err))
+				println(block.Hash().String())
 				continue
 			}
 			fmt.Println(
-				"==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!== BLOCK FOUND ==!==!==\n" +
+				func() string {
+					/// this is ugly
+					sep := color.YellowString("==%s==%==", color.RedString("!"), color.RedString("!"))
+					msg := color.GreenString("BLOCK FOUND")
+					joined := strings.Repeat(fmt.Sprint(sep, msg), 3)
+					return fmt.Sprintln(joined, sep)
+				}() +
 					/// MAYBE: log worker?
 					fmt.Sprintf("hash: %s", block.Hash().String()),
 			)
@@ -260,7 +270,7 @@ func backendRoutine() {
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				println("someone else mined a block:", count)
+				color.Green("someone else mined a bl00k! %d", count)
 				triggerGBT <- true
 			}
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
@@ -297,7 +307,7 @@ func backendRoutine() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
 	defer listener.Close()
-	fmt.Printf("listening on %s\n", listener.Addr())
+	color.Green("listening on %s\n", color.WhiteString(listener.Addr().String()))
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/fatih/color"
 )
 
 // stats for the api
@@ -67,9 +68,10 @@ readloop:
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
 				if strings.Contains(client.UserAgent, "cpuminer") {
-					client.Difficulty = 0.16
+					//client.setDifficulty(0.16)
+				} else {
+					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
-				client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 			}
 			go client.adjustDiffRoutine()
 			client.messageChan <- "ready"
@@ -291,7 +293,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	shareDiff := CalcDifficulty(updatedBlock.Header)
 	if shareDiff >= float64(client.Difficulty) {
 		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
-			client.submitBlock(&client.CurrentJob.Template.Block)
+			client.submitBlock(btcutil.NewBlock(updatedBlock))
 		}
 		client.Stats.sharesAccepted++
 		if shareDiff > client.Stats.bestDiff {
@@ -401,16 +403,16 @@ func (client *StratumClient) writeChan(msg any) {
 }
 func (client *StratumClient) log(s string) {
 	if client.Worker != "" {
-		fmt.Printf("%s: %s\n", client.Worker, s)
+		fmt.Printf("%s: %s\n", color.CyanString(client.Worker), s)
 	} else {
-		fmt.Printf("(%s): %s\n", client.ID.String(), s)
+		fmt.Printf("(%s): %s\n", color.CyanString(client.ID.String()), s)
 	}
 }
 func (client *StratumClient) error(s string) {
 	if client.Worker != "" {
-		println(fmt.Sprintf("%s (%s): %s", client.Worker, client.ID.String(), s))
+		println(fmt.Sprintf("%s: %s", color.CyanString(client.Worker), color.RedString(s)))
 	} else {
-		println(fmt.Sprintf("%s: %s", client.ID.String(), s))
+		println(fmt.Sprintf("%s: %s", color.CyanString(client.ID.String()), color.RedString(s)))
 	}
 }
 
