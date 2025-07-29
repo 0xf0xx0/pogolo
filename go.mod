@@ -5,7 +5,7 @@ go 1.24.3
 //replace github.com/0xf0xx0/stratum => ../stratum
 
 require (
-	github.com/0xf0xx0/stratum v0.0.1
+	github.com/0xf0xx0/stratum v0.0.2
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
