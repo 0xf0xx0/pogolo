@@ -124,6 +124,8 @@ func startup() error {
 		go listenerRoutine(shutdown, conns, listener)
 	}
 
+	go backendRoutine()
+
 	/// connections
 	go func() {
 		defer wg.Done()
@@ -143,8 +145,6 @@ func startup() error {
 			}
 		}
 	}()
-
-	go backendRoutine()
 
 	serverStartTime = time.Now()
 	// wait for exit
@@ -289,7 +289,7 @@ func backendRoutine() {
 		color.Cyan("===<new template with %d txns>===\n", len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = CreateJobTemplate(template)
-		go notifyClients(currTemplate) /// this might take a while
+		notifyClients(currTemplate) /// this might take a while
 		select {
 		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
 			{
@@ -297,7 +297,7 @@ func backendRoutine() {
 		case <-triggerGBT:
 			{
 				/// TODO: figure out why i need to do this
-				time.Sleep(time.Millisecond * 33)
+				time.Sleep(time.Millisecond * 300)
 			}
 		}
 	}
