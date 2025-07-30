@@ -54,11 +54,9 @@ func (client *StratumClient) Run(noCleanup bool) {
 	isAuthed := false
 	isSubscribed := false
 
-	reader := bufio.NewReader(client.conn)
 	/// 15 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 15))
-
-readloop:
+	reader := bufio.NewReader(client.conn)
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
@@ -68,7 +66,7 @@ readloop:
 			/// if they haven't, alert them to our default diff
 			if client.SuggestedDifficulty == 0 {
 				if strings.Contains(client.UserAgent, "cpuminer") {
-					//client.setDifficulty(0.16)
+					client.setDifficulty(0.16)
 				} else {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
@@ -82,13 +80,13 @@ readloop:
 			if err != io.ErrClosedPipe {
 				client.error(fmt.Sprintf("read error: %s", err))
 			}
-			break readloop
+			return
 		}
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
 			client.error(fmt.Sprintf("stratum decode error: %s", err))
-			break readloop
+			return
 		}
 
 		switch m.GetMethod() {
@@ -112,7 +110,7 @@ readloop:
 					} else {
 						/// *uhhhhhhhhhhhhhhhh*
 						client.error("couldnt read version rolling mask? shouldnt happen i *think*")
-						break readloop
+						return
 					}
 				}
 				client.writeRes(stratum.ConfigureResponse(m.MessageID, res))
