@@ -297,6 +297,8 @@ func backendRoutine() {
 		case <-triggerGBT:
 			{
 				/// TODO: figure out why i need to do this
+				/// FIXME: even with this delay it
+				/// fails to send the notify sometimes
 				time.Sleep(time.Millisecond * 300)
 			}
 		}

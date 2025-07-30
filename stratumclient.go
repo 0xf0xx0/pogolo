@@ -19,7 +19,8 @@ import (
 
 // stats for the api
 type ClientStats struct {
-	lastSubmission     time.Time
+	startTime,
+	lastSubmission time.Time
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
 	sharesRejected uint64
@@ -72,6 +73,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 			}
 			go client.adjustDiffRoutine()
+			client.Stats.startTime = time.Now()
 			client.messageChan <- "ready"
 		}
 
@@ -259,6 +261,15 @@ func (client *StratumClient) Channel() chan any {
 func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
+
+// live hashrate in MH/s
+// TODO: WIP
+func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
+	hashrate := client.Difficulty * (math.Pow(2, 32)) / float64(shareTime.Sub(client.Stats.startTime).Seconds())
+	hashrate /= 10e6
+	client.Stats.hashrate = (client.Stats.hashrate*4 + hashrate) / 5
+	return hashrate
+}
 func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.Difficulty {
 		client.error(fmt.Sprintf("failed to set new diff %f: old %f", newDiff, client.Difficulty))
@@ -312,8 +323,11 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 		}
 		client.Stats.lastSubmission = now
+		// client.calcHashrate(now)
 		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
 		client.log(fmt.Sprintf("diff %s (best: %s), avg submission delta %ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000))
+		// client.log(formatHashrate(client.Stats.hashrate))
+		// client.Stats.startTime = now
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
@@ -326,9 +340,6 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		// println(fmt.Sprintf("header: %x", hdr))
 		// println(fmt.Sprintf("diff: %f", shareDiff))
 	}
-}
-func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
-	return client.createJob(template)
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	blockHeader := template.Block.MsgBlock().Header
@@ -370,6 +381,11 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	return job
+}
+
+// for testing
+func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
+	return client.createJob(template)
 }
 
 // TODO: how to get errors back?
