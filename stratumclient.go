@@ -220,23 +220,22 @@ func (client *StratumClient) Stop() {
 
 func (client *StratumClient) adjustDiffRoutine() {
 	for {
-		time.Sleep(time.Minute * 3)
+		time.Sleep(time.Minute * 5)
 		if client.Stats.avgSubmissionDelta == 0 {
 			continue
 		}
 		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta/1000)
 		/// natural variance is +- 3s
-		if +difference <= 3 {
+		if +difference < 3 {
 			continue
 		}
 		/// cap the adjustment at +-2^12
 		delta := min(math.Pow(2, float64(+difference)), 4096)
 		if difference < 0 {
-			client.setDifficulty(client.Difficulty - delta)
-		} else {
-			client.setDifficulty(client.Difficulty + delta)
+			delta = -delta
 		}
-		client.log(fmt.Sprintf("adjusted share target: %f (delta: %d)", client.Difficulty, delta))
+		client.log(fmt.Sprintf("adjusting share target by %+.0f", delta))
+		client.setDifficulty(client.Difficulty + delta)
 	}
 }
 func (client *StratumClient) readChanRoutine() {
@@ -270,7 +269,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
 		return err
 	}
-	client.log(fmt.Sprintf("set new diff: %f", newDiff))
+	client.log(fmt.Sprintf("set new diff: %.0f", newDiff))
 	client.Difficulty = newDiff
 	return nil
 }
@@ -315,18 +314,19 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 		}
 		client.Stats.lastSubmission = now
-		client.log(fmt.Sprintf("share accepted: diff %.3f (best: %.3f), avg submission delta %ds", shareDiff, client.Stats.bestDiff, client.Stats.avgSubmissionDelta/1000))
+		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
+		client.log(fmt.Sprintf("diff %s (best: %s), avg submission delta %ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
-		client.log(fmt.Sprintf("share rejected: diff %f", shareDiff))
+		// client.log(fmt.Sprintf("share rejected: diff %f", shareDiff))
 
-		hdr := bytes.NewBuffer([]byte{})
-		updatedBlock.Header.Serialize(hdr)
-		println("share:", fmt.Sprintf("%+v", s))
-		println(fmt.Sprintf("header: %x", hdr))
-		println(fmt.Sprintf("diff: %f", shareDiff))
+		// hdr := bytes.NewBuffer([]byte{})
+		// updatedBlock.Header.Serialize(hdr)
+		// println("share:", fmt.Sprintf("%+v", s))
+		// println(fmt.Sprintf("header: %x", hdr))
+		// println(fmt.Sprintf("diff: %f", shareDiff))
 	}
 }
 func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {

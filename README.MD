@@ -1,8 +1,8 @@
 solo db-less bitcoin-only mining pool  
 meant for lan swarms, not the internet  
-think of this as public-pool but for self-sovereign nerds  
+think of this as public-pool but minimal and for self-sovereign nerds  
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
-extremely minimal, start it, point your miners to it, and watch the logs roll by
+start it, point your miners to it, and watch the logs roll by
 
 # setup
 ## install
@@ -24,7 +24,8 @@ default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml
 ```
 host: stratum+tcp://<your lan ip>:5661
 username: <your address>[.<worker name>]
-password: <optional, ignored by default>
+password: [required if set in pogolo.toml]
+suggested diff: [optional]
 ```
 
 ## supported

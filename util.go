@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/big"
 	"pogolo/constants"
@@ -249,4 +250,22 @@ func treeNodeCount(leafCount int) int {
 		count += i
 	}
 	return count
+}
+
+func diffFormat(value float64) string {
+	unit := ""
+	if value > 1e12 {
+		unit = "T"
+		value /= 1e12
+	} else if value > 1e9 {
+		unit = "B"
+		value /= 1e9
+	} else if value > 1e6 {
+		unit = "M"
+		value /= 1e6
+	} else if value > 1000 {
+		unit = "k"
+		value /= 1000
+	}
+	return fmt.Sprintf("%.3g%s", value, unit)
 }
