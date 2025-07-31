@@ -332,6 +332,5 @@ func notifyClients(j *JobTemplate) {
 		// 	}
 		// }()
 		client.Channel() <- j
-		println("notified")
 	}
 }
