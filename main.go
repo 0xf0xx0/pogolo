@@ -28,6 +28,7 @@ var (
 	currTemplate    *JobTemplate
 	submissionChan  chan *btcutil.Block
 	serverStartTime time.Time
+	// do we want to track found blocks? it won't be persisted...
 )
 
 func main() {
@@ -160,7 +161,7 @@ func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := CreateClient(conn, submissionChan)
 	channel := client.MsgChannel()
-	/// remove ourself from the client map
+	/// remove ourself from the client map on disconnect
 	defer func() {
 		delete(clients, client.ID.String())
 	}()
@@ -290,6 +291,7 @@ func backendRoutine() {
 		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
 			{
 			}
+		/// shortcircuit
 		case <-triggerGBT:
 			{
 			}

@@ -45,6 +45,7 @@ TODO
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - share replay mitigation?
 - multiple active jobs?
+- more fine-grained client errors?
 - extranonce subscription?
 - variable extranonce size?
 - stratum keepalive?
