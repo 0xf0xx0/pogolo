@@ -23,10 +23,10 @@ import (
 
 // state
 var (
-	conf           config.Config
-	clients        map[string]StratumClient
-	currTemplate   *JobTemplate
-	submissionChan chan *btcutil.Block
+	conf            config.Config
+	clients         map[string]StratumClient
+	currTemplate    *JobTemplate
+	submissionChan  chan *btcutil.Block
 	serverStartTime time.Time
 )
 
@@ -159,7 +159,7 @@ func startup() error {
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := CreateClient(conn, submissionChan)
-	channel := client.Channel()
+	channel := client.MsgChannel()
 	/// remove ourself from the client map
 	defer func() {
 		delete(clients, client.ID.String())
@@ -170,25 +170,21 @@ func clientHandler(conn net.Conn) {
 		if !ok {
 			return
 		}
-		switch msg.(type) {
-		case string:
+
+		switch msg {
+		case "ready":
 			{
-				switch msg {
-				case "ready":
-					{
-						color.Blue("new client \"%s\" %s\n", client.ID, color.WhiteString(client.Addr().String()))
-						/// i dont think the order matters, but lets send the current template
-						/// before adding to the client map, just in case notifyClients gets
-						/// called in between (and rapid-fires jobs)
-						client.Channel() <- currTemplate
-						clients[client.ID.String()] = client
-					}
-				case "done":
-					{
-						color.Blue("client disconnect \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
-						return
-					}
-				}
+				color.Blue("new client \"%s\" %s\n", client.ID, color.WhiteString(client.Addr().String()))
+				/// i dont think the order matters, but lets send the current template
+				/// before adding to the client map, just in case notifyClients gets
+				/// called in between (and rapid-fires jobs)
+				client.Channel() <- currTemplate
+				clients[client.ID.String()] = client
+			}
+		case "done":
+			{
+				color.Blue("client disconnect \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
+				return
 			}
 		}
 	}
@@ -286,20 +282,16 @@ func backendRoutine() {
 		if err != nil {
 			panic(err)
 		}
-		color.Cyan("===<new template with %d txns>===\n", len(template.Transactions))
-		/// this gets shipped to each StratumClient to become a full MiningJob
 		currTemplate = CreateJobTemplate(template)
-		notifyClients(currTemplate) /// this might take a while
+		color.Cyan("===<new template %s with %d txns>===\n", currTemplate.ID, len(template.Transactions))
+		/// this gets shipped to each StratumClient to become a full MiningJob
+		go notifyClients(currTemplate) /// this might take a while
 		select {
 		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
 			{
 			}
 		case <-triggerGBT:
 			{
-				/// TODO: figure out why i need to do this
-				/// FIXME: even with this delay it
-				/// fails to send the notify sometimes
-				time.Sleep(time.Millisecond * 300)
 			}
 		}
 	}
@@ -331,16 +323,15 @@ func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.L
 
 // func apiServer() {}
 
-func notifyClients(n *JobTemplate) {
+func notifyClients(j *JobTemplate) {
 	for _, client := range clients {
-		go func() {
-			/// TODO: remove? move up?
-			// defer func() {
-			// 	if r := recover(); r != nil {
-			// 		fmt.Println("recovered from a panic in notifyClients:", r)
-			// 	}
-			// }()
-			client.Channel() <- n
-		}()
+		/// TODO: remove? move up?
+		// defer func() {
+		// 	if r := recover(); r != nil {
+		// 		fmt.Println("recovered from a panic in notifyClients:", r)
+		// 	}
+		// }()
+		client.Channel() <- j
+		println("notified")
 	}
 }

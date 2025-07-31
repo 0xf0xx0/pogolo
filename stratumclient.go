@@ -39,7 +39,8 @@ type StratumClient struct {
 	VersionRollingMask  uint32
 	/// internal
 	conn           net.Conn
-	messageChan    chan any // messages to/from client
+	statusChan     chan string // messages to/from client
+	templateChan   chan *JobTemplate
 	submissionChan chan<- *btcutil.Block
 	CurrentJob     MiningJob
 	Stats          ClientStats
@@ -74,7 +75,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 			go client.adjustDiffRoutine()
 			client.Stats.startTime = time.Now()
-			client.messageChan <- "ready"
+			client.statusChan <- "ready"
 		}
 
 		line, err := reader.ReadBytes([]byte("\n")[0])
@@ -214,7 +215,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 }
 func (client *StratumClient) Stop() {
 	client.writeChan("done")
-	close(client.messageChan)
+	close(client.statusChan)
 	client.conn.Close()
 }
 
@@ -238,25 +239,39 @@ func (client *StratumClient) adjustDiffRoutine() {
 		client.setDifficulty(client.Difficulty + delta)
 	}
 }
+
+// reads message and job channels
 func (client *StratumClient) readChanRoutine() {
 	for {
-		m, ok := <-client.messageChan
-		if !ok {
-			/// closed
-			return
-		}
-		switch m.(type) {
-		case *JobTemplate:
+		select {
+		// case <-client.statusChan:
+		// 	{
+		// 		/// eh is this needed?
+		// 	}
+		case template, ok := <-client.templateChan:
 			{
-				client.CurrentJob = client.createJob(DeepCopyTemplate(m.(*JobTemplate)))
-				client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
+				if !ok {
+					/// closed
+					return
+				}
+				client.CurrentJob = client.createJob(DeepCopyTemplate(template))
+				err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
+				if err != nil {
+					client.error(fmt.Sprintf("error sending job: %s", err))
+				}
 			}
 		}
 	}
 }
 
-func (client *StratumClient) Channel() chan any {
-	return client.messageChan
+// template channel
+func (client *StratumClient) Channel() chan<- *JobTemplate {
+	return client.templateChan
+}
+
+// status channel
+func (client *StratumClient) MsgChannel() chan string {
+	return client.statusChan
 }
 func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
@@ -264,10 +279,16 @@ func (client *StratumClient) Addr() net.Addr {
 
 // live hashrate in MH/s
 // TODO: WIP
-func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
-	hashrate := client.Difficulty * (math.Pow(2, 32)) / float64(shareTime.Sub(client.Stats.startTime).Seconds())
-	hashrate /= 10e6
-	client.Stats.hashrate = (client.Stats.hashrate*4 + hashrate) / 5
+func (client *StratumClient) calcHashrate(shareDiff float64, shareTime time.Time) float64 {
+	/// "Hashrate = (share difficulty x 2^32) / time" - ben
+	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
+	hashrate := (shareDiff * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
+	hashrate /= 10e6 /// turn into gigahashy
+	if client.Stats.hashrate == 0 {
+		client.Stats.hashrate = hashrate
+	} else {
+		client.Stats.hashrate = (client.Stats.hashrate*15 + hashrate) / 16
+	}
 	return hashrate
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
@@ -322,12 +343,11 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 					((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
 			}
 		}
+		client.calcHashrate(shareDiff, now)
 		client.Stats.lastSubmission = now
-		// client.calcHashrate(now)
 		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
 		client.log(fmt.Sprintf("diff %s (best: %s), avg submission delta %ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000))
-		// client.log(formatHashrate(client.Stats.hashrate))
-		// client.Stats.startTime = now
+		client.log(fmt.Sprintf("hashrate: %s", formatHashrate(client.Stats.hashrate)))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
@@ -417,8 +437,8 @@ func (client *StratumClient) writeConn(b []byte) error {
 }
 
 // pass a message back to the server
-func (client *StratumClient) writeChan(msg any) {
-	client.messageChan <- msg
+func (client *StratumClient) writeChan(msg string) {
+	client.statusChan <- msg
 }
 func (client *StratumClient) log(s string) {
 	if client.Worker != "" {
@@ -439,7 +459,8 @@ func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) Stratu
 	client := StratumClient{
 		conn:           conn,
 		ID:             ClientIDHash(),
-		messageChan:    make(chan any),
+		statusChan:     make(chan string),
+		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,
 		Difficulty:     1,
 	}
