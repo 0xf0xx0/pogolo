@@ -284,6 +284,7 @@ func backendRoutine() {
 			/// TODO: gracefully handle backend errors
 			color.Red("error fetching template: %s", err)
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
+			continue
 		}
 		currTemplate = CreateJobTemplate(template)
 		color.Cyan("===<new template %s with %d txns>===\n", currTemplate.ID, len(template.Transactions))
