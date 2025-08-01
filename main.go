@@ -255,7 +255,7 @@ func backendRoutine() {
 			if currTemplate != nil {
 				break
 			}
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 		}
 		for {
 			count, err := backend.GetBlockCount()
@@ -281,7 +281,9 @@ func backendRoutine() {
 			Mode:         "template",
 		})
 		if err != nil {
-			panic(err)
+			/// TODO: gracefully handle backend errors
+			color.Red("error fetching template: %s", err)
+			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 		}
 		currTemplate = CreateJobTemplate(template)
 		color.Cyan("===<new template %s with %d txns>===\n", currTemplate.ID, len(template.Transactions))

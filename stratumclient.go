@@ -229,7 +229,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		}
 		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta/1000)
 		/// natural variance is +- 3s
-		if +difference < 3 {
+		if +difference < 1 {
 			continue
 		}
 		/// cap the adjustment at +-2^12
@@ -237,7 +237,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		if difference < 0 {
 			delta = -delta
 		}
-		client.log(fmt.Sprintf("adjusting share target by %+.0f", delta))
+		client.log(fmt.Sprintf("> adjusting share target by %+.0f", delta))
 		client.setDifficulty(client.Difficulty + delta)
 	}
 }
@@ -278,12 +278,12 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 
-// live hashrate in MH/s
-// TODO: more accurate averaging?
-func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
+// live hashrate in GH/s
+// FIXME: more accurate averaging?
+func (client *StratumClient) calcHashrate(shareDiff float64, shareTime time.Time) float64 {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-	hashrate := (client.Difficulty * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
+	hashrate := (shareDiff * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
 	hashrate /= 10e6 /// turn into gigahashy
 	if client.Stats.hashrate == 0 {
 		client.Stats.hashrate = hashrate
@@ -297,7 +297,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		return nil
 	}
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
-		client.error(fmt.Sprintf("failed to set new diff %g: old %g", newDiff, client.Difficulty))
+		client.error(fmt.Sprintf("failed to set new diff %g: old %g: %s", newDiff, client.Difficulty, err))
 		return err
 	}
 	client.log(fmt.Sprintf("set new diff: %g", newDiff))
@@ -344,7 +344,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 					((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
 			}
 		}
-		client.calcHashrate(now)
+		client.calcHashrate(shareDiff, now)
 		client.Stats.lastSubmission = now
 		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
 		client.log(fmt.Sprintf("diff %s (best: %s), avg submission delta %ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000))
