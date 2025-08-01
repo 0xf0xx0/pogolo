@@ -1,3 +1,5 @@
+github.com/0xf0xx0/oigiki v0.1.0 h1:E7mvu8zYbyv1WJd+ktViq+s/kdxST1sWEu79Lz0PUP8=
+github.com/0xf0xx0/oigiki v0.1.0/go.mod h1:5/WcKAF3zLeiUtHqVGIn0vy2twHwGf+eWAjfRF5NNQM=
 github.com/0xf0xx0/stratum v0.0.2 h1:dB4b9CkDyWGrK8mT+2XJwSoy4nl+uqjqme65/WCv13w=
 github.com/0xf0xx0/stratum v0.0.2/go.mod h1:QXda4L8aiDCynA0mOhgvJgVPGBh5MRDwEhyGTkFh/L8=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=

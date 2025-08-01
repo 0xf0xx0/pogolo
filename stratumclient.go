@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"colors"
 	"fmt"
 	"io"
 	"math"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xf0xx0/oigiki"
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
 )
@@ -445,17 +445,17 @@ func (client *StratumClient) writeChan(msg string) {
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		fmt.Printf(colors.ProcessTags("[{cyan}%s{reset}] %s\n", client.Worker, s))
+		fmt.Printf(oigiki.ProcessTags("[{cyan}%s{reset}] %s\n", client.Worker, s))
 	} else {
-		fmt.Printf(colors.ProcessTags("[{cyan}%s{reset}] %s\n", client.ID.String(), s))
+		fmt.Printf(oigiki.ProcessTags("[{cyan}%s{reset}] %s\n", client.ID.String(), s))
 	}
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		println(colors.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Worker, s))
+		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Worker, s))
 	} else {
-		println(colors.ProcessTags("[{cyan}%s{reset}] {red}%s", client.ID.String(), s))
+		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.ID.String(), s))
 	}
 }
 

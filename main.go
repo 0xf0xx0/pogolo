@@ -1,7 +1,6 @@
 package main
 
 import (
-	"colors"
 	"context"
 	"fmt"
 	"net"
@@ -14,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/0xf0xx0/oigiki"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -238,7 +238,7 @@ func backendRoutine() {
 				continue
 			}
 			fmt.Println(
-				colors.ProcessTags(
+				oigiki.ProcessTags(
 					"{bold}{green}===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====\nhash: %s",
 					block.Hash(),
 				),
@@ -263,7 +263,7 @@ func backendRoutine() {
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				fmt.Sprintln(colors.ProcessTags("new bl00k in chain! {green}%d", count))
+				fmt.Sprintln(oigiki.ProcessTags("new bl00k in chain! {green}%d", count))
 				/// FIXME/MAYBE: skip when we mine a block?
 				/// it triggers gbt before the winning block trigger completes sometimes
 				triggerGBT <- true
@@ -333,8 +333,8 @@ func notifyClients(j *JobTemplate) {
 }
 
 func log(s string, a ...any) {
-	fmt.Println(colors.ProcessTags(colors.TagString(fmt.Sprintf(s, a...), "cyan")))
+	fmt.Println(oigiki.ProcessTags(oigiki.TagString(fmt.Sprintf(s, a...), "cyan")))
 }
 func logError(s string, a ...any) {
-	println(colors.ProcessTags(colors.TagString(fmt.Sprintf(s, a...), "red")))
+	println(oigiki.ProcessTags(oigiki.TagString(fmt.Sprintf(s, a...), "red")))
 }

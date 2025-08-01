@@ -3,10 +3,10 @@ module pogolo
 go 1.24.4
 
 //replace github.com/0xf0xx0/stratum => ../stratum
-replace colors => ../colors
+//replace github.com/0xf0xx0/oigiki => ../oigiki
 
 require (
-	colors v0.0.0
+	github.com/0xf0xx0/oigiki v0.1.0
 	github.com/0xf0xx0/stratum v0.0.2
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.6
