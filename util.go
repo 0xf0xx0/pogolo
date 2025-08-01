@@ -272,12 +272,12 @@ func diffFormat(value float64) string {
 // takes MH/s
 func formatHashrate(value float64) string {
 	unit := "MH"
-	if value > 1000 {
-		unit = "GH"
-		value /= 1000
-	} else if value > 1e6 {
-		unit = "TH"
+	if value > 1e6 {
 		value /= 1e6
+		unit = "TH"
+	} else if value > 1000 {
+		value /= 1000
+		unit = "GH"
 	}
 	return fmt.Sprintf("%.2f %s/s", value, unit)
 }

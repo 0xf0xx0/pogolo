@@ -1,6 +1,7 @@
 package main
 
 import (
+	"colors"
 	"context"
 	"fmt"
 	"net"
@@ -17,7 +18,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 )
 
@@ -75,14 +75,14 @@ func main() {
 					return cli.Exit("unknown backend chain", 3)
 				}
 			}
-			color.Cyan("running on %s", color.YellowString(conf.Backend.ChainParams.Name))
+			log("running on {yellow}%s", conf.Backend.ChainParams.Name)
 
 			/// start
 			return startup()
 		},
 	}
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		println(color.RedString("%s", err))
+		logError("%s", err)
 	}
 }
 
@@ -131,12 +131,12 @@ func startup() error {
 	go func() {
 		defer wg.Done()
 		wg.Add(1)
-		color.Cyan("conns start")
+		log("conns start")
 		for {
 			select {
 			case <-shutdown:
 				{
-					color.Cyan("conns shutdown")
+					log("conns shutdown")
 					return
 				}
 			case conn := <-conns:
@@ -150,7 +150,7 @@ func startup() error {
 	serverStartTime = time.Now()
 	// wait for exit
 	<-sigs
-	color.Yellow("\nstopping")
+	log("\n{yellow}stopping")
 	close(shutdown)
 	wg.Wait()
 	return nil
@@ -175,7 +175,7 @@ func clientHandler(conn net.Conn) {
 		switch msg {
 		case "ready":
 			{
-				color.Blue("new client \"%s\" %s\n", client.ID, color.WhiteString(client.Addr().String()))
+				log("new client \"{blue}%s{cyan}\" {white}%s", client.ID, client.Addr())
 				/// i dont think the order matters, but lets send the current template
 				/// before adding to the client map, just in case notifyClients gets
 				/// called in between (and rapid-fires jobs)
@@ -184,7 +184,7 @@ func clientHandler(conn net.Conn) {
 			}
 		case "done":
 			{
-				color.Blue("client disconnect \"%s\" (%s)\n", client.ID, color.WhiteString(client.Addr().String()))
+				log("client disconnect \"{blue}%s{cyan}\" {white}%s", client.ID, client.Addr())
 				return
 			}
 		}
@@ -220,7 +220,7 @@ func backendRoutine() {
 		err = cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
 	}
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		logError("%s", err)
 		return
 	}
 	/// block submissions
@@ -234,15 +234,14 @@ func backendRoutine() {
 			}
 			err := backend.SubmitBlock(block, nil)
 			if err != nil {
-				println(fmt.Sprintf("error from backend while submitting block: %s", err))
-				println(block.Hash().String())
+				logError("error from backend while submitting block: %s", err)
 				continue
 			}
-			boldGreen := color.New(color.Bold, color.FgGreen).Sprint
 			fmt.Println(
-				boldGreen("===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====") +
-					/// MAYBE: log worker?
-					fmt.Sprintf("\nhash: %s", boldGreen(block.Hash().String())),
+				colors.ProcessTags(
+					"{bold}{green}===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====\nhash: %s",
+					block.Hash(),
+				),
 			)
 
 			triggerGBT <- true
@@ -260,11 +259,11 @@ func backendRoutine() {
 		for {
 			count, err := backend.GetBlockCount()
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				logError("%s", err)
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				color.Cyan("new bl00k in chain! %d", count)
+				fmt.Sprintln(colors.ProcessTags("new bl00k in chain! {green}%d", count))
 				/// FIXME/MAYBE: skip when we mine a block?
 				/// it triggers gbt before the winning block trigger completes sometimes
 				triggerGBT <- true
@@ -282,12 +281,12 @@ func backendRoutine() {
 		})
 		if err != nil {
 			/// TODO: gracefully handle backend errors
-			color.Red("error fetching template: %s", err)
+			logError("error fetching template: %s", err)
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		color.Cyan("===<new template %s with %d txns>===\n", currTemplate.ID, len(template.Transactions))
+		log("===<new template {blue}%s{cyan} with {green}%d{cyan} txns>===", currTemplate.ID, len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
@@ -305,14 +304,13 @@ func backendRoutine() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
 	defer listener.Close()
-	color.Cyan("listening on %s\n", color.WhiteString(listener.Addr().String()))
+	log("listening on {white}%s", listener.Addr())
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			select {
 			case <-shutdown:
 				{
-					//fmt.Println("srv shutdown")
 					return
 				}
 			default:
@@ -330,12 +328,13 @@ func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.L
 
 func notifyClients(j *JobTemplate) {
 	for _, client := range clients {
-		/// TODO: remove? move up?
-		// defer func() {
-		// 	if r := recover(); r != nil {
-		// 		fmt.Println("recovered from a panic in notifyClients:", r)
-		// 	}
-		// }()
 		client.Channel() <- j
 	}
+}
+
+func log(s string, a ...any) {
+	fmt.Println(colors.ProcessTags(colors.TagString(fmt.Sprintf(s, a...), "cyan")))
+}
+func logError(s string, a ...any) {
+	println(colors.ProcessTags(colors.TagString(fmt.Sprintf(s, a...), "red")))
 }

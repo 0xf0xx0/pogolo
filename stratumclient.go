@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"colors"
 	"fmt"
 	"io"
 	"math"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
-	"github.com/fatih/color"
 )
 
 // stats for the api
@@ -81,14 +81,14 @@ func (client *StratumClient) Run(noCleanup bool) {
 		line, err := reader.ReadBytes([]byte("\n")[0])
 		if err != nil {
 			if err != io.ErrClosedPipe {
-				client.error(fmt.Sprintf("read error: %s", err))
+				client.error("read error: %s", err)
 			}
 			return
 		}
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
-			client.error(fmt.Sprintf("stratum decode error: %s", err))
+			client.error("stratum decode error: %s", err)
 			return
 		}
 
@@ -135,7 +135,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 				decoded, err := btcutil.DecodeAddress(split[0], conf.Backend.ChainParams)
 				if err != nil {
-					client.error(fmt.Sprintf("failed decoding address: %s", err))
+					client.error("failed decoding address: %s", err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					return
 				}
@@ -170,7 +170,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				params := stratum.SuggestDifficultyParams{}
 
 				if err := params.Read(m); err != nil {
-					client.error(fmt.Sprintf("couldnt read mining.suggest_difficulty: %s", err))
+					client.error("couldnt read mining.suggest_difficulty: %s", err)
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
@@ -184,7 +184,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					/// and only send a mining.set_difficulty if accepted,
 					/// we wanna ignore
 					if err := client.setDifficulty(suggestedDiff); err != nil {
-						client.error(fmt.Sprintf("failed to adjust difficulty: %s", err))
+						client.error("failed to adjust difficulty: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
 				} else {
@@ -208,7 +208,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		default:
 			{
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
-				client.error(fmt.Sprintf("unhandled stratum message: %+v", m))
+				client.error("unhandled stratum message: %+v", m)
 			}
 		}
 	}
@@ -237,7 +237,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		if difference < 0 {
 			delta = -delta
 		}
-		client.log(fmt.Sprintf("> adjusting share target by %+.0f", delta))
+		client.log("{white}> adjusting share target by {green}%+.0f", delta)
 		client.setDifficulty(client.Difficulty + delta)
 	}
 }
@@ -259,7 +259,7 @@ func (client *StratumClient) readChanRoutine() {
 				client.CurrentJob = client.createJob(DeepCopyTemplate(template))
 				err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
 				if err != nil {
-					client.error(fmt.Sprintf("error sending job: %s", err))
+					client.error("error sending job: %s", err)
 				}
 			}
 		}
@@ -270,6 +270,7 @@ func (client *StratumClient) readChanRoutine() {
 func (client *StratumClient) Channel() chan<- *JobTemplate {
 	return client.templateChan
 }
+
 // status channel
 func (client *StratumClient) MsgChannel() <-chan string {
 	return client.statusChan
@@ -278,13 +279,13 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 
-// live hashrate in GH/s
+// live hashrate in MH/s
 // FIXME: more accurate averaging?
 func (client *StratumClient) calcHashrate(shareDiff float64, shareTime time.Time) float64 {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
 	hashrate := (shareDiff * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
-	hashrate /= 10e6 /// turn into gigahashy
+	hashrate /= 1e6 /// turn into megahashy
 	if client.Stats.hashrate == 0 {
 		client.Stats.hashrate = hashrate
 	} else {
@@ -297,10 +298,10 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		return nil
 	}
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
-		client.error(fmt.Sprintf("failed to set new diff %g: old %g: %s", newDiff, client.Difficulty, err))
+		client.error("failed to set new diff %g: old %g: %s", newDiff, client.Difficulty, err)
 		return err
 	}
-	client.log(fmt.Sprintf("set new diff: %g", newDiff))
+	client.log("set new diff: {green}%g", newDiff)
 	client.Difficulty = newDiff
 	return nil
 }
@@ -347,8 +348,8 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.calcHashrate(shareDiff, now)
 		client.Stats.lastSubmission = now
 		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
-		client.log(fmt.Sprintf("diff %s (best: %s), avg submission delta %ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000))
-		client.log(fmt.Sprintf("hashrate: %s", formatHashrate(client.Stats.hashrate)))
+		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000)
+		client.log("{white}hashrate: %s", formatHashrate(client.Stats.hashrate))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.Stats.sharesRejected++
@@ -417,7 +418,7 @@ func (client *StratumClient) submitBlock(block *btcutil.Block) {
 func (client *StratumClient) writeRes(res stratum.Response) error {
 	bytes, err := res.Marshal()
 	if err != nil {
-		client.error(fmt.Sprintf("failed to marshal response: %s", err))
+		client.error("failed to marshal response: %s", err)
 		return err
 	}
 
@@ -426,7 +427,7 @@ func (client *StratumClient) writeRes(res stratum.Response) error {
 func (client *StratumClient) writeNotif(n stratum.Notification) error {
 	bytes, err := n.Marshal()
 	if err != nil {
-		client.error(fmt.Sprintf("failed to marshal notification: %s", err))
+		client.error("failed to marshal notification: %s", err)
 		return err
 	}
 
@@ -441,18 +442,20 @@ func (client *StratumClient) writeConn(b []byte) error {
 func (client *StratumClient) writeChan(msg string) {
 	client.statusChan <- msg
 }
-func (client *StratumClient) log(s string) {
+func (client *StratumClient) log(s string, a ...any) {
+	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		fmt.Printf("%s: %s\n", color.CyanString(client.Worker), s)
+		fmt.Printf(colors.ProcessTags("[{cyan}%s{reset}] %s\n", client.Worker, s))
 	} else {
-		fmt.Printf("(%s): %s\n", color.CyanString(client.ID.String()), s)
+		fmt.Printf(colors.ProcessTags("[{cyan}%s{reset}] %s\n", client.ID.String(), s))
 	}
 }
-func (client *StratumClient) error(s string) {
+func (client *StratumClient) error(s string, a ...any) {
+	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		println(fmt.Sprintf("%s: %s", color.CyanString(client.Worker), color.RedString(s)))
+		println(colors.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Worker, s))
 	} else {
-		println(fmt.Sprintf("%s: %s", color.CyanString(client.ID.String()), color.RedString(s)))
+		println(colors.ProcessTags("[{cyan}%s{reset}] {red}%s", client.ID.String(), s))
 	}
 }
 
