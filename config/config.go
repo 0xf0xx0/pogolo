@@ -31,6 +31,7 @@ type Backend struct {
 }
 type Pogolo struct {
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
+	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
 	Interface           string  `toml:"interface,commented" comment:"takes precedence over ip, will listen on all interface ips"`
 	IP                  string  `toml:"ip,commented" comment:"ipv4 or v6"`
 	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
@@ -52,6 +53,7 @@ var DEFAULT_CONFIG = Config{
 		Interface:           "lo",
 		IP:                  "[::1]",
 		Port:                5661,
+		HTTPPort:            5662,
 		Tag:                 constants.DEFAULT_COINBASE_TAG,
 		DefaultDifficulty:   constants.DEFAULT_DIFFICULTY,
 		JobInterval:         60,

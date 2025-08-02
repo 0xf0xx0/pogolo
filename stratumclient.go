@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -17,16 +18,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 )
 
-// stats for the api
-type ClientStats struct {
-	startTime,
-	lastSubmission time.Time
-	avgSubmissionDelta uint64 // in ms
-	sharesAccepted,
-	sharesRejected uint64
-	bestDiff,
-	hashrate float64
-}
 type StratumClient struct {
 	ID                  stratum.ID
 	User                btcutil.Address
@@ -37,14 +28,29 @@ type StratumClient struct {
 	SuggestedDifficulty float64
 	VersionRolling      bool
 	VersionRollingMask  uint32
-	/// internal
+	// internal
 	conn           net.Conn
 	statusChan     chan string // messages to/from client
 	templateChan   chan *JobTemplate
-	submissionChan chan<- *btcutil.Block
+	submissionChan chan<- BlockSubmission
 	CurrentJob     MiningJob
 	Stats          ClientStats
 	//activeJobs []stratum.NotifyParams 	// TODO: remove? maybe have only 2 jobs (the current and the previous)?
+}
+
+// stats for the api
+type ClientStats struct {
+	startTime,
+	lastSubmission time.Time
+	avgSubmissionDelta uint64 // in ms
+	sharesAccepted,
+	sharesRejected uint64
+	bestDiff,
+	hashrate float64
+}
+type BlockSubmission struct {
+	ClientID stratum.ID // for lookup in client map
+	Block    *btcutil.Block
 }
 
 func (client *StratumClient) Run(noCleanup bool) {
@@ -214,9 +220,14 @@ func (client *StratumClient) Run(noCleanup bool) {
 	}
 }
 func (client *StratumClient) Stop() {
+	if client.statusChan == nil {
+		return
+	}
 	client.writeChan("done")
 	close(client.statusChan)
+	client.statusChan = nil
 	close(client.templateChan)
+	client.templateChan = nil
 	client.conn.Close()
 }
 
@@ -238,7 +249,14 @@ func (client *StratumClient) adjustDiffRoutine() {
 			delta = -delta
 		}
 		client.log("{white}> adjusting share target by {green}%+.0f", delta)
-		client.setDifficulty(client.Difficulty + delta)
+		if err := client.setDifficulty(client.Difficulty + delta); err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				/// client died and we didnt notice?
+				client.Stop()
+				return
+			}
+			client.error("failed to set new diff %s", err)
+		}
 	}
 }
 
@@ -281,15 +299,15 @@ func (client *StratumClient) Addr() net.Addr {
 
 // live hashrate in MH/s
 // FIXME: more accurate averaging?
-func (client *StratumClient) calcHashrate(shareDiff float64, shareTime time.Time) float64 {
+func (client *StratumClient) calcHashrate(_ float64, shareTime time.Time) float64 {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-	hashrate := (shareDiff * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
+	hashrate := (client.Difficulty * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
 	hashrate /= 1e6 /// turn into megahashy
 	if client.Stats.hashrate == 0 {
 		client.Stats.hashrate = hashrate
 	} else {
-		client.Stats.hashrate = (client.Stats.hashrate*15 + hashrate) / 16
+		client.Stats.hashrate = (client.Stats.hashrate*127 + hashrate) / 128
 	}
 	return hashrate
 }
@@ -298,7 +316,6 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		return nil
 	}
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
-		client.error("failed to set new diff %g: old %g: %s", newDiff, client.Difficulty, err)
 		return err
 	}
 	client.log("set new diff: {green}%g", newDiff)
@@ -324,7 +341,11 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	shareDiff := CalcDifficulty(updatedBlock.Header)
 	if shareDiff >= float64(client.Difficulty) {
 		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
-			client.submitBlock(btcutil.NewBlock(updatedBlock))
+			s := BlockSubmission{
+				ClientID: client.ID,
+				Block:    btcutil.NewBlock(updatedBlock),
+			}
+			client.submitBlock(s)
 		}
 		client.Stats.sharesAccepted++
 		if shareDiff > client.Stats.bestDiff {
@@ -411,7 +432,7 @@ func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 }
 
 // TODO: how to get errors back?
-func (client *StratumClient) submitBlock(block *btcutil.Block) {
+func (client *StratumClient) submitBlock(block BlockSubmission) {
 	client.submissionChan <- block
 	client.log("block submitted")
 }
@@ -445,21 +466,21 @@ func (client *StratumClient) writeChan(msg string) {
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		fmt.Printf(oigiki.ProcessTags("[{cyan}%s{reset}] %s\n", client.Worker, s))
+		fmt.Printf(oigiki.ProcessTags("[{cyan}%s:%s{reset}] %s\n", client.Worker, client.ID, s))
 	} else {
-		fmt.Printf(oigiki.ProcessTags("[{cyan}%s{reset}] %s\n", client.ID.String(), s))
+		fmt.Printf(oigiki.ProcessTags("[{cyan}%s{reset}] %s\n", client.ID, s))
 	}
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Worker, s))
+		println(oigiki.ProcessTags("[{cyan}%s:%s{reset}] {red}%s", client.Worker, client.ID, s))
 	} else {
 		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.ID.String(), s))
 	}
 }
 
-func CreateClient(conn net.Conn, submissionChannel chan<- *btcutil.Block) StratumClient {
+func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
 	client := StratumClient{
 		conn:           conn,
 		ID:             ClientIDHash(),

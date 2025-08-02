@@ -10,7 +10,6 @@ import (
 	"pogolo/constants"
 
 	"github.com/0xf0xx0/stratum"
-	"github.com/btcsuite/btcd/btcutil"
 )
 
 func TestConfigure(t *testing.T) {
@@ -150,8 +149,8 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *main.StratumClient, chan *btcutil.Block) {
-	submissionChan := make(chan *btcutil.Block)
+func initClient() (net.Conn, *main.StratumClient, chan main.BlockSubmission) {
+	submissionChan := make(chan main.BlockSubmission)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
 	client := main.CreateClient(rpipe, submissionChan)

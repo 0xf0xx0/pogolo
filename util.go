@@ -279,5 +279,5 @@ func formatHashrate(value float64) string {
 		value /= 1000
 		unit = "GH"
 	}
-	return fmt.Sprintf("%.2f %s/s", value, unit)
+	return fmt.Sprintf("%.5g %s/s", value, unit)
 }

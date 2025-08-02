@@ -4,18 +4,20 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"pogolo/config"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/0xf0xx0/oigiki"
+	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/urfave/cli/v3"
@@ -24,9 +26,9 @@ import (
 // state
 var (
 	conf            config.Config
-	clients         map[string]StratumClient
+	clients         map[stratum.ID]StratumClient // map of client ids to clients
 	currTemplate    *JobTemplate
-	submissionChan  chan *btcutil.Block
+	submissionChan  chan BlockSubmission
 	serverStartTime time.Time
 	// do we want to track found blocks? it won't be persisted...
 )
@@ -45,8 +47,26 @@ func main() {
 				Usage: "config file `path`",
 				Value: filepath.Join(config.ROOT, "pogolo.toml"),
 			},
+			&cli.BoolFlag{
+				Name:   "profile",
+				Hidden: true,
+			},
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
+			if ctx.Bool("profile") {
+				log("{bold}===profiling===")
+				profileFile, err := os.Create("cpu.prof")
+				if err != nil {
+					return err
+				}
+				memProfFile, err := os.Create("mem.prof")
+				if err != nil {
+					return err
+				}
+				pprof.StartCPUProfile(profileFile)
+				defer pprof.WriteHeapProfile(memProfFile)
+				defer pprof.StopCPUProfile()
+			}
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
 			if passedConfig := ctx.String("conf"); passedConfig != "" {
@@ -92,8 +112,9 @@ func startup() error {
 	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
-	clients = make(map[string]StratumClient, 5)
-	submissionChan = make(chan *btcutil.Block)
+	clients = make(map[stratum.ID]StratumClient, 5)
+	submissionChan = make(chan BlockSubmission)
+	initAPI()
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	/// listener
@@ -116,6 +137,8 @@ func startup() error {
 				return cli.Exit(err.Error(), 1)
 			}
 			go listenerRoutine(shutdown, conns, listener)
+			go http.ListenAndServe(fmt.Sprintf("%s:%d", addr, conf.Pogolo.HTTPPort), nil)
+
 		}
 	} else {
 		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
@@ -163,7 +186,7 @@ func clientHandler(conn net.Conn) {
 	channel := client.MsgChannel()
 	/// remove ourself from the client map on disconnect
 	defer func() {
-		delete(clients, client.ID.String())
+		delete(clients, client.ID)
 	}()
 	go client.Run(false)
 	for {
@@ -179,8 +202,11 @@ func clientHandler(conn net.Conn) {
 				/// i dont think the order matters, but lets send the current template
 				/// before adding to the client map, just in case notifyClients gets
 				/// called in between (and rapid-fires jobs)
+				/// theoretically waitForTemplate() may cause a double-send
+				/// TODO: dont do anything if template is nil, otherwise send?
+				waitForTemplate()
 				client.Channel() <- currTemplate
-				clients[client.ID.String()] = client
+				clients[client.ID] = client
 			}
 		case "done":
 			{
@@ -195,6 +221,7 @@ func clientHandler(conn net.Conn) {
 func backendRoutine() {
 	/// TODO: longpoll?
 	/// TODO: do we need anything special for btcd/knots/etc?
+	/// TODO: move backend to global? or main func?
 	var backend *rpcclient.Client
 	var err error
 	triggerGBT := make(chan bool)
@@ -227,21 +254,24 @@ func backendRoutine() {
 	go func() {
 		for {
 			/// furst come furst serve
-			block, ok := <-submissionChan
+			submission, ok := <-submissionChan
 			if !ok {
-				println("failed to receive block submission")
+				logError("{yellow}failed to receive block submission")
 				continue
 			}
-			err := backend.SubmitBlock(block, nil)
+			err := backend.SubmitBlock(submission.Block, nil)
 			if err != nil {
 				logError("error from backend while submitting block: %s", err)
 				continue
 			}
-			fmt.Println(
-				oigiki.ProcessTags(
-					"{bold}{green}===== BLOCK FOUND ===== BLOCK FOUND ===== BLOCK FOUND =====\nhash: %s",
-					block.Hash(),
-				),
+			worker := clients[submission.ClientID].Worker
+			if worker == "" {
+				worker = submission.ClientID.String()
+			}
+			log(
+				"{green}=={yellow}[!]{green}== BLOCK FOUND =={yellow}[!]{green}== BLOCK FOUND =={yellow}[!]{green}== BLOCK FOUND =={yellow}[!]{green}==\nhash: %s\nworker: %s",
+				submission.Block.Hash(),
+				worker,
 			)
 
 			triggerGBT <- true
@@ -250,12 +280,7 @@ func backendRoutine() {
 	/// poll getblockcount
 	go func() {
 		/// needed to start after the gbt loop
-		for {
-			if currTemplate != nil {
-				break
-			}
-			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
-		}
+		waitForTemplate()
 		for {
 			count, err := backend.GetBlockCount()
 			if err != nil {
@@ -263,7 +288,7 @@ func backendRoutine() {
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				fmt.Sprintln(oigiki.ProcessTags("new bl00k in chain! {green}%d", count))
+				log("new bl00k in chain! {green}%d", count)
 				/// FIXME/MAYBE: skip when we mine a block?
 				/// it triggers gbt before the winning block trigger completes sometimes
 				triggerGBT <- true
@@ -298,6 +323,15 @@ func backendRoutine() {
 			{
 			}
 		}
+	}
+}
+
+func waitForTemplate() {
+	for {
+		if currTemplate != nil {
+			break
+		}
+		time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 	}
 }
 
