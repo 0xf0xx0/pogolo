@@ -367,8 +367,8 @@ func notifyClients(j *JobTemplate) {
 }
 
 func log(s string, a ...any) {
-	fmt.Println(oigiki.ProcessTags(oigiki.TagString(fmt.Sprintf(s, a...), "cyan")))
+	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan"), a...))
 }
 func logError(s string, a ...any) {
-	println(oigiki.ProcessTags(oigiki.TagString(fmt.Sprintf(s, a...), "red")))
+	println(oigiki.ProcessTags(oigiki.TagString(s, "red"), a...))
 }

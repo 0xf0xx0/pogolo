@@ -186,9 +186,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 					suggestedDiff != client.Difficulty &&
 					suggestedDiff > constants.MIN_DIFFICULTY &&
 					stratum.ValidDifficulty(suggestedDiff) {
+					/// this is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
-					/// and only send a mining.set_difficulty if accepted,
-					/// we wanna ignore
 					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error("failed to adjust difficulty: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
@@ -462,9 +461,9 @@ func (client *StratumClient) writeChan(msg string) {
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		fmt.Printf(oigiki.ProcessTags("[{cyan}%s:%s{reset}] %s\n", client.Worker, client.ID, s))
+		fmt.Println(oigiki.ProcessTags("[{cyan}%s:%s{reset}] %s", client.Worker, client.ID, s))
 	} else {
-		fmt.Printf(oigiki.ProcessTags("[{cyan}%s{reset}] %s\n", client.ID, s))
+		fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.ID, s))
 	}
 }
 func (client *StratumClient) error(s string, a ...any) {

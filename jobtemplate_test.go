@@ -13,10 +13,6 @@ import (
 	"github.com/btcsuite/btcd/mining"
 )
 
-const (
-	HEIGHT = 0
-)
-
 func TestWitnessCalc(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
@@ -48,7 +44,7 @@ func TestUpdateBlock(t *testing.T) {
 		User: getAddr(),
 	}
 	job := main.CreateJobTemplate(template)
-	blk,_ := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
+	blk, _ := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
 	shareDiff := main.CalcDifficulty(blk.Header)
 	if shareDiff != expectedShareDiff {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
@@ -88,17 +84,6 @@ func TestCreateJobTemplate(t *testing.T) {
 	}
 	/// TODO/FIXME: how to validate merkle root?
 }
-
-func TestCoinbaseScript(t *testing.T) {
-	tx := getCoinbaseTx()
-
-	coinbaseScript := tx.MsgTx().TxIn[0].SignatureScript
-
-	if len(coinbaseScript) > blockchain.MaxCoinbaseScriptLen {
-		t.Errorf("pool identifier too long: max %d, got %d", blockchain.MaxCoinbaseScriptLen, len(coinbaseScript))
-	}
-}
-
 func TestValidateCoinbaseScript(t *testing.T) {
 	tx := getCoinbaseTx()
 	script := tx.MsgTx().TxIn[0].SignatureScript

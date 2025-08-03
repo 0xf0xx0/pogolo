@@ -35,7 +35,6 @@ suggested diff: [optional]
 - miners needing extranonce.subscribe
 
 TODO
-- full test suite (almost done)
 - public-pool compatible api
 - 0.1% dev fee for large miners
     - calc hashrate
