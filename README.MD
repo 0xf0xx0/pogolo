@@ -17,13 +17,13 @@ pogolo
 
 ## server config
 by default, pogolo runs on regtest and listens on localhost (loopback).  
-see [pogolo.example.toml](./pogolo.example.toml) for configuration.  
-default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml
+see [pogolo.example.toml](./pogolo.example.toml) for config docs.  
+the default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml, use `--conf` for a custom path
 
 ## miner config
 ```
 host: stratum+tcp://<your lan ip>:5661
-username: <your address>[.<worker name>]
+username: <your onchain address>[.<worker name>]
 password: [required if set in pogolo.toml]
 suggested diff: [optional]
 ```

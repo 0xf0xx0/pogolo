@@ -299,16 +299,12 @@ func (client *StratumClient) Addr() net.Addr {
 
 // live hashrate in MH/s
 // FIXME: more accurate averaging?
-func (client *StratumClient) calcHashrate(_ float64, shareTime time.Time) float64 {
+func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
 	hashrate := (client.Difficulty * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
 	hashrate /= 1e6 /// turn into megahashy
-	if client.Stats.hashrate == 0 {
-		client.Stats.hashrate = hashrate
-	} else {
-		client.Stats.hashrate = (client.Stats.hashrate*127 + hashrate) / 128
-	}
+	client.Stats.hashrate = (client.Stats.hashrate*127 + hashrate) / 128
 	return hashrate
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
@@ -366,7 +362,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 					((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
 			}
 		}
-		client.calcHashrate(shareDiff, now)
+		client.calcHashrate(now)
 		client.Stats.lastSubmission = now
 		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
 		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000)
