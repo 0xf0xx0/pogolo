@@ -47,9 +47,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	clear := true
 
 	if currBlockHeight != uint64(template.Height) {
-		println("new bl00k")
 		currBlockHeight = uint64(template.Height)
-		clear = true
 	}
 
 	currTime := time.Now().Unix()

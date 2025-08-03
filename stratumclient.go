@@ -461,7 +461,7 @@ func (client *StratumClient) writeChan(msg string) {
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		fmt.Println(oigiki.ProcessTags("[{cyan}%s:%s{reset}] %s", client.Worker, client.ID, s))
+		fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.Worker, s))
 	} else {
 		fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.ID, s))
 	}
@@ -469,7 +469,7 @@ func (client *StratumClient) log(s string, a ...any) {
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	if client.Worker != "" {
-		println(oigiki.ProcessTags("[{cyan}%s:%s{reset}] {red}%s", client.Worker, client.ID, s))
+		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Worker, s))
 	} else {
 		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.ID.String(), s))
 	}

@@ -35,19 +35,18 @@ suggested diff: [optional]
 - miners needing extranonce.subscribe
 
 TODO
-- public-pool compatible api
-- 0.1% dev fee for large miners
-    - calc hashrate
 - document code for future viewers
 - logs with personality
-- colorize logs
+- public-pool compatible api
+- 0.1% dev fee for large miners
+    - calc hashrate (wildly inaccurate :\)
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
-- share replay mitigation?
-- multiple active jobs?
-- more fine-grained client errors?
-- extranonce subscription?
-- variable extranonce size?
-- stratum keepalive?
-- longpoll?
-- zmq for block notifs?
 - client.reconnect on server restart?
+- extranonce subscription?
+- longpoll?
+- more config options?
+- more fine-grained client errors?
+- multiple active jobs?
+- stratum keepalive?
+- variable extranonce size?
+- zmq for block notifs?
