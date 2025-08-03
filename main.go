@@ -136,16 +136,14 @@ func startup() error {
 			if err != nil {
 				return cli.Exit(err.Error(), 1)
 			}
-			go listenerRoutine(shutdown, conns, listener)
-			go http.ListenAndServe(fmt.Sprintf("%s:%d", addr, conf.Pogolo.HTTPPort), nil)
-
+			go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", addr, conf.Pogolo.HTTPPort))
 		}
 	} else {
 		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
 		if err != nil {
 			return cli.Exit(err.Error(), 1)
 		}
-		go listenerRoutine(shutdown, conns, listener)
+		go listenerRoutine(shutdown, conns, listener,  fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.HTTPPort))
 	}
 
 	go backendRoutine()
@@ -326,6 +324,8 @@ func backendRoutine() {
 	}
 }
 
+// util func, for delaying components that rely on the template like
+// client subscribes and the chain update routine
 func waitForTemplate() {
 	for {
 		if currTemplate != nil {
@@ -336,9 +336,11 @@ func waitForTemplate() {
 }
 
 // listens on one ip
-func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener) {
+func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
 	defer listener.Close()
 	log("listening on {white}%s", listener.Addr())
+	go http.ListenAndServe(httpAddr, nil)
+	log("api listening on {white}%s", httpAddr)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -357,8 +359,6 @@ func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.L
 		conns <- conn
 	}
 }
-
-// func apiServer() {}
 
 func notifyClients(j *JobTemplate) {
 	for _, client := range clients {
