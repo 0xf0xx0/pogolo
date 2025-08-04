@@ -234,6 +234,7 @@ func (client *StratumClient) Stop() {
 }
 
 // aims for the target_share_interval
+// MAYBE: change to adjust every 16 or 32 shares?
 func (client *StratumClient) adjustDiffRoutine() {
 	for {
 		time.Sleep(time.Minute * 5)
@@ -241,15 +242,17 @@ func (client *StratumClient) adjustDiffRoutine() {
 			continue
 		}
 		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta/1000)
+		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 3s
-		if +difference < 1 {
+		if absDifference < 1 {
 			continue
 		}
 		/// cap the adjustment at +-2^12
-		delta := min(math.Pow(2, float64(+difference)), 4096)
+		delta := min(math.Pow(2, absDifference), 4096)
 		if difference < 0 {
 			delta = -delta
 		}
+
 		client.log("{white}adjusting share target by {green}%+.0f", delta)
 		if err := client.setDifficulty(client.Difficulty + delta); err != nil {
 			if errors.Is(err, net.ErrClosed) {
