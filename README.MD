@@ -41,7 +41,6 @@ TODO
 - 0.1% dev fee for large miners
     - calc hashrate (wildly inaccurate :\)
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
-- client.reconnect on server restart?
 - extranonce subscription?
 - longpoll?
 - more config options?
