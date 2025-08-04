@@ -68,6 +68,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
+			log("===<{blue}%s {cyan}has joined the swarm!>===\n\tid: {blue}%s{cyan}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
 			/// the initial difficulty was set in CreateClient,
 			/// but the client may also suggested a difficulty before
 			/// fully initialized
@@ -87,7 +88,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		line, err := reader.ReadBytes([]byte("\n")[0])
 		if err != nil {
 			if err != io.ErrClosedPipe {
-				client.error("read error: %s", err)
+				client.error("%s", err)
 			}
 			return
 		}
@@ -186,8 +187,9 @@ func (client *StratumClient) Run(noCleanup bool) {
 					suggestedDiff != client.Difficulty &&
 					suggestedDiff > constants.MIN_DIFFICULTY &&
 					stratum.ValidDifficulty(suggestedDiff) {
-					/// this is just for visual spacing
+					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
+					client.log("{white}suggested difficulty {green}%g", client.SuggestedDifficulty)
 					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error("failed to adjust difficulty: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
@@ -222,6 +224,7 @@ func (client *StratumClient) Stop() {
 	if client.statusChan == nil {
 		return
 	}
+	log("===<{blue}%s {cyan}has left the swarm!>===", client.Name())
 	client.writeChan("done")
 	close(client.statusChan)
 	client.statusChan = nil
@@ -247,7 +250,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		if difference < 0 {
 			delta = -delta
 		}
-		client.log("{white}> adjusting share target by {green}%+.0f", delta)
+		client.log("{white}adjusting share target by {green}%+.0f", delta)
 		if err := client.setDifficulty(client.Difficulty + delta); err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				/// client died and we didnt notice?
@@ -296,6 +299,14 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 
+// returns the worker name if set and falls back to the id
+func (client *StratumClient) Name() string {
+	if client.Worker != "" {
+		return client.Worker
+	}
+	return client.ID.String()
+}
+
 // live hashrate in MH/s
 // FIXME: more accurate averaging?
 func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
@@ -313,7 +324,6 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
 		return err
 	}
-	client.log("set new diff: {green}%g", newDiff)
 	client.Difficulty = newDiff
 	return nil
 }
@@ -460,19 +470,11 @@ func (client *StratumClient) writeChan(msg string) {
 }
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	if client.Worker != "" {
-		fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.Worker, s))
-	} else {
-		fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.ID, s))
-	}
+	fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.Name(), s))
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	if client.Worker != "" {
-		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Worker, s))
-	} else {
-		println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.ID.String(), s))
-	}
+	println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Name(), s))
 }
 
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {

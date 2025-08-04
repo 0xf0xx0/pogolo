@@ -16,7 +16,7 @@ pogolo
 ```
 
 ## server config
-by default, pogolo runs on regtest and listens on localhost (loopback).  
+by default, pogolo runs on regtest and listens on localhost v4 and v6.  
 see [pogolo.example.toml](./pogolo.example.toml) for config docs.  
 the default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml, use `--conf` for a custom path
 
@@ -35,6 +35,8 @@ suggested diff: [optional]
 - miners needing extranonce.subscribe
 
 TODO
+- move backend init to `startup()`
+    - drop the backend chain config option and autodetect?
 - document code for future viewers
 - logs with personality
 - public-pool compatible api

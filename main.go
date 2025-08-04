@@ -54,7 +54,7 @@ func main() {
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if ctx.Bool("profile") {
-				log("{bold}===profiling===")
+				log("{bold}=/=<profiling>=\\=")
 				profileFile, err := os.Create("cpu.prof")
 				if err != nil {
 					return err
@@ -70,7 +70,9 @@ func main() {
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
 			if passedConfig := ctx.String("conf"); passedConfig != "" {
-				config.LoadConfig(passedConfig, &conf)
+				if err := config.LoadConfig(passedConfig, &conf); err != nil {
+					return cli.Exit(fmt.Sprintf("error loading config: %s", err), 1)
+				}
 			}
 			switch conf.Backend.Chain {
 			case "mainnet":
@@ -121,7 +123,7 @@ func startup() error {
 	if conf.Pogolo.Interface != "" {
 		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
 		if err != nil {
-			return cli.Exit(err.Error(), 1)
+			return cli.Exit(fmt.Sprintf("error binding to interface: %s", err), 1)
 		}
 		addrs, err := inter.Addrs()
 		if err != nil {
@@ -134,7 +136,7 @@ func startup() error {
 			}
 			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, conf.Pogolo.Port))
 			if err != nil {
-				return cli.Exit(err.Error(), 1)
+				return cli.Exit(fmt.Sprintf("error listening on ip %q: %s", addr, err), 1)
 			}
 			go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", addr, conf.Pogolo.HTTPPort))
 		}
@@ -152,12 +154,10 @@ func startup() error {
 	go func() {
 		defer wg.Done()
 		wg.Add(1)
-		log("conns start")
 		for {
 			select {
 			case <-shutdown:
 				{
-					log("conns shutdown")
 					return
 				}
 			case conn := <-conns:
@@ -171,7 +171,7 @@ func startup() error {
 	serverStartTime = time.Now()
 	// wait for exit
 	<-sigs
-	log("\n{yellow}stopping")
+	log("\n{yellow}===<stopping>===")
 	close(shutdown)
 	wg.Wait()
 	return nil
@@ -196,7 +196,6 @@ func clientHandler(conn net.Conn) {
 		switch msg {
 		case "ready":
 			{
-				log("new client \"{blue}%s{cyan}\" {white}%s", client.ID, client.Addr())
 				/// i dont think the order matters, but lets send the current template
 				/// before adding to the client map, just in case notifyClients gets
 				/// called in between (and rapid-fires jobs)
@@ -208,7 +207,6 @@ func clientHandler(conn net.Conn) {
 			}
 		case "done":
 			{
-				log("client disconnect \"{blue}%s{cyan}\" {white}%s", client.ID, client.Addr())
 				return
 			}
 		}
@@ -246,8 +244,10 @@ func backendRoutine() {
 	}
 	if err != nil {
 		logError("%s", err)
+		cli.Exit(err.Error(), 1)
 		return
 	}
+	log("connected to backend")
 	/// block submissions
 	go func() {
 		for {
@@ -277,7 +277,7 @@ func backendRoutine() {
 	}()
 	/// poll getblockcount
 	go func() {
-		/// needed to start after the gbt loop
+		/// needs to start after the gbt loop
 		waitForTemplate()
 		for {
 			count, err := backend.GetBlockCount()
@@ -286,7 +286,7 @@ func backendRoutine() {
 			}
 			/// we're mining on this height
 			if count == currTemplate.Height {
-				log("new bl00k in chain! {green}%d", count)
+				log("===<new bl00k in chain! {green}%d{cyan}>===", count)
 				/// FIXME/MAYBE: skip when we mine a block?
 				/// it triggers gbt before the winning block trigger completes sometimes
 				triggerGBT <- true
@@ -338,7 +338,7 @@ func waitForTemplate() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
 	defer listener.Close()
-	log("listening on {white}%s", listener.Addr())
+	log("stratum listening on {white}%s", listener.Addr())
 	go http.ListenAndServe(httpAddr, nil)
 	log("api listening on {white}%s", httpAddr)
 	for {
