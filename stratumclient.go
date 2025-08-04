@@ -255,6 +255,9 @@ func (client *StratumClient) adjustDiffRoutine() {
 		} else {
 			delta = min(math.Pow(2, absDifference), 4096)
 		}
+		if delta == 0 {
+			continue
+		}
 
 		newDiff := client.Difficulty + delta
 		client.log("{white}adjusting share target by {green}%+g{white} to {green}%g", delta, newDiff)
