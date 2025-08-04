@@ -25,12 +25,13 @@ import (
 
 // state
 var (
-	backend         *rpcclient.Client
-	conf            config.Config
-	clients         map[stratum.ID]StratumClient // map of client ids to clients
-	currTemplate    *JobTemplate
-	submissionChan  chan BlockSubmission
-	serverStartTime time.Time
+	backend           *rpcclient.Client
+	activeChainParams *chaincfg.Params
+	conf              config.Config
+	clients           map[stratum.ID]StratumClient // map of client ids to clients
+	currTemplate      *JobTemplate
+	submissionChan    chan BlockSubmission
+	serverStartTime   time.Time
 	// do we want to track found blocks? it won't be persisted...
 )
 
@@ -46,6 +47,11 @@ func main() {
 			&cli.StringFlag{
 				Name:  "conf",
 				Usage: "config file `path`",
+				Value: filepath.Join(config.ROOT, "pogolo.toml"),
+			},
+			&cli.StringFlag{
+				Name:  "writedefaultconf",
+				Usage: "write config file to `path`",
 				Value: filepath.Join(config.ROOT, "pogolo.toml"),
 			},
 			&cli.BoolFlag{
@@ -67,6 +73,10 @@ func main() {
 				pprof.StartCPUProfile(profileFile)
 				defer pprof.WriteHeapProfile(memProfFile)
 				defer pprof.StopCPUProfile()
+			}
+			if ctx.String("writedefaultconf") != "" {
+				config.WriteDefaultConfig(ctx.String("writedefaultconf"))
+				return nil
 			}
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
@@ -111,30 +121,30 @@ func main() {
 			switch mininginfo.Chain {
 			case "main":
 				{
-					conf.Backend.ChainParams = &chaincfg.MainNetParams
+					activeChainParams = &chaincfg.MainNetParams
 				}
 			case "test":
 				{
-					conf.Backend.ChainParams = &chaincfg.TestNet3Params
+					activeChainParams = &chaincfg.TestNet3Params
 				}
 			case "testnet4":
 				{
-					conf.Backend.ChainParams = &chaincfg.TestNet4Params
+					activeChainParams = &chaincfg.TestNet4Params
 				}
 			case "regtest":
 				{
-					conf.Backend.ChainParams = &chaincfg.RegressionNetParams
+					activeChainParams = &chaincfg.RegressionNetParams
 				}
 			case "signet":
 				{
-					conf.Backend.ChainParams = &chaincfg.SigNetParams
+					activeChainParams = &chaincfg.SigNetParams
 				}
 			default:
 				{
 					return cli.Exit("unknown backend chain", 3)
 				}
 			}
-			log("running on {yellow}%s", conf.Backend.ChainParams.Name)
+			log("running on {yellow}%s", activeChainParams.Name)
 
 			/// start
 			return startup()

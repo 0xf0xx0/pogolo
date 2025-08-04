@@ -1,24 +1,31 @@
+[backend]
+# RPC host:port
+host = '[::1]:18443'
+# RPC cookie path
+# cookie = '/home/ging/.bitcoin/regtest/.cookie'
+# optional, RPC user/pass
+# rpcauth = ''
+# how quickly to poll for block updates, in milliseconds
+poll_interval = 500
+
 [pogolo]
-port = 5661
 # takes precedence over ip, will listen on all interface ips
-interface = "lo"
-# ipv4, v6, or domain (domain will only resolve the first ip)
-ip = "[::1]"
+interface = 'lo'
+# ipv4 or v6
+# ip = '[::1]'
+# use 0 to pick a random port
+port = 5661
+# port for the api
+http_port = 5662
 # optional, required for clients if set
-#password = "x"
+# password = ''
 # will be replaced by default tag if too long (see coinbase scriptsig limit)
-tag = "/pogolo - foss is freedom/"
+tag = '/pogolo - foss is freedom/'
 # minimum 0.01
-default_difficulty = 1024
+default_difficulty = 1024.0
 # how often to send new work to clients, in seconds
 job_interval = 60
 # how often we want shares on average, in seconds
 target_share_interval = 10
-
-[backend]
-host = "[::1]:8332"
-cookie = "~/.bitcoin/.cookie"
-# optional, rpc user/pass
-#rpcauth = "pogolo:hash"
-# how quickly to poll for block updates, in milliseconds
-poll_interval = 500
+# how often we should check to adjust a clients difficulty, in seconds
+difficulty_adjustment_interval = 300

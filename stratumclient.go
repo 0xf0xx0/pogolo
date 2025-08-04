@@ -140,7 +140,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.error("invalid password")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
-				decoded, err := btcutil.DecodeAddress(split[0], conf.Backend.ChainParams)
+				decoded, err := btcutil.DecodeAddress(split[0], activeChainParams)
 				if err != nil {
 					client.error("failed decoding address: %s", err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
@@ -237,7 +237,7 @@ func (client *StratumClient) Stop() {
 // MAYBE: change to adjust every 16 or 32 shares?
 func (client *StratumClient) adjustDiffRoutine() {
 	for {
-		time.Sleep(time.Minute * 5)
+		time.Sleep(time.Second * time.Duration(conf.Pogolo.DiffAdjustInterval))
 		if client.Stats.avgSubmissionDelta == 0 {
 			continue
 		}
@@ -319,7 +319,7 @@ func (client *StratumClient) Name() string {
 func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-	hashrate := (client.Difficulty * 4294967296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
+	hashrate := (client.Difficulty * 4_294_967_296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
 	hashrate /= 1e6 /// turn into megahashy
 	client.Stats.hashrate = (client.Stats.hashrate*127 + hashrate) / 128
 	return hashrate
@@ -404,7 +404,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		merkleBranches[i] = branch[:]
 	}
 
-	coinbaseTx := CreateCoinbaseTx(client.User, *template, conf.Backend.ChainParams)
+	coinbaseTx := CreateCoinbaseTx(client.User, *template, activeChainParams)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
