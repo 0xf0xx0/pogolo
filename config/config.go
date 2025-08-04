@@ -24,7 +24,6 @@ type Backend struct {
 	Host         string           `toml:"host" comment:"RPC host:port"`
 	Cookie       string           `toml:"cookie,commented" comment:"RPC cookie path"`
 	Rpcauth      string           `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
-	Chain        string           `toml:"chain" comment:"mainnet | testnet | regtest"`
 	ChainParams  *chaincfg.Params // internal
 	PollInterval uint64           `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds"`
 }
@@ -44,7 +43,7 @@ var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:18443",
 		Cookie:       resolvePath("~/.bitcoin/regtest/.cookie"),
-		Chain:        "regtest",
+
 		ChainParams:  &chaincfg.RegressionNetParams,
 		PollInterval: 500,
 	},

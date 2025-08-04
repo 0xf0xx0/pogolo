@@ -20,7 +20,5 @@ host = "[::1]:8332"
 cookie = "~/.bitcoin/.cookie"
 # optional, rpc user/pass
 #rpcauth = "pogolo:hash"
-# mainnet | testnet | regtest
-chain = "mainnet"
 # how quickly to poll for block updates, in milliseconds
 poll_interval = 500

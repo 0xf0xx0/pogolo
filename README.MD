@@ -35,7 +35,6 @@ suggested diff: [optional]
 - miners needing extranonce.subscribe
 
 TODO
-- drop the backend chain config option and autodetect
 - document code for future viewers
 - logs with personality
 - public-pool compatible api

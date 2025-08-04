@@ -75,15 +75,51 @@ func main() {
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), 1)
 				}
 			}
-			switch conf.Backend.Chain {
-			case "mainnet":
+
+			/// init backend
+			var err error
+			if conf.Backend.Cookie != "" {
+				backend, err = rpcclient.New(&rpcclient.ConnConfig{
+					Host:                conf.Backend.Host,
+					CookiePath:          conf.Backend.Cookie,
+					DisableTLS:          true,
+					DisableConnectOnNew: true,
+					HTTPPostMode:        true,
+				}, nil)
+			} else if conf.Backend.Rpcauth != "" && strings.Contains(conf.Backend.Rpcauth, ":") {
+				auth := strings.Split(conf.Backend.Rpcauth, ":")
+				backend, err = rpcclient.New(&rpcclient.ConnConfig{
+					Host:                conf.Backend.Host,
+					User:                auth[0],
+					Pass:                auth[1],
+					DisableTLS:          true,
+					DisableConnectOnNew: true,
+					HTTPPostMode:        true,
+				}, nil)
+			} else {
+				return cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
+			}
+			if err != nil {
+				return err
+			}
+
+			mininginfo, err := backend.GetBlockChainInfo()
+			if err != nil {
+				return err
+			}
+
+			switch mininginfo.Chain {
+			case "main":
 				{
 					conf.Backend.ChainParams = &chaincfg.MainNetParams
 				}
-			case "testnet":
+			case "test":
 				{
-					/// TODO: replace with testnet4 next btcd update
 					conf.Backend.ChainParams = &chaincfg.TestNet3Params
+				}
+			case "testnet4":
+				{
+					conf.Backend.ChainParams = &chaincfg.TestNet4Params
 				}
 			case "regtest":
 				{
@@ -117,33 +153,6 @@ func startup() error {
 	conns := make(chan net.Conn)
 	clients = make(map[stratum.ID]StratumClient, 5)
 	submissionChan = make(chan BlockSubmission)
-
-	/// init backend
-	var err error
-	if conf.Backend.Cookie != "" {
-		backend, err = rpcclient.New(&rpcclient.ConnConfig{
-			Host:                conf.Backend.Host,
-			CookiePath:          conf.Backend.Cookie,
-			DisableTLS:          true,
-			DisableConnectOnNew: true,
-			HTTPPostMode:        true,
-		}, nil)
-	} else if conf.Backend.Rpcauth != "" && strings.Contains(conf.Backend.Rpcauth, ":") {
-		auth := strings.Split(conf.Backend.Rpcauth, ":")
-		backend, err = rpcclient.New(&rpcclient.ConnConfig{
-			Host:                conf.Backend.Host,
-			User:                auth[0],
-			Pass:                auth[1],
-			DisableTLS:          true,
-			DisableConnectOnNew: true,
-			HTTPPostMode:        true,
-		}, nil)
-	} else {
-		return cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
-	}
-	if err != nil {
-		return err
-	}
 
 	initAPI()
 
