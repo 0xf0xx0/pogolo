@@ -250,11 +250,12 @@ func (client *StratumClient) adjustDiffRoutine() {
 		/// cap the adjustment at +-2^12
 		delta := min(math.Pow(2, absDifference), 4096)
 		if difference < 0 {
-			delta = -delta
+			delta = -delta * 2
 		}
 
-		client.log("{white}adjusting share target by {green}%+.0f", delta)
-		if err := client.setDifficulty(client.Difficulty + delta); err != nil {
+		newDiff := client.Difficulty + delta
+		client.log("{white}adjusting share target by {green}%+g{white} to {green}%g", delta, newDiff)
+		if err := client.setDifficulty(newDiff); err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				/// client died and we didnt notice?
 				client.Stop()
