@@ -38,7 +38,7 @@ var (
 func main() {
 	app := &cli.Command{
 		Name:                   "pogolo",
-		Version:                "0.0.4",
+		Version:                "0.0.5",
 		Usage:                  "local go pool",
 		UsageText:              "pogolo [options]",
 		UseShortOptionHandling: true,
@@ -52,7 +52,6 @@ func main() {
 			&cli.StringFlag{
 				Name:  "writedefaultconf",
 				Usage: "write config file to `path`",
-				Value: filepath.Join(config.ROOT, "pogolo.toml"),
 			},
 			&cli.BoolFlag{
 				Name:   "profile",
@@ -147,6 +146,7 @@ func main() {
 			log("running on {yellow}%s", activeChainParams.Name)
 
 			/// start
+			log("===<{bold}{blue}%s {bold}{green}v%s - foss is freedom{cyan}>===", ctx.Name, ctx.Version)
 			return startup()
 		},
 	}
