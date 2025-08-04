@@ -35,8 +35,7 @@ suggested diff: [optional]
 - miners needing extranonce.subscribe
 
 TODO
-- move backend init to `startup()`
-    - drop the backend chain config option and autodetect?
+- drop the backend chain config option and autodetect
 - document code for future viewers
 - logs with personality
 - public-pool compatible api

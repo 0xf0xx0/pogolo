@@ -25,6 +25,7 @@ import (
 
 // state
 var (
+	backend         *rpcclient.Client
 	conf            config.Config
 	clients         map[stratum.ID]StratumClient // map of client ids to clients
 	currTemplate    *JobTemplate
@@ -69,7 +70,7 @@ func main() {
 			}
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
-			if passedConfig := ctx.String("conf"); passedConfig != "" {
+			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), 1)
 				}
@@ -116,6 +117,34 @@ func startup() error {
 	conns := make(chan net.Conn)
 	clients = make(map[stratum.ID]StratumClient, 5)
 	submissionChan = make(chan BlockSubmission)
+
+	/// init backend
+	var err error
+	if conf.Backend.Cookie != "" {
+		backend, err = rpcclient.New(&rpcclient.ConnConfig{
+			Host:                conf.Backend.Host,
+			CookiePath:          conf.Backend.Cookie,
+			DisableTLS:          true,
+			DisableConnectOnNew: true,
+			HTTPPostMode:        true,
+		}, nil)
+	} else if conf.Backend.Rpcauth != "" && strings.Contains(conf.Backend.Rpcauth, ":") {
+		auth := strings.Split(conf.Backend.Rpcauth, ":")
+		backend, err = rpcclient.New(&rpcclient.ConnConfig{
+			Host:                conf.Backend.Host,
+			User:                auth[0],
+			Pass:                auth[1],
+			DisableTLS:          true,
+			DisableConnectOnNew: true,
+			HTTPPostMode:        true,
+		}, nil)
+	} else {
+		return cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
+	}
+	if err != nil {
+		return err
+	}
+
 	initAPI()
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -145,7 +174,7 @@ func startup() error {
 		if err != nil {
 			return cli.Exit(err.Error(), 1)
 		}
-		go listenerRoutine(shutdown, conns, listener,  fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.HTTPPort))
+		go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.HTTPPort))
 	}
 
 	go backendRoutine()
@@ -171,7 +200,7 @@ func startup() error {
 	serverStartTime = time.Now()
 	// wait for exit
 	<-sigs
-	log("\n{yellow}===<stopping>===")
+	log("\n{yellow}stopping")
 	close(shutdown)
 	wg.Wait()
 	return nil
@@ -217,37 +246,7 @@ func clientHandler(conn net.Conn) {
 func backendRoutine() {
 	/// TODO: longpoll?
 	/// TODO: do we need anything special for btcd/knots/etc?
-	/// TODO: move backend to global? or main func?
-	var backend *rpcclient.Client
-	var err error
 	triggerGBT := make(chan bool)
-	if conf.Backend.Cookie != "" {
-		backend, err = rpcclient.New(&rpcclient.ConnConfig{
-			Host:                conf.Backend.Host,
-			CookiePath:          conf.Backend.Cookie,
-			DisableTLS:          true,
-			DisableConnectOnNew: true,
-			HTTPPostMode:        true,
-		}, nil)
-	} else if conf.Backend.Rpcauth != "" && strings.Contains(conf.Backend.Rpcauth, ":") {
-		auth := strings.Split(conf.Backend.Rpcauth, ":")
-		backend, err = rpcclient.New(&rpcclient.ConnConfig{
-			Host:                conf.Backend.Host,
-			User:                auth[0],
-			Pass:                auth[1],
-			DisableTLS:          true,
-			DisableConnectOnNew: true,
-			HTTPPostMode:        true,
-		}, nil)
-	} else {
-		err = cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
-	}
-	if err != nil {
-		logError("%s", err)
-		cli.Exit(err.Error(), 1)
-		return
-	}
-	log("connected to backend")
 	/// block submissions
 	go func() {
 		for {
@@ -309,7 +308,7 @@ func backendRoutine() {
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		log("===<new template {blue}%s{cyan} with {green}%d{cyan} txns>===", currTemplate.ID, len(template.Transactions))
+		log("===<new job {blue}%s{cyan} with {green}%d{cyan} txns>===", currTemplate.ID, len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
