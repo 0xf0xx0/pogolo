@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"pogolo/config"
+	"pogolo/constants"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -21,6 +22,12 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/urfave/cli/v3"
+)
+
+// things
+const (
+	NAME = "pogolo"
+	VERSION = "0.0.5"
 )
 
 // state
@@ -37,12 +44,15 @@ var (
 
 func main() {
 	app := &cli.Command{
-		Name:                   "pogolo",
-		Version:                "0.0.5",
-		Usage:                  "local go pool",
+		Name:                   NAME,
+		Version:                VERSION,
+		Usage:                  "foss is freedom",
 		UsageText:              "pogolo [options]",
 		UseShortOptionHandling: true,
 		EnableShellCompletion:  true,
+		// ExitErrHandler: func(ctx context.Context, c *cli.Command, err error) {
+
+		// },
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "conf",
@@ -81,7 +91,7 @@ func main() {
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
 			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
-					return cli.Exit(fmt.Sprintf("error loading config: %s", err), 1)
+					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.ERROR_CONFIG)
 				}
 			}
 
@@ -106,15 +116,15 @@ func main() {
 					HTTPPostMode:        true,
 				}, nil)
 			} else {
-				return cli.Exit("neither valid rpc cookie nor valid auth string in config", 2)
+				return cli.Exit("neither valid rpc cookie nor valid auth string in config", constants.ERROR_CONFIG)
 			}
 			if err != nil {
-				return err
+				return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.ERROR_BACKEND)
 			}
 
 			mininginfo, err := backend.GetBlockChainInfo()
 			if err != nil {
-				return err
+				return cli.Exit(fmt.Sprintf("failed to get chain info: %s", err), constants.ERROR_BACKEND)
 			}
 
 			switch mininginfo.Chain {
@@ -140,13 +150,13 @@ func main() {
 				}
 			default:
 				{
-					return cli.Exit("unknown backend chain", 3)
+					return cli.Exit("unknown backend chain", constants.ERROR_BACKEND)
 				}
 			}
 			log("running on {yellow}%s", activeChainParams.Name)
 
 			/// start
-			log("===<{bold}{blue}%s {bold}{green}v%s - foss is freedom{cyan}>===", ctx.Name, ctx.Version)
+			log("===<{bold}{blue}%s {bold}{green}v%s - %s{cyan}>===", ctx.Name, ctx.Version, ctx.Usage)
 			return startup()
 		},
 	}
@@ -171,11 +181,11 @@ func startup() error {
 	if conf.Pogolo.Interface != "" {
 		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("error binding to interface: %s", err), 1)
+			return cli.Exit(fmt.Sprintf("error binding to interface: %s", err), constants.ERROR_NET)
 		}
 		addrs, err := inter.Addrs()
 		if err != nil {
-			return cli.Exit(err.Error(), 1)
+			return cli.Exit(err.Error(), constants.ERROR_NET)
 		}
 		for _, addr := range addrs {
 			addr := strings.Split(addr.String(), "/")[0]
@@ -184,14 +194,14 @@ func startup() error {
 			}
 			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, conf.Pogolo.Port))
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("error listening on ip %q: %s", addr, err), 1)
+				return cli.Exit(fmt.Sprintf("error listening on ip %q: %s", addr, err), constants.ERROR_NET)
 			}
 			go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", addr, conf.Pogolo.HTTPPort))
 		}
 	} else {
 		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
 		if err != nil {
-			return cli.Exit(err.Error(), 1)
+			return cli.Exit(err.Error(), constants.ERROR_NET)
 		}
 		go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.HTTPPort))
 	}

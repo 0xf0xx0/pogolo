@@ -13,6 +13,13 @@ const (
 	SUBMISSION_DELTA_WINDOW = 16   // rolling avg window
 )
 
+const (
+	ERROR_NONE = iota
+	ERROR_BACKEND
+	ERROR_CONFIG
+	ERROR_NET
+)
+
 // errors can be anything, so i chose http-ish codes :3
 // don't add these to your mappings yet, wait till 1.0.0
 var (
