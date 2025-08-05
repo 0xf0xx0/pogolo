@@ -158,7 +158,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 				subParams := stratum.SubscribeParams{}
 				subParams.Read(m)
-				client.UserAgent = subParams.UserAgent
+				client.UserAgent = parseUserAgent(subParams.UserAgent)
+				if client.UserAgent == "luckyminer" {
+					/// unsupported
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					return
+				}
 				params := stratum.SubscribeResult{
 					Subscriptions: []stratum.Subscription{
 						{
@@ -251,7 +256,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		/// cap the adjustment at +-2^12
 		delta := float64(0)
 		if difference < 0 {
-			delta = -delta/2
+			delta = -delta / 2
 		} else {
 			delta = min(math.Pow(2, absDifference), 4096)
 		}
@@ -511,7 +516,12 @@ func parseUserAgent(ua string) string {
 		/// format is bitaxe/<chip>/<fw_version>, drop the version
 		return strings.Join(split[:2], "/")
 	} else if strings.Contains(ua, "luckyminer") {
-		return "luckyminer" /// TODO: dc luckyminers
+		return "luckyminer"
 	}
-	return ""
+	/// copy public-pools parsing
+	ua = strings.Split(ua, " ")[0]
+	ua = strings.Split(ua, "/")[0]
+	ua = strings.Split(ua, "v")[0]
+	ua = strings.Split(ua, "-")[0]
+	return ua
 }
