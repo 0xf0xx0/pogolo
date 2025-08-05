@@ -498,3 +498,20 @@ func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) Strat
 	}
 	return client
 }
+
+func parseUserAgent(ua string) string {
+	ua = strings.ToLower(ua)
+
+	if strings.Contains(ua, "axe") {
+		split := strings.Split(ua, "/")
+		if len(split) != 3 {
+			/// confusion
+			return ua
+		}
+		/// format is bitaxe/<chip>/<fw_version>, drop the version
+		return strings.Join(split[:2], "/")
+	} else if strings.Contains(ua, "luckyminer") {
+		return "luckyminer" /// TODO: dc luckyminers
+	}
+	return ""
+}

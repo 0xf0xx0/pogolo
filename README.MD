@@ -7,7 +7,10 @@ start it, point your miners to it, and watch the logs roll by
 # setup
 ## install
 ```
+# latest release
 go install github.com/0xf0xx0/pogolo@latest
+# or from git
+go install github.com/0xf0xx0/pogolo@logopo
 ```
 
 ## run
@@ -36,11 +39,13 @@ suggested diff: [optional]
 
 TODO
 - document code for future viewers
+    - link stratum and mining docs
 - logs with personality
 - public-pool compatible api
 - 0.1% dev fee for large miners
     - calc hashrate (wildly inaccurate :\)
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
+- special bitaxe functions like auto-restart on flatline and hashrate polling?
 - extranonce subscription?
 - longpoll?
 - more config options?
