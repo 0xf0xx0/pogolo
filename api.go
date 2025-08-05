@@ -12,6 +12,10 @@ import (
 const API_VER = "v1"
 const API_PFX = "/api"
 
+type userAgentStat struct {
+	BestDifficulty float64 `json:"bestDifficulty"`
+	TotalHashrate  float64 `json:"totalHashRate"`
+}
 type highScore struct {
 	UpdatedAt               string  `json:"updatedAt"` // yyyy-mm-dd hh:mm:ss
 	BestDifficulty          float64 `json:"bestDifficulty"`

@@ -41,9 +41,9 @@ TODO
 - document code for future viewers
     - link stratum and mining docs
 - logs with personality
-- public-pool compatible api
 - 0.1% dev fee for large miners
     - calc hashrate (wildly inaccurate :\)
+- public-pool compatible api?
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
 - extranonce subscription?
