@@ -34,7 +34,7 @@ type StratumClient struct {
 	templateChan   chan *JobTemplate
 	submissionChan chan<- BlockSubmission
 	CurrentJob     MiningJob
-	Stats          ClientStats
+	stats          *ClientStats
 	//activeJobs []stratum.NotifyParams 	// TODO: remove? maybe have only 2 jobs (the current and the previous)?
 }
 
@@ -81,7 +81,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 			}
 			go client.adjustDiffRoutine()
-			client.Stats.startTime = time.Now()
+			client.stats.startTime = time.Now()
 			client.statusChan <- "ready"
 		}
 
@@ -243,10 +243,10 @@ func (client *StratumClient) Stop() {
 func (client *StratumClient) adjustDiffRoutine() {
 	for {
 		time.Sleep(time.Second * time.Duration(conf.Pogolo.DiffAdjustInterval))
-		if client.Stats.avgSubmissionDelta == 0 {
+		if client.stats.avgSubmissionDelta == 0 {
 			continue
 		}
-		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.Stats.avgSubmissionDelta/1000)
+		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.stats.avgSubmissionDelta/1000)
 		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 		/// tighten it to +-1s
@@ -321,15 +321,18 @@ func (client *StratumClient) Name() string {
 	}
 	return client.ID.String()
 }
+func (client *StratumClient) BestDiff() float64 {
+	return client.stats.bestDiff
+}
 
 // live hashrate in MH/s
 // FIXME: more accurate averaging?
 func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-	hashrate := (client.Difficulty * 4_294_967_296) / float64(shareTime.Sub(client.Stats.lastSubmission).Seconds())
+	hashrate := (client.Difficulty * 4_294_967_296) / float64(shareTime.Sub(client.stats.lastSubmission).Seconds())
 	hashrate /= 1e6 /// turn into megahashy
-	client.Stats.hashrate = (client.Stats.hashrate*127 + hashrate) / 128
+	client.stats.hashrate = (client.stats.hashrate*127 + hashrate) / 128
 	return hashrate
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
@@ -346,7 +349,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 // TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {
-		client.Stats.sharesRejected++
+		client.stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
 		return
 	}
@@ -367,33 +370,33 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 			client.submitBlock(s)
 		}
-		client.Stats.sharesAccepted++
-		if shareDiff > client.Stats.bestDiff {
-			client.Stats.bestDiff = shareDiff
+		client.stats.sharesAccepted++
+		if shareDiff > client.stats.bestDiff {
+			client.stats.bestDiff = shareDiff
 			client.log("new best session diff!")
 		}
 		now := time.Now()
-		if client.Stats.lastSubmission.Unix() > 0 {
+		if client.stats.lastSubmission.Unix() > 0 {
 			/// rolling avg
 			/// wikipedia my beloved
 			/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
-			submission := uint64(now.Sub(client.Stats.lastSubmission).Milliseconds())
+			submission := uint64(now.Sub(client.stats.lastSubmission).Milliseconds())
 			/// start the avg calc with the furst delta, not 0
-			if client.Stats.avgSubmissionDelta == 0 {
-				client.Stats.avgSubmissionDelta = submission
+			if client.stats.avgSubmissionDelta == 0 {
+				client.stats.avgSubmissionDelta = submission
 			} else {
-				client.Stats.avgSubmissionDelta =
-					((client.Stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
+				client.stats.avgSubmissionDelta =
+					((client.stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
 			}
 		}
 		client.calcHashrate(now)
-		client.Stats.lastSubmission = now
+		client.stats.lastSubmission = now
 		// client.log(fmt.Sprintf("share accepted: diff %s", diffFormat(shareDiff)))
-		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.Stats.bestDiff), client.Stats.avgSubmissionDelta/1000)
-		client.log("{white}hashrate: %s", formatHashrate(client.Stats.hashrate))
+		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.stats.bestDiff), client.stats.avgSubmissionDelta/1000)
+		client.log("{white}hashrate: %s", formatHashrate(client.stats.hashrate))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
-		client.Stats.sharesRejected++
+		client.stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 		// client.log(fmt.Sprintf("share rejected: diff %f", shareDiff))
 
@@ -494,12 +497,13 @@ func (client *StratumClient) error(s string, a ...any) {
 
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
 	client := StratumClient{
-		conn:           conn,
 		ID:             ClientIDHash(),
+		Difficulty:     1,
+		stats:          &ClientStats{},
+		conn:           conn,
 		statusChan:     make(chan string),
 		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,
-		Difficulty:     1,
 	}
 	return client
 }

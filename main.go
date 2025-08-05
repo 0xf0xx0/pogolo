@@ -35,7 +35,7 @@ var (
 	backend           *rpcclient.Client
 	activeChainParams *chaincfg.Params
 	conf              config.Config
-	clients           map[stratum.ID]StratumClient // map of client ids to clients
+	clients           map[stratum.ID]*StratumClient // map of client ids to clients
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
 	serverStartTime   time.Time
@@ -171,7 +171,7 @@ func startup() error {
 	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
-	clients = make(map[stratum.ID]StratumClient, 5)
+	clients = make(map[stratum.ID]*StratumClient, 5)
 	submissionChan = make(chan BlockSubmission)
 
 	initAPI()
@@ -261,7 +261,7 @@ func clientHandler(conn net.Conn) {
 				/// TODO: dont do anything if template is nil, otherwise send?
 				waitForTemplate()
 				client.Channel() <- currTemplate
-				clients[client.ID] = client
+				clients[client.ID] = &client
 			}
 		case "done":
 			{
