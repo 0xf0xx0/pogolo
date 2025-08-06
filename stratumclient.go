@@ -265,7 +265,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 			continue
 		}
 
-		newDiff := client.Difficulty + delta
+		newDiff := max(client.Difficulty + delta, 1)
 		client.log("{white}adjusting share target by {green}%+g{white} to {green}%g", delta, newDiff)
 		if err := client.setDifficulty(newDiff); err != nil {
 			if errors.Is(err, net.ErrClosed) {

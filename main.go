@@ -337,7 +337,7 @@ func backendRoutine() {
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		log("===<the swarm is working on {blue}%s{cyan}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
+		log("===<the swarm is working on job {blue}%s{cyan}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
