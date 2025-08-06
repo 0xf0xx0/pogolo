@@ -44,7 +44,9 @@ type ClientStats struct {
 	lastSubmission time.Time
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
-	sharesRejected uint64
+	sharesRejected,
+	lastShares,
+	shares uint64
 	bestDiff,
 	hashrate float64
 }
@@ -139,6 +141,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
 					client.error("invalid password")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					return
 				}
 				decoded, err := btcutil.DecodeAddress(split[0], activeChainParams)
 				if err != nil {
@@ -250,7 +253,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 		/// tighten it to +-1s
-		if absDifference < 1 {
+		if absDifference <= 2 {
 			continue
 		}
 		/// cap the adjustment at +-2^12
@@ -281,10 +284,6 @@ func (client *StratumClient) adjustDiffRoutine() {
 func (client *StratumClient) readChanRoutine() {
 	for {
 		select {
-		// case <-client.statusChan:
-		// 	{
-		// 		/// eh is this needed?
-		// 	}
 		case template, ok := <-client.templateChan:
 			{
 				if !ok {
@@ -296,6 +295,8 @@ func (client *StratumClient) readChanRoutine() {
 				if err != nil {
 					client.error("error sending job: %s", err)
 				}
+				client.stats.lastShares = client.stats.shares
+				client.stats.shares = uint64(client.Difficulty)
 			}
 		}
 	}
@@ -327,13 +328,16 @@ func (client *StratumClient) BestDiff() float64 {
 
 // live hashrate in MH/s
 // FIXME: more accurate averaging?
-func (client *StratumClient) calcHashrate(shareTime time.Time) float64 {
+func (client *StratumClient) calcHashrate(shareTime time.Time) {
 	/// "Hashrate = (share difficulty x 2^32) / time" - ben
 	/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-	hashrate := (client.Difficulty * 4_294_967_296) / float64(shareTime.Sub(client.stats.lastSubmission).Seconds())
-	hashrate /= 1e6 /// turn into megahashy
-	client.stats.hashrate = (client.stats.hashrate*127 + hashrate) / 128
-	return hashrate
+	// hashrate := (client.Difficulty * 4_294_967_296) / float64(shareTime.Sub(client.stats.lastSubmission).Seconds())
+	// hashrate /= 1e6 /// turn into megahashy
+	/// TODO: copy public-pool
+	if client.stats.shares > 0 {
+		client.stats.hashrate = float64((client.stats.lastShares+client.stats.shares)*4_294_967_296) / float64(shareTime.Sub(client.CurrentJob.NotifyParams.Timestamp).Seconds())
+		client.stats.hashrate /= 1e6 /// turn into megahashy
+	}
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.Difficulty {
@@ -371,6 +375,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			client.submitBlock(s)
 		}
 		client.stats.sharesAccepted++
+		client.stats.shares += uint64(client.Difficulty)
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
 			client.log("new best session diff!")
@@ -488,11 +493,11 @@ func (client *StratumClient) writeChan(msg string) {
 }
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	fmt.Println(oigiki.ProcessTags("[{cyan}%s{reset}] %s", client.Name(), s))
+	log(oigiki.ProcessTags("[{blue}%s{cyan}]{reset} %s", client.Name(), s))
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	println(oigiki.ProcessTags("[{cyan}%s{reset}] {red}%s", client.Name(), s))
+	logError(oigiki.ProcessTags("[{blue}%s{red}] %s", client.Name(), s))
 }
 
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
