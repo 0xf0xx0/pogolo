@@ -257,11 +257,9 @@ func (client *StratumClient) adjustDiffRoutine() {
 			continue
 		}
 		/// cap the adjustment at +-2^12
-		delta := float64(0)
+		delta := min(math.Pow(2, absDifference), 4096)
 		if difference < 0 {
 			delta = -delta / 2
-		} else {
-			delta = min(math.Pow(2, absDifference), 4096)
 		}
 		if delta == 0 {
 			continue
