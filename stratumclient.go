@@ -253,7 +253,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 		/// tighten it to +-1s
-		if absDifference <= 2 {
+		if absDifference < 1 {
 			continue
 		}
 		/// cap the adjustment at +-2^12
