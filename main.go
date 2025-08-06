@@ -70,7 +70,7 @@ func main() {
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if ctx.Bool("profile") {
-				log("{bold}=/=<profiling>=\\=")
+				log("{bold}=/=<profiling>=/=")
 				profileFile, err := os.Create("cpu.prof")
 				if err != nil {
 					return err
