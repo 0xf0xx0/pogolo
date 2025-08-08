@@ -42,10 +42,6 @@ var (
 )
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
-	/// TODO/MAYBE: false and keep track of multiple jobs
-	/// is it neccesary?
-	clear := true
-
 	if currBlockHeight != uint64(template.Height) {
 		currBlockHeight = uint64(template.Height)
 	}
@@ -124,7 +120,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		NetworkDiff:        CalcNetworkDifficulty(uint32(headerBits)),
 		Subsidy:            *template.CoinbaseValue,
 		Height:             template.Height,
-		Clear:              clear,
+		Clear:              true, /// we don't support multiple active jobs
 	}
 
 	return job

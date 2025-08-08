@@ -26,7 +26,7 @@ import (
 
 // things
 const (
-	NAME = "pogolo"
+	NAME    = "pogolo"
 	VERSION = "0.0.6"
 )
 
@@ -39,7 +39,6 @@ var (
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
 	serverStartTime   time.Time
-	// do we want to track found blocks? it won't be persisted...
 )
 
 func main() {
@@ -51,7 +50,6 @@ func main() {
 		UseShortOptionHandling: true,
 		EnableShellCompletion:  true,
 		// ExitErrHandler: func(ctx context.Context, c *cli.Command, err error) {
-
 		// },
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -61,7 +59,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:  "writedefaultconf",
-				Usage: "write config file to `path`",
+				Usage: "write default config to `path`",
 			},
 			&cli.BoolFlag{
 				Name:   "profile",
@@ -153,10 +151,10 @@ func main() {
 					return cli.Exit("unknown backend chain", constants.ERROR_BACKEND)
 				}
 			}
-			log("running on {yellow}%s", activeChainParams.Name)
 
 			/// start
-			log("===<{bold}{blue}%s {bold}{green}v%s - %s{cyan}>===", ctx.Name, ctx.Version, ctx.Usage)
+			log("===<{bold}{blue}%s {bold}{green}v%s{bold}{blue} - %s{cyan}>===", ctx.Name, ctx.Version, ctx.Usage)
+			log("mining on {yellow}%s", activeChainParams.Name)
 			return startup()
 		},
 	}
@@ -257,10 +255,9 @@ func clientHandler(conn net.Conn) {
 				/// i dont think the order matters, but lets send the current template
 				/// before adding to the client map, just in case notifyClients gets
 				/// called in between (and rapid-fires jobs)
-				/// theoretically waitForTemplate() may cause a double-send
-				/// TODO: dont do anything if template is nil, otherwise send?
-				waitForTemplate()
-				client.Channel() <- currTemplate
+				if currTemplate != nil {
+					client.Channel() <- currTemplate
+				}
 				clients[client.ID] = &client
 			}
 		case "done":
@@ -331,7 +328,6 @@ func backendRoutine() {
 			Mode:         "template",
 		})
 		if err != nil {
-			/// TODO: gracefully handle backend errors
 			logError("error fetching template: %s", err)
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue

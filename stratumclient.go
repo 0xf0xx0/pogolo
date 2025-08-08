@@ -35,7 +35,6 @@ type StratumClient struct {
 	submissionChan chan<- BlockSubmission
 	CurrentJob     MiningJob
 	stats          *ClientStats
-	//activeJobs []stratum.NotifyParams 	// TODO: remove? maybe have only 2 jobs (the current and the previous)?
 }
 
 // stats for the api
@@ -253,19 +252,19 @@ func (client *StratumClient) adjustDiffRoutine() {
 		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 		/// tighten it to +-1s
-		if absDifference < 1 {
+		if absDifference <= 1 {
 			continue
 		}
 		/// cap the adjustment at +-2^12
 		delta := min(math.Pow(2, absDifference), 4096)
 		if difference < 0 {
-			delta = -delta
+			delta = -delta / 2 /// TODO: nearest power of 2 calc
 		}
 		if delta == 0 {
 			continue
 		}
 
-		newDiff := max(client.Difficulty + delta, constants.MIN_DIFFICULTY)
+		newDiff := max(client.Difficulty+delta, constants.MIN_DIFFICULTY)
 		client.log("{white}adjusting share target by {green}%+g{white} to {green}%g", delta, newDiff)
 		if err := client.setDifficulty(newDiff); err != nil {
 			if errors.Is(err, net.ErrClosed) {
@@ -358,7 +357,6 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 
 	updatedBlock, err := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	if err != nil {
-		/// maybe add client.Stats.sharesLost? lmfao
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 		return
 	}

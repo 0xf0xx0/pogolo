@@ -36,6 +36,7 @@ suggested diff: [optional]
 - cpuminer
 ## unsupported
 - miners needing extranonce.subscribe
+- luckyminers
 
 TODO
 - document code for future viewers
@@ -50,7 +51,6 @@ TODO
 - longpoll?
 - more config options?
 - more fine-grained client errors?
-- multiple active jobs?
 - stratum keepalive?
 - variable extranonce size?
 - zmq for block notifs?
