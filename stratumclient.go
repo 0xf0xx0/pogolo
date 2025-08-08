@@ -399,13 +399,6 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	} else {
 		client.stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
-		// client.log(fmt.Sprintf("share rejected: diff %f", shareDiff))
-
-		// hdr := bytes.NewBuffer([]byte{})
-		// updatedBlock.Header.Serialize(hdr)
-		// println("share:", fmt.Sprintf("%+v", s))
-		// println(fmt.Sprintf("header: %x", hdr))
-		// println(fmt.Sprintf("diff: %f", shareDiff))
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
@@ -430,21 +423,21 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	partOneIndex += len(inputScript)
 
-	params := stratum.NotifyParams{
-		JobID:          template.ID,
-		PrevBlockHash:  &blockHeader.PrevBlock,
-		MerkleBranches: merkleBranches,
-		Version:        uint32(blockHeader.Version),
-		Bits:           template.Bits,
-		Timestamp:      blockHeader.Timestamp,
-		/// minus 8 cause we wanna lop off the extranonce padding
-		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-8],
-		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
-		Clean:         template.Clear,
-	}
 	job := MiningJob{
 		Template:     template,
-		NotifyParams: params,
+		NotifyParams: stratum.NotifyParams{
+			JobID:          template.ID,
+			PrevBlockHash:  &blockHeader.PrevBlock,
+			MerkleBranches: merkleBranches,
+			Version:        uint32(blockHeader.Version),
+			Bits:           template.Bits,
+			Timestamp:      blockHeader.Timestamp,
+			/// minus 8 cause we wanna lop off the extranonce padding
+			/// TODO: variable extranonce2
+			CoinbasePart1: serializedCoinbaseTx[:partOneIndex-8],
+			CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
+			Clean:         true, /// we don't support multiple active jobs
+		},
 	}
 
 	return job

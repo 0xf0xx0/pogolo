@@ -86,13 +86,10 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 			panic(err)
 		}
 	}
-	//emptyWitness := [blockchain.CoinbaseWitnessDataLen]byte{}
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
 		SignatureScript:  encodedCoinbaseScript,
 		Sequence:         wire.MaxTxInSequenceNum,
-		/// TODO: remove? mining.AddWitnessCommitment sets the witness
-		//Witness: wire.TxWitness{emptyWitness[:]}, /// 32 bytes of nothin
 	})
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
@@ -168,7 +165,6 @@ func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
 
 	newtemplate.Subsidy = t.Subsidy
 	newtemplate.Height = t.Height
-	newtemplate.Clear = t.Clear
 
 	return &newtemplate
 }

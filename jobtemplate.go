@@ -24,12 +24,12 @@ type JobTemplate struct {
 	Block              btcutil.Block
 	WitnessCommittment []byte
 	MerkleBranch       []*chainhash.Hash
+	// TODO: remove?
 	MerkleRoot         *chainhash.Hash
 	NetworkDiff        float64
 	Bits               []byte
 	Subsidy            int64
 	Height             int64
-	Clear              bool
 }
 type MiningJob struct {
 	Template     *JobTemplate
@@ -38,13 +38,9 @@ type MiningJob struct {
 
 var (
 	currTemplateID  = uint64(0)
-	currBlockHeight = uint64(0)
 )
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
-	if currBlockHeight != uint64(template.Height) {
-		currBlockHeight = uint64(template.Height)
-	}
 
 	currTime := time.Now().Unix()
 	if template.MinTime > currTime {
@@ -120,7 +116,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		NetworkDiff:        CalcNetworkDifficulty(uint32(headerBits)),
 		Subsidy:            *template.CoinbaseValue,
 		Height:             template.Height,
-		Clear:              true, /// we don't support multiple active jobs
 	}
 
 	return job

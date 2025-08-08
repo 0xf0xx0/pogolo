@@ -287,12 +287,9 @@ func backendRoutine() {
 				logError("error from backend while submitting block: %s", err)
 				continue
 			}
-			worker := clients[submission.ClientID].Worker
-			if worker == "" {
-				worker = submission.ClientID.String()
-			}
+			worker := clients[submission.ClientID].Name()
 			log(
-				"{green}=={yellow}[!]{green}== BLOCK FOUND =={yellow}[!]{green}== BLOCK FOUND =={yellow}[!]{green}== BLOCK FOUND =={yellow}[!]{green}==\nhash: %s\nworker: %s",
+				"{green}=={yellow}[!]{green}==<BLOCK FOUND>=={yellow}[!]{green}==<BLOCK FOUND>=={yellow}[!]{green}==<BLOCK FOUND>=={yellow}[!]{green}==\nhash: %s\nworker: %s",
 				submission.Block.Hash(),
 				worker,
 			)
