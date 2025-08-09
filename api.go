@@ -28,6 +28,7 @@ type getInfoRes struct {
 	UserAgents []string    `json:"userAgents"`
 	BlockData  []string    `json:"blockData"`
 	HighScores []highScore `json:"highScores"`
+	Tag        string      `json:"tag"`
 	// FoundBlocks []string `json:"foundBlocks"`
 }
 type getPoolRes struct {
@@ -60,6 +61,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		UserAgents: getSetOfUAs(),
 		BlockData:  []string{}, /// not doin this
 		HighScores: getHighScores(),
+		Tag:        conf.Pogolo.Tag,
 	})
 }
 func getPool(res http.ResponseWriter, _ *http.Request) {
