@@ -46,8 +46,8 @@ type ClientStats struct {
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
 	sharesRejected,
-	lastShares, // used for hashrate calc
-	currShares uint64 // used for hashrate calc
+	lastAccShareDiff, // used for hashrate calc
+	currAccShareDiff uint64 // used for hashrate calc
 	bestDiff, // session
 	hashrate float64
 }
@@ -330,19 +330,21 @@ func (client *StratumClient) calcHashrate(shareTime time.Time) {
 		client.stats.lastTimeSlot = client.stats.startTime
 		/// if we're in the next chunk of time, snapshot the curr* and move over
 	} else if client.stats.currTimeSlot.Unix() != timeSlot.Unix() {
-		client.stats.lastShares = client.stats.currShares
+		client.stats.lastAccShareDiff = client.stats.currAccShareDiff
 		client.stats.lastTimeSlot = client.stats.currTimeSlot
 
-		client.stats.currShares = uint64(client.Difficulty)
+		client.stats.currAccShareDiff = uint64(client.Difficulty)
 		client.stats.currTimeSlot = timeSlot
 		/// otherwise just update stats
 	} else {
-		client.stats.currShares += uint64(client.Difficulty)
-		if client.stats.currShares > 0 {
+		/// we wanna use the target difficulty for a stable number
+		/// TODO: pass in?
+		client.stats.currAccShareDiff += uint64(client.Difficulty)
+		if client.stats.currAccShareDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
 			time := float64(shareTime.Sub(client.stats.lastTimeSlot).Seconds())
-			client.stats.hashrate = float64((client.stats.lastShares+client.stats.currShares)*4_294_967_296) / time
+			client.stats.hashrate = float64((client.stats.lastAccShareDiff+client.stats.currAccShareDiff)*4_294_967_296) / time
 			client.stats.hashrate /= 1e6 /// turn into megahashy
 		}
 	}
