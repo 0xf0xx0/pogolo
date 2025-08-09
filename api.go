@@ -13,8 +13,9 @@ const API_VER = "v1"
 const API_PFX = "/api"
 
 type getWorkerInfoRes struct {
-	Uptime         uint64  `json:"uptime"`
-	Extranonce1    string  `json:"extranonce1"`
+	UserAgent string `json:"userAgent"`
+	Uptime         uint64  `json:"uptime,omitempty"`
+	Extranonce1    string  `json:"extranonce1,omitempty"`
 	BestDifficulty float64 `json:"bestDifficulty"`
 	TotalHashrate  float64 `json:"totalHashRate"`
 }
@@ -25,7 +26,7 @@ type highScore struct {
 }
 type getInfoRes struct {
 	Uptime     uint64      `json:"uptime"`
-	UserAgents []string    `json:"userAgents"`
+	UserAgents []getWorkerInfoRes    `json:"userAgents"`
 	BlockData  []string    `json:"blockData"`
 	HighScores []highScore `json:"highScores"`
 	Tag        string      `json:"tag"`
@@ -40,12 +41,14 @@ type getPoolRes struct {
 }
 
 func initAPI() {
+	/// public-pool-ui compat endpoints
 	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/info"), getInfo)
-	/// im not doin the chart either
+	/// im not doin the chart
 	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/pool"), getPool)
 	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/network"), getNetwork)
 
-	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/worker/{extranonce1}"), getWorkerInfo)
+	/// ok, now our api
+	http.HandleFunc(fmt.Sprintf("GET %s%s%s", API_PFX, API_VER, "/worker/{extranonce1}"), getWorkerInfo)
 
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
 		writeError(http.StatusNotFound, res)
@@ -56,9 +59,17 @@ func initAPI() {
 }
 
 func getInfo(res http.ResponseWriter, req *http.Request) {
+	workerStats := make([]getWorkerInfoRes, 0, len(clients))
+	for _, client := range clients {
+		workerStats = append(workerStats, getWorkerInfoRes{
+			UserAgent: client.Name(),
+			BestDifficulty: client.stats.BestDiff(),
+			TotalHashrate: client.stats.Hashrate() * 1e6, /// public-pool expects h/s, we use mh/s
+		})
+	}
 	marshalAndWrite(res, getInfoRes{
 		Uptime:     uint64(time.Now().Sub(serverStartTime).Seconds()),
-		UserAgents: getSetOfUAs(),
+		UserAgents: workerStats,
 		BlockData:  []string{}, /// not doin this
 		HighScores: getHighScores(),
 		Tag:        conf.Pogolo.Tag,
