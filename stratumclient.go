@@ -280,22 +280,18 @@ func (client *StratumClient) adjustDiffRoutine() {
 // reads message and job channels
 func (client *StratumClient) readChanRoutine() {
 	for {
-		select {
-		case template, ok := <-client.templateChan:
-			{
-				if !ok {
-					/// closed
-					return
-				}
-				client.CurrentJob = client.createJob(DeepCopyTemplate(template))
-				err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
-				if err != nil {
-					client.error("error sending job: %s", err)
-				}
-				client.stats.lastShares = client.stats.shares
-				client.stats.shares = uint64(client.Difficulty)
-			}
+		template, ok := <-client.templateChan
+		if !ok {
+			/// closed
+			return
 		}
+		client.CurrentJob = client.createJob(DeepCopyTemplate(template))
+		err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
+		if err != nil {
+			client.error("error sending job: %s", err)
+		}
+		client.stats.lastShares = client.stats.shares
+		client.stats.shares = 0
 	}
 }
 
@@ -424,7 +420,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	job := MiningJob{
-		Template:     template,
+		Template: template,
 		NotifyParams: stratum.NotifyParams{
 			JobID:          template.ID,
 			PrevBlockHash:  &blockHeader.PrevBlock,

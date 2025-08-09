@@ -111,6 +111,7 @@ func main() {
 					Pass:                auth[1],
 					DisableTLS:          true,
 					DisableConnectOnNew: true,
+					/// TODO: allow for ws
 					HTTPPostMode:        true,
 				}, nil)
 			} else {

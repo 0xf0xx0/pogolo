@@ -54,6 +54,7 @@ var DEFAULT_CONFIG = Config{
 		JobInterval:         60,
 		TargetShareInterval: 10,
 		DiffAdjustInterval:  300,
+		// ExtraNonce2Size:     4,
 	},
 }
 
