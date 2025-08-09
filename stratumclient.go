@@ -25,7 +25,7 @@ type StratumClient struct {
 	Password            string
 	UserAgent           string
 	Difficulty          float64
-	SuggestedDifficulty float64
+	SuggestedDifficulty float64 // TODO: bool?
 	VersionRolling      bool
 	VersionRollingMask  uint32
 	// internal
@@ -34,7 +34,7 @@ type StratumClient struct {
 	templateChan   chan *JobTemplate
 	submissionChan chan<- BlockSubmission
 	CurrentJob     MiningJob
-	stats          *ClientStats
+	stats          *ClientStats // TODO: embed?
 }
 
 // stats for the api
@@ -46,8 +46,8 @@ type ClientStats struct {
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
 	sharesRejected,
-	lastAccShareDiff, // used for hashrate calc
-	currAccShareDiff uint64 // used for hashrate calc
+	lastAccShareDiff, // accumulated difficulty , used for hashrate calc
+	currAccShareDiff uint64 // accumulated difficulty , used for hashrate calc
 	bestDiff, // session
 	hashrate float64
 }
@@ -315,40 +315,6 @@ func (client *StratumClient) Name() string {
 	}
 	return client.ID.String()
 }
-func (client *StratumClient) BestDiff() float64 {
-	return client.stats.bestDiff
-}
-
-// live hashrate in MH/s
-func (client *StratumClient) calcHashrate(shareTime time.Time) {
-	/// calc copied from public-pool
-	coeff := int64(600) // 10 mins
-	timeSlot := time.Unix((shareTime.Unix()/coeff)*coeff, 0)
-	/// if the current time slot doesnt exist, make it (and set the last as the init time)
-	if client.stats.currTimeSlot.Unix() <= 0 {
-		client.stats.currTimeSlot = timeSlot
-		client.stats.lastTimeSlot = client.stats.startTime
-		/// if we're in the next chunk of time, snapshot the curr* and move over
-	} else if client.stats.currTimeSlot.Unix() != timeSlot.Unix() {
-		client.stats.lastAccShareDiff = client.stats.currAccShareDiff
-		client.stats.lastTimeSlot = client.stats.currTimeSlot
-
-		client.stats.currAccShareDiff = uint64(client.Difficulty)
-		client.stats.currTimeSlot = timeSlot
-		/// otherwise just update stats
-	} else {
-		/// we wanna use the target difficulty for a stable number
-		/// TODO: pass in?
-		client.stats.currAccShareDiff += uint64(client.Difficulty)
-		if client.stats.currAccShareDiff > 0 {
-			/// "Hashrate = (share difficulty x 2^32) / time" - ben
-			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-			time := float64(shareTime.Sub(client.stats.lastTimeSlot).Seconds())
-			client.stats.hashrate = float64((client.stats.lastAccShareDiff+client.stats.currAccShareDiff)*4_294_967_296) / time
-			client.stats.hashrate /= 1e6 /// turn into megahashy
-		}
-	}
-}
 func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.Difficulty {
 		return nil
@@ -398,6 +364,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	}
 }
 
+// MAYBE: move to ClientStats?
 func (client *StratumClient) updateStats() {
 
 	now := time.Now()
@@ -406,6 +373,7 @@ func (client *StratumClient) updateStats() {
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
 		submission := uint64(now.Sub(client.stats.lastSubmission).Milliseconds())
+		client.stats.lastSubmission = now
 		/// start the avg calc with the furst delta, not 0
 		if client.stats.avgSubmissionDelta == 0 {
 			client.stats.avgSubmissionDelta = submission
@@ -415,8 +383,7 @@ func (client *StratumClient) updateStats() {
 		}
 	}
 
-	client.calcHashrate(now)
-	client.stats.lastSubmission = now
+	client.stats.calcHashrate(now, client.Difficulty)
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	blockHeader := template.Block.MsgBlock().Header
@@ -504,6 +471,49 @@ func (client *StratumClient) log(s string, a ...any) {
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	logError(oigiki.ProcessTags("[{blue}%s{red}] %s", client.Name(), s))
+}
+
+// stats
+
+func (stats *ClientStats) Uptime() time.Duration {
+	return time.Now().Sub(stats.startTime)
+}
+func (stats *ClientStats) BestDiff() float64 {
+	return stats.bestDiff
+}
+func (stats *ClientStats) Hashrate() float64 {
+	return stats.hashrate
+}
+
+// live hashrate in MH/s
+func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
+	/// calc copied from public-pool
+	coeff := int64(600) // 10 mins
+	timeSlot := time.Unix((shareTime.Unix()/coeff)*coeff, 0)
+	/// if the current time slot doesnt exist, make it (and set the last as the init time)
+	if stats.currTimeSlot.Unix() <= 0 {
+		stats.currTimeSlot = timeSlot
+		stats.lastTimeSlot = stats.startTime
+		/// if we're in the next chunk of time, snapshot the curr* and move over
+	} else if stats.currTimeSlot.Unix() != timeSlot.Unix() {
+		stats.lastAccShareDiff = stats.currAccShareDiff
+		stats.lastTimeSlot = stats.currTimeSlot
+
+		stats.currAccShareDiff = uint64(currTargetDiff)
+		stats.currTimeSlot = timeSlot
+		/// otherwise just update stats
+	} else {
+		/// we wanna use the target difficulty for a stable number
+		/// TODO: pass in?
+		stats.currAccShareDiff += uint64(currTargetDiff)
+		if stats.currAccShareDiff > 0 {
+			/// "Hashrate = (share difficulty x 2^32) / time" - ben
+			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
+			time := float64(shareTime.Sub(stats.lastTimeSlot).Seconds())
+			stats.hashrate = float64((stats.lastAccShareDiff+stats.currAccShareDiff)*4_294_967_296) / time
+			stats.hashrate /= 1e6 /// turn into megahashy
+		}
+	}
 }
 
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {

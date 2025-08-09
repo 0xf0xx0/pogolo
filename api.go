@@ -12,7 +12,9 @@ import (
 const API_VER = "v1"
 const API_PFX = "/api"
 
-type userAgentStat struct {
+type getWorkerInfoRes struct {
+	Uptime         uint64  `json:"uptime"`
+	Extranonce1    string  `json:"extranonce1"`
 	BestDifficulty float64 `json:"bestDifficulty"`
 	TotalHashrate  float64 `json:"totalHashRate"`
 }
@@ -41,6 +43,8 @@ func initAPI() {
 	/// im not doin the chart either
 	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/pool"), getPool)
 	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/network"), getNetwork)
+
+	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/worker/{extranonce1}"), getWorkerInfo)
 
 	http.HandleFunc("GET /", func(res http.ResponseWriter, req *http.Request) {
 		writeError(http.StatusNotFound, res)
@@ -75,6 +79,24 @@ func getNetwork(res http.ResponseWriter, req *http.Request) {
 	}
 	marshalAndWrite(res, info)
 }
+func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
+	name := req.PathValue("extranonce1")
+	client := findClientFromName(name)
+	if client == nil {
+		logError("failed to find client %s", name)
+		writeError(http.StatusBadRequest, res)
+		return
+	}
+
+	info := getWorkerInfoRes{
+		Uptime: uint64(client.stats.Uptime()),
+		Extranonce1: client.ID.String(),
+		TotalHashrate:  client.stats.Hashrate(),
+		BestDifficulty: client.stats.BestDiff(),
+	}
+	marshalAndWrite(res, info)
+}
+
 func writeError(code int, res http.ResponseWriter) error {
 	res.WriteHeader(code)
 	if code == http.StatusNotFound {
@@ -116,4 +138,12 @@ func getHighScores() []highScore {
 		})
 	}
 	return scores
+}
+func findClientFromName(name string) *StratumClient {
+	for _, client := range clients {
+		if client.Name() == name {
+			return client
+		}
+	}
+	return nil
 }

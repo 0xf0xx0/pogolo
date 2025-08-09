@@ -41,16 +41,19 @@ suggested diff: [optional]
 TODO
 - document code for future viewers
     - link stratum and mining docs
+        waiting for bip 41
 - logs with personality
 - 0.1% dev fee for large miners
     - calc hashrate (wildly inaccurate :\)
 - public-pool compatible api?
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
+- option to turn off vardiff?
+- let clients version roll until range is exhausted? (protocol extension?)
 - extranonce subscription?
+- variable extranonce size?
 - longpoll?
 - more config options?
 - more fine-grained client errors?
 - stratum keepalive?
-- variable extranonce size?
 - zmq for block notifs?
