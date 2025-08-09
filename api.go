@@ -19,9 +19,9 @@ type getWorkerInfoRes struct {
 	TotalHashrate  float64 `json:"totalHashRate"`
 }
 type highScore struct {
-	UpdatedAt               string  `json:"updatedAt"` // yyyy-mm-dd hh:mm:ss
-	BestDifficulty          float64 `json:"bestDifficulty"`
-	BestDifficultyUserAgent string  `json:"bestDifficultyUserAgent"`
+	UpdatedAt string  `json:"updatedAt"` // yyyy-mm-dd hh:mm:ss
+	BestDiff  float64 `json:"bestDifficulty"`
+	UserAgent string  `json:"bestDifficultyUserAgent"`
 }
 type getInfoRes struct {
 	Uptime     uint64      `json:"uptime"`
@@ -31,7 +31,7 @@ type getInfoRes struct {
 	// FoundBlocks []string `json:"foundBlocks"`
 }
 type getPoolRes struct {
-	TotalHashrate uint64   `json:"totalHashRate"`
+	TotalHashrate float64  `json:"totalHashRate"`
 	TotalMiners   uint64   `json:"totalMiners"`
 	BlockHeight   uint64   `json:"blockHeight"`
 	BlocksFound   []string `json:"blocksFound"`
@@ -46,10 +46,10 @@ func initAPI() {
 
 	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/worker/{extranonce1}"), getWorkerInfo)
 
-	http.HandleFunc("GET /", func(res http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
 		writeError(http.StatusNotFound, res)
 	})
-	http.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/", func(res http.ResponseWriter, _ *http.Request) {
 		writeError(http.StatusMethodNotAllowed, res)
 	})
 }
@@ -62,9 +62,13 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		HighScores: getHighScores(),
 	})
 }
-func getPool(res http.ResponseWriter, req *http.Request) {
+func getPool(res http.ResponseWriter, _ *http.Request) {
+	hashrateSum := float64(0)
+	for _, client := range clients {
+		hashrateSum += client.stats.Hashrate()
+	}
 	marshalAndWrite(res, getPoolRes{
-		TotalHashrate: 0, /// TODO: fix when hashrate calc is made more accurate
+		TotalHashrate: hashrateSum,
 		TotalMiners:   uint64(len(clients)),
 		BlockHeight:   uint64(currTemplate.Height),
 		BlocksFound:   []string{}, /// nor this
@@ -89,8 +93,8 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	}
 
 	info := getWorkerInfoRes{
-		Uptime: uint64(client.stats.Uptime()),
-		Extranonce1: client.ID.String(),
+		Uptime:         uint64(client.stats.Uptime()),
+		Extranonce1:    client.ID.String(),
 		TotalHashrate:  client.stats.Hashrate(),
 		BestDifficulty: client.stats.BestDiff(),
 	}
@@ -132,9 +136,9 @@ func getHighScores() []highScore {
 	scores := make([]highScore, 0, 5)
 	for _, client := range clients {
 		scores = append(scores, highScore{
-			UpdatedAt:               "", /// i dont wanna, so i wont
-			BestDifficulty:          client.BestDiff(),
-			BestDifficultyUserAgent: client.Name(), /// lets use the name :3
+			UpdatedAt: "", /// i dont wanna, so i wont
+			BestDiff:  client.stats.BestDiff(),
+			UserAgent: client.Name(), /// lets use the name :3
 		})
 	}
 	return scores

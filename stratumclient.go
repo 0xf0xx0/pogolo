@@ -88,12 +88,15 @@ func (client *StratumClient) Run(noCleanup bool) {
 			client.statusChan <- "ready"
 		}
 
-		line, err := reader.ReadBytes([]byte("\n")[0])
-		if err != nil {
-			if err != io.ErrClosedPipe {
-				client.error("%s", err)
-			}
-			return
+		line, err := reader.ReadBytes(byte('\n'))
+
+		switch err {
+		case nil:
+		case io.ErrClosedPipe:
+			fallthrough
+		case io.EOF:
+		default:
+			client.error("%s", err)
 		}
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
 		m, err := DecodeStratumMessage(line)
@@ -373,7 +376,6 @@ func (client *StratumClient) updateStats() {
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
 		submission := uint64(now.Sub(client.stats.lastSubmission).Milliseconds())
-		client.stats.lastSubmission = now
 		/// start the avg calc with the furst delta, not 0
 		if client.stats.avgSubmissionDelta == 0 {
 			client.stats.avgSubmissionDelta = submission
@@ -383,6 +385,7 @@ func (client *StratumClient) updateStats() {
 		}
 	}
 
+	client.stats.lastSubmission = now
 	client.stats.calcHashrate(now, client.Difficulty)
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
