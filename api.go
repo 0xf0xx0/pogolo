@@ -14,10 +14,10 @@ const API_VER = "/v1"
 
 type getWorkerInfoRes struct {
 	UserAgent      string  `json:"userAgent"`
-	Uptime         uint64  `json:"uptime,omitempty"`
-	Extranonce1    string  `json:"extranonce1,omitempty"`
+	Uptime         uint64  `json:"uptime"`
+	Extranonce1    string  `json:"extranonce1"`
 	BestDifficulty float64 `json:"bestDifficulty"`
-	TotalHashrate  float64 `json:"totalHashRate"`
+	Hashrate       float64 `json:"hashrate"` // TODO: currently mh/s, use h/s?
 }
 type highScore struct {
 	UpdatedAt string  `json:"updatedAt"` // yyyy-mm-dd hh:mm:ss
@@ -26,9 +26,15 @@ type highScore struct {
 }
 type getInfoRes struct {
 	Uptime     uint64             `json:"uptime"`
-	UserAgents []getWorkerInfoRes `json:"userAgents"`
+	UserAgents []getInfoUserAgent `json:"userAgents"`
 	HighScores []highScore        `json:"highScores"`
 	Tag        string             `json:"tag"`
+}
+type getInfoUserAgent struct {
+	UserAgent      string  `json:"userAgent"`
+	Uptime         uint64  `json:"uptime"`
+	BestDifficulty float64 `json:"bestDifficulty"`
+	TotalHashrate  float64 `json:"totalHashRate"`
 }
 type getPoolRes struct {
 	TotalHashrate float64  `json:"totalHashRate"`
@@ -57,9 +63,9 @@ func initAPI() {
 }
 
 func getInfo(res http.ResponseWriter, req *http.Request) {
-	workerStats := make([]getWorkerInfoRes, 0, len(clients))
+	workerStats := make([]getInfoUserAgent, 0, len(clients))
 	for _, client := range clients {
-		workerStats = append(workerStats, getWorkerInfoRes{
+		workerStats = append(workerStats, getInfoUserAgent{
 			UserAgent:      client.Name(),
 			BestDifficulty: client.stats.BestDiff(),
 			TotalHashrate:  client.stats.Hashrate() * 1e6, /// public-pool expects h/s, we use mh/s
@@ -104,9 +110,9 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 
 	info := getWorkerInfoRes{
 		UserAgent:      client.UserAgent,
-		Uptime:         uint64(client.stats.Uptime()),
+		Uptime:         client.stats.Uptime(),
 		Extranonce1:    client.ID.String(),
-		TotalHashrate:  client.stats.Hashrate(),
+		Hashrate:       client.stats.Hashrate(),
 		BestDifficulty: client.stats.BestDiff(),
 	}
 	marshalAndWrite(res, info)

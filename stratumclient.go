@@ -482,8 +482,8 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 }
 
 // getters
-func (stats *ClientStats) Uptime() time.Duration {
-	return time.Now().Sub(stats.startTime)
+func (stats *ClientStats) Uptime() uint64 {
+	return uint64(time.Now().Sub(stats.startTime))
 }
 func (stats *ClientStats) BestDiff() float64 {
 	return stats.bestDiff
