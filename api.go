@@ -72,7 +72,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		})
 	}
 	marshalAndWrite(res, getInfoRes{
-		Uptime:     uint64(time.Now().Sub(serverStartTime).Seconds()),
+		Uptime:     uint64(time.Now().Sub(serverStartTime).Milliseconds()),
 		UserAgents: workerStats,
 		HighScores: getHighScores(),
 		Tag:        conf.Pogolo.Tag,
