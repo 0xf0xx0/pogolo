@@ -90,7 +90,8 @@ func TestInitSequence(t *testing.T) {
 
 	fmt.Printf("%+v\n", client)
 }
-/// FIXME: borked
+
+// / FIXME: borked
 func TestFullBlock(t *testing.T) {
 	lpipe, client, _ := initClient()
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
@@ -115,7 +116,7 @@ func TestFullBlock(t *testing.T) {
 	}
 	t.Logf("final coinbase: %x", finalCoinbaseTx)
 	t.Logf("block hash: %s", client.CurrentJob.Template.Block.Hash())
-	t.Logf("difficulty: %f",main.CalcDifficulty(client.CurrentJob.Template.Block.MsgBlock().Header))
+	t.Logf("difficulty: %f", main.CalcDifficulty(client.CurrentJob.Template.Block.MsgBlock().Header))
 
 }
 

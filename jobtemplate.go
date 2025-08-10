@@ -25,11 +25,11 @@ type JobTemplate struct {
 	WitnessCommittment []byte
 	MerkleBranch       []*chainhash.Hash
 	// TODO: remove?
-	MerkleRoot         *chainhash.Hash
-	NetworkDiff        float64
-	Bits               []byte
-	Subsidy            int64
-	Height             int64
+	MerkleRoot  *chainhash.Hash
+	NetworkDiff float64
+	Bits        []byte
+	Subsidy     int64
+	Height      int64
 }
 type MiningJob struct {
 	Template     *JobTemplate
@@ -37,7 +37,7 @@ type MiningJob struct {
 }
 
 var (
-	currTemplateID  = uint64(0)
+	currTemplateID = uint64(0)
 )
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {

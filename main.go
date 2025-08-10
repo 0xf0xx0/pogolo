@@ -116,7 +116,7 @@ func main() {
 			var err error
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 				/// we do not care
-				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {},
+				OnFilteredBlockConnected:    func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {},
 				OnFilteredBlockDisconnected: func(height int32, header *wire.BlockHeader) {},
 				/// only needed for the backend.NotifyBlocks() call later
 			})

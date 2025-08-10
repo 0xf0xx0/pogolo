@@ -13,7 +13,7 @@ const API_VER = "v1"
 const API_PFX = "/api"
 
 type getWorkerInfoRes struct {
-	UserAgent string `json:"userAgent"`
+	UserAgent      string  `json:"userAgent"`
 	Uptime         uint64  `json:"uptime,omitempty"`
 	Extranonce1    string  `json:"extranonce1,omitempty"`
 	BestDifficulty float64 `json:"bestDifficulty"`
@@ -25,11 +25,11 @@ type highScore struct {
 	UserAgent string  `json:"bestDifficultyUserAgent"`
 }
 type getInfoRes struct {
-	Uptime     uint64      `json:"uptime"`
-	UserAgents []getWorkerInfoRes    `json:"userAgents"`
-	BlockData  []string    `json:"blockData"`
-	HighScores []highScore `json:"highScores"`
-	Tag        string      `json:"tag"`
+	Uptime     uint64             `json:"uptime"`
+	UserAgents []getWorkerInfoRes `json:"userAgents"`
+	BlockData  []string           `json:"blockData"`
+	HighScores []highScore        `json:"highScores"`
+	Tag        string             `json:"tag"`
 	// FoundBlocks []string `json:"foundBlocks"`
 }
 type getPoolRes struct {
@@ -62,9 +62,9 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 	workerStats := make([]getWorkerInfoRes, 0, len(clients))
 	for _, client := range clients {
 		workerStats = append(workerStats, getWorkerInfoRes{
-			UserAgent: client.Name(),
+			UserAgent:      client.Name(),
 			BestDifficulty: client.stats.BestDiff(),
-			TotalHashrate: client.stats.Hashrate() * 1e6, /// public-pool expects h/s, we use mh/s
+			TotalHashrate:  client.stats.Hashrate() * 1e6, /// public-pool expects h/s, we use mh/s
 		})
 	}
 	marshalAndWrite(res, getInfoRes{

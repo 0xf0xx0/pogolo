@@ -5,7 +5,9 @@ infinite thanks to btcd for bitcoin tooling and public-pool for reference
 start it, point your miners to it, and watch the logs roll by
 
 # setup
+
 ## install
+
 ```
 # latest release
 go install github.com/0xf0xx0/pogolo@latest
@@ -14,16 +16,19 @@ go install github.com/0xf0xx0/pogolo@logopo
 ```
 
 ## run
+
 ```
 pogolo
 ```
 
 ## server config
+
 by default, pogolo runs on regtest and listens on localhost v4 and v6.  
 see [pogolo.example.toml](./pogolo.example.toml) for config docs.  
 the default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml, use `--conf` for a custom path
 
 ## miner config
+
 ```
 host: stratum+tcp://<your lan ip>:5661
 username: <your onchain address>[.<worker name>]
@@ -32,19 +37,25 @@ suggested diff: [optional]
 ```
 
 ## supported
-- *axe family
+
+- \*axe family
 - cpuminer
+
 ### supported backends
-- bitcoind
+
+- bitcoin core (http POST)
 - btcd (http and ws, disable tls)
+
 ## unsupported
+
 - miners needing extranonce.subscribe
 - luckyminers
 
 TODO
+
 - document code for future viewers
     - link stratum and mining docs
-        waiting for bip 41
+      waiting for bip 41
 - logs with personality
 - 0.1% dev fee for large miners
     - calc hashrate (wildly inaccurate :\)
