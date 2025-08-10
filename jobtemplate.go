@@ -22,7 +22,6 @@ import (
 type JobTemplate struct {
 	ID                 string
 	Block              *btcutil.Block
-	WitnessCommittment []byte
 	Bits               []byte
 	MerkleBranch       []*chainhash.Hash
 	NetworkDiff        float64
@@ -87,7 +86,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	/// btcd does the witness merkle root for us :3
 	/// thisll be updated on share submission
 	/// TODO: dont capture as variable? its only used for tests :\
-	witnessCommit := mining.AddWitnessCommitment(txns[0], txns)
+	mining.AddWitnessCommitment(txns[0], txns)
 
 	msgTxns := make([]*wire.MsgTx, len(txns))
 	for idx, tx := range txns {
@@ -111,7 +110,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	job := &JobTemplate{
 		ID:                 getNextTemplateID(),
 		Block:              block,
-		WitnessCommittment: witnessCommit,
 		MerkleBranch:       merkleBranch,
 		Bits:               bits,
 		NetworkDiff:        CalcNetworkDifficulty(uint32(headerBits)),
