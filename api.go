@@ -40,7 +40,6 @@ type getPoolRes struct {
 	TotalHashrate float64  `json:"totalHashRate"`
 	TotalMiners   uint64   `json:"totalMiners"`
 	BlockHeight   uint64   `json:"blockHeight"`
-	BlocksFound   []string `json:"blocksFound"`
 	Fee           uint64   `json:"fee"`
 }
 
@@ -87,7 +86,6 @@ func getPool(res http.ResponseWriter, _ *http.Request) {
 		TotalHashrate: hashrateSum,
 		TotalMiners:   uint64(len(clients)),
 		BlockHeight:   uint64(currTemplate.Height),
-		BlocksFound:   []string{}, /// nor this
 	})
 }
 func getNetwork(res http.ResponseWriter, req *http.Request) {
