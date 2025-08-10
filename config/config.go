@@ -23,6 +23,8 @@ type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port"`
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path"`
 	Rpcauth      string `toml:"rpcauth,commented" comment:"optional, RPC user/pass"`
+	/// TODO: tls
+	Websocket    bool   `toml:"websocket" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds"`
 }
 type Pogolo struct {
