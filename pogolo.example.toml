@@ -2,16 +2,19 @@
 # RPC host:port
 host = '[::1]:18443'
 # RPC cookie path
-# cookie = '/home/ging/.bitcoin/regtest/.cookie'
-# optional, RPC user/pass
+# cookie = '~/.bitcoin/regtest/.cookie'
+# RPC user/pass
 # rpcauth = ''
+# whether to use the btcd websocket interface
+websocket = false
 # how quickly to poll for block updates, in milliseconds
+# ignored if websocket is used
 poll_interval = 500
 
 [pogolo]
 # takes precedence over ip, will listen on all interface ips
 interface = 'lo'
-# ipv4 or v6
+# ipv4, v6, or domain (domain will only resolve the first ip)
 # ip = '[::1]'
 # use 0 to pick a random port
 port = 5661

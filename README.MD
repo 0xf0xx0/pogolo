@@ -58,7 +58,6 @@ TODO
       waiting for bip 41
 - logs with personality
 - 0.1% dev fee for large miners
-    - calc hashrate (wildly inaccurate :\)
 - public-pool compatible api?
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
