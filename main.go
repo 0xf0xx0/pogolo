@@ -41,7 +41,6 @@ var (
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
 	serverStartTime   time.Time
-	triggerGBT        chan bool // solely for the websocket interface :\
 )
 
 func main() {
@@ -100,7 +99,10 @@ func main() {
 			backendConnConf := &rpcclient.ConnConfig{
 				Host:         conf.Backend.Host,
 				DisableTLS:   true,
-				HTTPPostMode: true,
+				HTTPPostMode: !conf.Backend.Websocket,
+			}
+			if conf.Backend.Websocket {
+				backendConnConf.Endpoint = "ws"
 			}
 			if conf.Backend.Cookie != "" {
 				backendConnConf.CookiePath = conf.Backend.Cookie
@@ -111,11 +113,12 @@ func main() {
 			} else {
 				return cli.Exit("neither valid rpc cookie path nor valid auth string in config", constants.ERROR_CONFIG)
 			}
-			backend, err := rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
-				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
-					triggergbt(int64(height))
-				},
+			var err error
+			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
+				/// we do not care
+				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {},
 				OnFilteredBlockDisconnected: func(height int32, header *wire.BlockHeader) {},
+				/// only needed for the backend.NotifyBlocks() call later
 			})
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.ERROR_BACKEND)
@@ -277,7 +280,7 @@ func clientHandler(conn net.Conn) {
 func backendRoutine() {
 	/// TODO: longpoll?
 	/// TODO: do we need anything special for btcd/knots/etc?
-	triggerGBT = make(chan bool)
+	triggerGBT := make(chan bool)
 	/// block submissions
 	go func() {
 		for {
@@ -320,7 +323,8 @@ func backendRoutine() {
 				}
 				/// we're mining on this height
 				if count == currTemplate.Height {
-					triggergbt(count)
+					log("===<there are now {green}%d{cyan} bl00ks in the chain!>===", count)
+					triggerGBT <- true
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			}
@@ -353,14 +357,6 @@ func backendRoutine() {
 			}
 		}
 	}
-}
-
-// solely for the websocket interface
-func triggergbt(count int64) {
-	log("===<there are now {green}%d{cyan} bl00ks in the chain!>===", count)
-	/// FIXME/MAYBE: skip when we mine a block?
-	/// it triggers gbt before the winning block trigger completes sometimes
-	triggerGBT <- true
 }
 
 // util func, for delaying components that rely on the template like

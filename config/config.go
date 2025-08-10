@@ -43,7 +43,7 @@ type Pogolo struct {
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:18443",
-		Cookie:       resolvePath("~/.bitcoin/regtest/.cookie"),
+		Cookie:       "",
 		PollInterval: 500,
 	},
 	Pogolo: Pogolo{
@@ -74,6 +74,7 @@ func LoadConfig(path string, conf *Config) error {
 	return nil
 }
 func WriteDefaultConfig(path string) error {
+	DEFAULT_CONFIG.Backend.Cookie = resolvePath("~/.bitcoin/regtest/.cookie")
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)

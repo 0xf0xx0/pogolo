@@ -34,6 +34,9 @@ suggested diff: [optional]
 ## supported
 - *axe family
 - cpuminer
+### supported backends
+- bitcoind
+- btcd (http and ws, disable tls)
 ## unsupported
 - miners needing extranonce.subscribe
 - luckyminers
