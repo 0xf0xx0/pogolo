@@ -57,6 +57,8 @@ TODO
     - link stratum and mining docs
       waiting for bip 41
 - logs with personality
+    - hide cursor, use full term height
+    - styled around standard 80x24
 - 0.1% dev fee for large miners
 - public-pool compatible api?
 - better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)

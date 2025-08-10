@@ -11,6 +11,7 @@ const (
 	DEFAULT_COINBASE_TAG    = "/pogolo - foss is freedom/"
 	MIN_DIFFICULTY          = 0.01 // hard min
 	SUBMISSION_DELTA_WINDOW = 32   // rolling avg window
+	HASHRATE_WINDOW         = int64(600) // 10 min windows
 )
 
 const (

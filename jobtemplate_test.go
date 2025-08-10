@@ -43,7 +43,8 @@ func TestUpdateBlock(t *testing.T) {
 		ID:   id,
 		User: getAddr(),
 	}
-	job := main.CreateJobTemplate(template)
+	tml := main.CreateJobTemplate(template)
+	job := client.CreateJob(tml)
 	blk, _ := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
 	shareDiff := main.CalcDifficulty(blk.Header)
 	if shareDiff != expectedShareDiff {

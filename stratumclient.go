@@ -30,29 +30,19 @@ type StratumClient struct {
 	VersionRollingMask  uint32
 	// internal
 	conn           net.Conn
-	statusChan     chan string // messages to/from client
+	statusChan     chan string // messages to server
 	templateChan   chan *JobTemplate
 	submissionChan chan<- BlockSubmission
 	CurrentJob     MiningJob
 	stats          *ClientStats // TODO: embed?
 }
+
+// used for hashrate calc
 type timeSlot struct {
-	time    time.Time // used for hashrate calc
-	accDiff uint64    // accumulated difficulty , used for hashrate calc
+	time    time.Time
+	accDiff uint64 // accumulated difficulty, used for hashrate calc
 }
 
-// stats for the api
-type ClientStats struct {
-	startTime, // time the client subscribes
-	lastSubmission time.Time // used for calcing delta between `mining.submit`s
-	avgSubmissionDelta uint64 // in ms
-	sharesAccepted,
-	sharesRejected,
-	bestDiff, // session
-	hashrate float64
-	lastTimeSlot,
-	currTimeSlot timeSlot
-}
 type BlockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
 	Block    *btcutil.Block
@@ -62,7 +52,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	if !noCleanup {
 		defer client.Stop()
 	}
-	go client.readChanRoutine()
+	go client.readJobChanRoutine()
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
@@ -87,7 +77,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 			go client.adjustDiffRoutine()
 			client.stats.startTime = time.Now()
-			client.statusChan <- "ready"
+			client.writeChan("ready")
 		}
 
 		line, err := reader.ReadBytes(byte('\n'))
@@ -284,15 +274,15 @@ func (client *StratumClient) adjustDiffRoutine() {
 	}
 }
 
-// reads message and job channels
-func (client *StratumClient) readChanRoutine() {
+// reads job channel
+func (client *StratumClient) readJobChanRoutine() {
 	for {
 		template, ok := <-client.templateChan
 		if !ok {
 			/// closed
 			return
 		}
-		client.CurrentJob = client.createJob(DeepCopyTemplate(template))
+		client.CurrentJob = client.createJob(template)
 		err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
 		if err != nil {
 			client.error("error sending job: %s", err)
@@ -331,7 +321,6 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	return nil
 }
 
-// TODO: more validation?
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {
 		client.stats.sharesRejected++
@@ -339,7 +328,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		return
 	}
 
-	updatedBlock, err := client.CurrentJob.Template.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
+	updatedBlock, err := client.CurrentJob.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	if err != nil {
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 		return
@@ -347,7 +336,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 
 	shareDiff := CalcDifficulty(updatedBlock.Header)
 	if shareDiff >= client.Difficulty {
-		if shareDiff >= client.CurrentJob.Template.NetworkDiff {
+		if shareDiff >= client.CurrentJob.NetworkDiff {
 			s := BlockSubmission{
 				ClientID: client.ID,
 				Block:    btcutil.NewBlock(updatedBlock),
@@ -359,7 +348,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			client.stats.bestDiff = shareDiff
 			client.log("{green}new best session diff!")
 		}
-		client.updateStats()
+		client.stats.update(client.Difficulty)
 		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.stats.bestDiff), client.stats.avgSubmissionDelta/1000)
 		client.log("{white}hashrate: %s", formatHashrate(client.stats.hashrate))
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
@@ -368,37 +357,16 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
 }
-
-// MAYBE: move to ClientStats?
-func (client *StratumClient) updateStats() {
-
-	now := time.Now()
-	if client.stats.lastSubmission.Unix() > 0 {
-		/// rolling avg
-		/// wikipedia my beloved
-		/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
-		submission := uint64(now.Sub(client.stats.lastSubmission).Milliseconds())
-		/// start the avg calc with the furst delta, not 0
-		if client.stats.avgSubmissionDelta == 0 {
-			client.stats.avgSubmissionDelta = submission
-		} else {
-			client.stats.avgSubmissionDelta =
-				((client.stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
-		}
-	}
-
-	client.stats.lastSubmission = now
-	client.stats.calcHashrate(now, client.Difficulty)
-}
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	blockHeader := template.Block.MsgBlock().Header
+	block := btcutil.NewBlock(template.Block.MsgBlock().Copy())
+	blockHeader := block.MsgBlock().Header
 
 	merkleBranches := make([][]byte, len(template.MerkleBranch))
 	for i, branch := range template.MerkleBranch {
 		merkleBranches[i] = branch[:]
 	}
 
-	coinbaseTx := CreateCoinbaseTx(client.User, *template, activeChainParams)
+	coinbaseTx := CreateCoinbaseTx(client.User, block, template.Subsidy, activeChainParams)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
@@ -413,7 +381,9 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	job := MiningJob{
-		Template: template,
+		NetworkDiff:  template.NetworkDiff,
+		Block:        block,
+		MerkleBranch: template.MerkleBranch,
 		NotifyParams: stratum.NotifyParams{
 			JobID:          template.ID,
 			PrevBlockHash:  &blockHeader.PrevBlock,
@@ -437,7 +407,7 @@ func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 	return client.createJob(template)
 }
 
-// TODO: how to get errors back?
+// chatter
 func (client *StratumClient) submitBlock(block BlockSubmission) {
 	client.submissionChan <- block
 	client.log("block submitted")
@@ -464,11 +434,11 @@ func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
 	return err
 }
-
-// pass a message back to the server
 func (client *StratumClient) writeChan(msg string) {
 	client.statusChan <- msg
 }
+
+// logging
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	log(oigiki.ProcessTags("[{blue}%s{cyan}]{reset} %s", client.Name(), s))
@@ -478,8 +448,40 @@ func (client *StratumClient) error(s string, a ...any) {
 	logError(oigiki.ProcessTags("[{blue}%s{red}] %s", client.Name(), s))
 }
 
-// stats
+// stats for the api
+type ClientStats struct {
+	lastTimeSlot,
+	currTimeSlot timeSlot
+	startTime, // time the client subscribes
+	lastSubmission time.Time // used for calcing delta between `mining.submit`s
+	avgSubmissionDelta uint64 // in ms
+	sharesAccepted,
+	sharesRejected,
+	bestDiff, // session
+	hashrate float64
+}
 
+func (stats *ClientStats) update(currTargetDiff float64) {
+	now := time.Now()
+	if stats.lastSubmission.Unix() > 0 {
+		/// rolling avg
+		/// wikipedia my beloved
+		/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
+		submission := uint64(now.Sub(stats.lastSubmission).Milliseconds())
+		/// start the avg calc with the furst delta, not 0
+		if stats.avgSubmissionDelta == 0 {
+			stats.avgSubmissionDelta = submission
+		} else {
+			stats.avgSubmissionDelta =
+				((stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
+		}
+	}
+
+	stats.lastSubmission = now
+	stats.calcHashrate(now, currTargetDiff)
+}
+
+// getters
 func (stats *ClientStats) Uptime() time.Duration {
 	return time.Now().Sub(stats.startTime)
 }
@@ -493,9 +495,8 @@ func (stats *ClientStats) Hashrate() float64 {
 // live hashrate in MH/s
 func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
 	/// calc copied from public-pool
-	coeff := int64(600) // 10 mins
-	timeSlot := time.Unix((shareTime.Unix()/coeff)*coeff, 0)
-	/// if the current time slot doesnt exist, make it (and set the last as the init time)
+	timeSlot := time.Unix((shareTime.Unix()/constants.HASHRATE_WINDOW)*constants.HASHRATE_WINDOW, 0)
+	/// first call, make the current slot (and set the last as the init time)
 	if stats.currTimeSlot.time.Unix() <= 0 {
 		stats.currTimeSlot.time = timeSlot
 		stats.lastTimeSlot.time = stats.startTime

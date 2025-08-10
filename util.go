@@ -99,20 +99,20 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 }
 
 // thank you btcd devs for doin all this boilerplate work
-func CreateCoinbaseTx(addr btcutil.Address, template JobTemplate, params *chaincfg.Params) *btcutil.Tx {
+func CreateCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		panic(err)
 	}
 
-	coinbase := template.Block.Transactions()[0]
+	coinbase := block.Transactions()[0]
 	coinbaseTxMsg := coinbase.MsgTx()
 	coinbaseTxMsg.AddTxOut(&wire.TxOut{
-		Value:    template.Subsidy,
+		Value:    subsidy,
 		PkScript: pkScript,
 	})
 	/// AND I AM ITS SOLE WITNESS
-	mining.AddWitnessCommitment(coinbase, template.Block.Transactions())
+	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	return coinbase
 }
 
@@ -134,39 +134,6 @@ func CalcNetworkDifficulty(nBits uint32) float64 {
 	maxTarget := math.Pow(2, 208) * 65535
 	difficulty := maxTarget / target
 	return difficulty
-}
-
-func DeepCopyTemplate(t *JobTemplate) *JobTemplate {
-	newtemplate := JobTemplate{}
-
-	newtemplate.ID = t.ID
-
-	newtemplate.Block = *btcutil.NewBlock(t.Block.MsgBlock().Copy())
-	newtemplate.Block.SetHeight(t.Block.Height())
-
-	newtemplate.WitnessCommittment = make([]byte, len(t.WitnessCommittment))
-	copy(newtemplate.WitnessCommittment[:], t.WitnessCommittment[:])
-
-	newtemplate.MerkleBranch = make([]*chainhash.Hash, len(t.MerkleBranch))
-	for i, mb := range t.MerkleBranch {
-		newtemplate.MerkleBranch[i] = &chainhash.Hash{}
-		copy(newtemplate.MerkleBranch[i][:], mb[:])
-	}
-
-	if t.MerkleRoot != nil {
-		newtemplate.MerkleRoot = &chainhash.Hash{}
-		copy(newtemplate.MerkleRoot[:], t.MerkleRoot[:])
-	}
-
-	newtemplate.NetworkDiff = t.NetworkDiff
-
-	newtemplate.Bits = make([]byte, len(t.Bits))
-	copy(newtemplate.Bits, t.Bits)
-
-	newtemplate.Subsidy = t.Subsidy
-	newtemplate.Height = t.Height
-
-	return &newtemplate
 }
 
 func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {

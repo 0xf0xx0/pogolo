@@ -110,13 +110,13 @@ func TestFullBlock(t *testing.T) {
 	client.CurrentJob = job
 
 	sendReqAndWaitForRes(t, submitReqMerkle, lpipe)
-	finalCoinbaseTx, err := main.SerializeTx(client.CurrentJob.Template.Block.MsgBlock().Transactions[0], true)
+	finalCoinbaseTx, err := main.SerializeTx(client.CurrentJob.Block.MsgBlock().Transactions[0], true)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Logf("final coinbase: %x", finalCoinbaseTx)
-	t.Logf("block hash: %s", client.CurrentJob.Template.Block.Hash())
-	t.Logf("difficulty: %f", main.CalcDifficulty(client.CurrentJob.Template.Block.MsgBlock().Header))
+	t.Logf("block hash: %s", client.CurrentJob.Block.Hash())
+	t.Logf("difficulty: %f", main.CalcDifficulty(client.CurrentJob.Block.MsgBlock().Header))
 
 }
 

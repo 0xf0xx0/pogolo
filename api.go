@@ -9,8 +9,8 @@ import (
 
 // api server
 
-const API_VER = "v1"
 const API_PFX = "/api"
+const API_VER = "/v1"
 
 type getWorkerInfoRes struct {
 	UserAgent      string  `json:"userAgent"`
@@ -27,10 +27,8 @@ type highScore struct {
 type getInfoRes struct {
 	Uptime     uint64             `json:"uptime"`
 	UserAgents []getWorkerInfoRes `json:"userAgents"`
-	BlockData  []string           `json:"blockData"`
 	HighScores []highScore        `json:"highScores"`
 	Tag        string             `json:"tag"`
-	// FoundBlocks []string `json:"foundBlocks"`
 }
 type getPoolRes struct {
 	TotalHashrate float64  `json:"totalHashRate"`
@@ -70,7 +68,6 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 	marshalAndWrite(res, getInfoRes{
 		Uptime:     uint64(time.Now().Sub(serverStartTime).Seconds()),
 		UserAgents: workerStats,
-		BlockData:  []string{}, /// not doin this
 		HighScores: getHighScores(),
 		Tag:        conf.Pogolo.Tag,
 	})
@@ -106,6 +103,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	}
 
 	info := getWorkerInfoRes{
+		UserAgent:      client.UserAgent,
 		Uptime:         uint64(client.stats.Uptime()),
 		Extranonce1:    client.ID.String(),
 		TotalHashrate:  client.stats.Hashrate(),

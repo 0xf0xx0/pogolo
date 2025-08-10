@@ -21,19 +21,19 @@ import (
 
 type JobTemplate struct {
 	ID                 string
-	Block              btcutil.Block
+	Block              *btcutil.Block
 	WitnessCommittment []byte
+	Bits               []byte
 	MerkleBranch       []*chainhash.Hash
-	// TODO: remove?
-	MerkleRoot  *chainhash.Hash
-	NetworkDiff float64
-	Bits        []byte
-	Subsidy     int64
-	Height      int64
+	NetworkDiff        float64
+	Subsidy            int64
+	Height             int64
 }
 type MiningJob struct {
-	Template     *JobTemplate
-	NotifyParams stratum.NotifyParams
+	stratum.NotifyParams
+	MerkleBranch []*chainhash.Hash
+	Block        *btcutil.Block
+	NetworkDiff  float64
 }
 
 var (
@@ -50,6 +50,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	prevBlockHash, _ := chainhash.NewHashFromStr(template.PreviousHash)
 
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
+	/// decode the serialized txns into nice lil btcutil.Txs
 	for idx, templateTx := range template.Transactions {
 		decoded, err := hex.DecodeString(templateTx.Data)
 		if err != nil {
@@ -85,6 +86,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	}
 	/// btcd does the witness merkle root for us :3
 	/// thisll be updated on share submission
+	/// TODO: dont capture as variable? its only used for tests :\
 	witnessCommit := mining.AddWitnessCommitment(txns[0], txns)
 
 	msgTxns := make([]*wire.MsgTx, len(txns))
@@ -108,10 +110,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	bits, _ := hex.DecodeString(template.Bits)
 	job := &JobTemplate{
 		ID:                 getNextTemplateID(),
-		Block:              *block,
+		Block:              block,
 		WitnessCommittment: witnessCommit,
 		MerkleBranch:       merkleBranch,
-		MerkleRoot:         merkleRoot,
 		Bits:               bits,
 		NetworkDiff:        CalcNetworkDifficulty(uint32(headerBits)),
 		Subsidy:            *template.CoinbaseValue,
@@ -128,8 +129,8 @@ func getNextTemplateID() string {
 }
 
 // like public-pools copyAndUpdateBlock
-func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
-	msgBlock := template.Block.MsgBlock().Copy()
+func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
+	msgBlock := job.Block.MsgBlock().Copy()
 
 	coinbase := hex.EncodeToString(notif.CoinbasePart1) + client.ID.String() +
 		hex.EncodeToString(share.ExtraNonce2) + hex.EncodeToString(notif.CoinbasePart2)
@@ -151,7 +152,7 @@ func (template *JobTemplate) UpdateBlock(client *StratumClient, share stratum.Sh
 	}
 
 	/// coinbase was changed, thus recalc the root
-	branches := append([]*chainhash.Hash{tx.Hash()}, template.MerkleBranch...)
+	branches := append([]*chainhash.Hash{tx.Hash()}, job.MerkleBranch...)
 	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
 	return msgBlock, nil
