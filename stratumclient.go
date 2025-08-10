@@ -36,20 +36,22 @@ type StratumClient struct {
 	CurrentJob     MiningJob
 	stats          *ClientStats // TODO: embed?
 }
+type timeSlot struct {
+	time    time.Time // used for hashrate calc
+	accDiff uint64    // accumulated difficulty , used for hashrate calc
+}
 
 // stats for the api
 type ClientStats struct {
 	startTime, // time the client subscribes
-	lastTimeSlot, // used for hashrate calc
-	currTimeSlot, // used for hashrate calc
 	lastSubmission time.Time // used for calcing delta between `mining.submit`s
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
 	sharesRejected,
-	lastAccShareDiff, // accumulated difficulty , used for hashrate calc
-	currAccShareDiff uint64 // accumulated difficulty , used for hashrate calc
 	bestDiff, // session
 	hashrate float64
+	lastTimeSlot,
+	currTimeSlot timeSlot
 }
 type BlockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
@@ -355,7 +357,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.stats.sharesAccepted++
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
-			client.log("new best session diff!")
+			client.log("{green}new best session diff!")
 		}
 		client.updateStats()
 		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.stats.bestDiff), client.stats.avgSubmissionDelta/1000)
@@ -494,26 +496,25 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 	coeff := int64(600) // 10 mins
 	timeSlot := time.Unix((shareTime.Unix()/coeff)*coeff, 0)
 	/// if the current time slot doesnt exist, make it (and set the last as the init time)
-	if stats.currTimeSlot.Unix() <= 0 {
-		stats.currTimeSlot = timeSlot
-		stats.lastTimeSlot = stats.startTime
+	if stats.currTimeSlot.time.Unix() <= 0 {
+		stats.currTimeSlot.time = timeSlot
+		stats.lastTimeSlot.time = stats.startTime
 		/// if we're in the next chunk of time, snapshot the curr* and move over
-	} else if stats.currTimeSlot.Unix() != timeSlot.Unix() {
-		stats.lastAccShareDiff = stats.currAccShareDiff
+	} else if stats.currTimeSlot.time.Unix() != timeSlot.Unix() {
 		stats.lastTimeSlot = stats.currTimeSlot
 
-		stats.currAccShareDiff = uint64(currTargetDiff)
-		stats.currTimeSlot = timeSlot
+		stats.currTimeSlot.accDiff = uint64(currTargetDiff)
+		stats.currTimeSlot.time = timeSlot
 		/// otherwise just update stats
 	} else {
 		/// we wanna use the target difficulty for a stable number
 		/// TODO: pass in?
-		stats.currAccShareDiff += uint64(currTargetDiff)
-		if stats.currAccShareDiff > 0 {
+		stats.currTimeSlot.accDiff += uint64(currTargetDiff)
+		if stats.currTimeSlot.accDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-			time := float64(shareTime.Sub(stats.lastTimeSlot).Seconds())
-			stats.hashrate = float64((stats.lastAccShareDiff+stats.currAccShareDiff)*4_294_967_296) / time
+			time := float64(shareTime.Sub(stats.lastTimeSlot.time).Seconds())
+			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
 			stats.hashrate /= 1e6 /// turn into megahashy
 		}
 	}

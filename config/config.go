@@ -20,10 +20,9 @@ type Config struct {
 	Pogolo  Pogolo  `toml:"pogolo"`
 }
 type Backend struct {
-	Host    string `toml:"host" comment:"RPC host:port"`
-	Cookie  string `toml:"cookie,commented" comment:"RPC cookie path"`
-	Rpcauth string `toml:"rpcauth,commented" comment:"RPC user/pass"`
-	/// TODO: tls
+	Host         string `toml:"host" comment:"RPC host:port"`
+	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path"`
+	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user/pass"`
 	Websocket    bool   `toml:"websocket" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is used"`
 }
