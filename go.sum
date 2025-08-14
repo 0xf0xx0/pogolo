@@ -1,5 +1,7 @@
 github.com/0xf0xx0/oigiki v0.2.0 h1:LlnHqlYf5+hqnCea1umdN0ErwjRNsy5aNieRmsXOYoE=
 github.com/0xf0xx0/oigiki v0.2.0/go.mod h1:5/WcKAF3zLeiUtHqVGIn0vy2twHwGf+eWAjfRF5NNQM=
+github.com/0xf0xx0/oigiki v0.2.1 h1:icFmsQl6AZUgo6zqV2FMrVVTZkvLuPQy7Sh7iJt7+b8=
+github.com/0xf0xx0/oigiki v0.2.1/go.mod h1:5/WcKAF3zLeiUtHqVGIn0vy2twHwGf+eWAjfRF5NNQM=
 github.com/0xf0xx0/stratum v0.0.2 h1:dB4b9CkDyWGrK8mT+2XJwSoy4nl+uqjqme65/WCv13w=
 github.com/0xf0xx0/stratum v0.0.2/go.mod h1:QXda4L8aiDCynA0mOhgvJgVPGBh5MRDwEhyGTkFh/L8=
 github.com/btcsuite/btcd v0.24.3-0.20250728230003-baebb836c2d4 h1:jvmWWuevMlHQ0nD30Q16as2hhp+v7L2XCj0i4o0j/O4=

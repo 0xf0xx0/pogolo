@@ -6,7 +6,7 @@ go 1.24.4
 //replace github.com/0xf0xx0/oigiki => ../oigiki
 
 require (
-	github.com/0xf0xx0/oigiki v0.2.0
+	github.com/0xf0xx0/oigiki v0.2.1
 	github.com/0xf0xx0/stratum v0.0.2
 	github.com/btcsuite/btcd v0.24.3-0.20250728230003-baebb836c2d4
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20250728230003-baebb836c2d4
