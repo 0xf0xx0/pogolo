@@ -62,7 +62,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
-			log("===<{blue}%s {cyan}has joined the swarm!>===\n\tid: {blue}%s{cyan}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
+			log("===<{blue}%s{/blue} has joined the swarm!>===\n\tid: {blue}%s{cyan}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
 			/// the initial difficulty was set in CreateClient,
 			/// but the client may also suggested a difficulty before
 			/// fully initialized
@@ -233,7 +233,7 @@ func (client *StratumClient) Stop() {
 	close(client.templateChan)
 	client.templateChan = nil
 	client.conn.Close()
-	log("===<{blue}%s {cyan}has left the swarm!>===", client.Name())
+	log("===<{blue}%s{/blue} has left the swarm!>===", client.Name())
 }
 
 // aims for the target_share_interval
@@ -248,7 +248,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 		/// tighten it to +-1s
-		if absDifference <= 1 {
+		if absDifference < 2 {
 			continue
 		}
 		/// cap the adjustment at +-2^12

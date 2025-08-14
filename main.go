@@ -117,8 +117,8 @@ func main() {
 			var err error
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 				/// we do not care
-				OnFilteredBlockConnected:    func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {},
-				OnFilteredBlockDisconnected: func(height int32, header *wire.BlockHeader) {},
+				OnFilteredBlockConnected:    func(_ int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {},
+				OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
 				/// only needed for the backend.NotifyBlocks() call later
 			})
 			if err != nil {
@@ -158,7 +158,7 @@ func main() {
 			}
 
 			/// start
-			log("===<{bold}{blue}%s {bold}{green}v%s{bold}{blue} - %s{cyan}>===", ctx.Name, ctx.Version, ctx.Usage)
+			log("===<{bold}{blue}%s {green}v%s{/green} - %s{cyan}>===", ctx.Name, ctx.Version, ctx.Usage)
 			log("mining on {yellow}%s", activeChainParams.Name)
 			return startup()
 		},
@@ -298,7 +298,7 @@ func backendRoutine() {
 			}
 			worker := clients[submission.ClientID].Name()
 			log(
-				"{green}=={yellow}[!]{green}==<BLOCK FOUND>=={yellow}[!]{green}==<BLOCK FOUND>=={yellow}[!]{green}==<BLOCK FOUND>=={yellow}[!]{green}==\nhash: %s\nworker: %s",
+				"{green}=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==\nhash: %s\nworker: %s",
 				submission.Block.Hash(),
 				worker,
 			)
