@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"math/big"
 	"pogolo/constants"
 	"slices"
+	"strconv"
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
@@ -217,31 +217,32 @@ func treeNodeCount(leafCount int) int {
 
 func diffFormat(value float64) string {
 	unit := ""
-	if value > 1e12 {
+	if value >= 1e12 {
 		unit = "T"
 		value /= 1e12
-	} else if value > 1e9 {
+	} else if value >= 1e9 {
 		unit = "B"
 		value /= 1e9
-	} else if value > 1e6 {
+	} else if value >= 1e6 {
 		unit = "M"
 		value /= 1e6
-	} else if value > 1000 {
+	} else if value >= 1000 {
 		unit = "k"
 		value /= 1000
 	}
-	return fmt.Sprintf("%.3g%s", value, unit)
+
+	return strconv.FormatFloat(value, 'g', 3, 64) + unit
 }
 
 // takes MH/s
 func formatHashrate(value float64) string {
-	unit := "MH"
+	unit := "M"
 	if value > 1e6 {
 		value /= 1e6
-		unit = "TH"
+		unit = "T"
 	} else if value > 1000 {
 		value /= 1000
-		unit = "GH"
+		unit = "G"
 	}
-	return fmt.Sprintf("%.5g %s/s", value, unit)
+	return strconv.FormatFloat(value, 'g', 5, 64) + " " + unit + "H/s"
 }

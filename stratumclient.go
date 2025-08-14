@@ -24,9 +24,8 @@ type StratumClient struct {
 	Worker              string
 	Password            string
 	UserAgent           string
-	Difficulty          float64
-	SuggestedDifficulty float64 // TODO: bool?
-	VersionRolling      bool
+	TargetDiff          float64
+	SuggestedDifficulty float64 // TODO: float32?
 	VersionRollingMask  uint32
 	// internal
 	conn           net.Conn
@@ -105,7 +104,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				res := stratum.ConfigureResult{}
 				if slices.Contains(params.Supported, "version-rolling") {
 					if _, ok := params.Parameters["version-rolling.mask"]; ok {
-						client.VersionRolling = true
+						/// hardcoded??? bitaxe-only???
 						client.VersionRollingMask = 0xffffffff
 						//client.VersionRollingMask = mask ^ constants.VERSION_ROLLING_MASK
 
@@ -188,7 +187,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				/// only accept a suggested difficulty
 				/// if we haven't got one before
 				if client.SuggestedDifficulty == 0 &&
-					suggestedDiff != client.Difficulty &&
+					suggestedDiff != client.TargetDiff &&
 					suggestedDiff > constants.MIN_DIFFICULTY &&
 					stratum.ValidDifficulty(suggestedDiff) {
 					/// this comment is just for visual spacing
@@ -228,13 +227,13 @@ func (client *StratumClient) Stop() {
 	if client.statusChan == nil {
 		return
 	}
-	log("===<{blue}%s {cyan}has left the swarm!>===", client.Name())
 	client.writeChan("done")
 	close(client.statusChan)
 	client.statusChan = nil
 	close(client.templateChan)
 	client.templateChan = nil
 	client.conn.Close()
+	log("===<{blue}%s {cyan}has left the swarm!>===", client.Name())
 }
 
 // aims for the target_share_interval
@@ -261,7 +260,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 			continue
 		}
 
-		newDiff := max(client.Difficulty+delta, constants.MIN_DIFFICULTY)
+		newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
 		client.log("{white}adjusting share target by {green}%+g{white} to {green}%g", delta, newDiff)
 		if err := client.setDifficulty(newDiff); err != nil {
 			if errors.Is(err, net.ErrClosed) {
@@ -311,13 +310,13 @@ func (client *StratumClient) Name() string {
 	return client.ID.String()
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
-	if newDiff == client.Difficulty {
+	if newDiff == client.TargetDiff {
 		return nil
 	}
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
 		return err
 	}
-	client.Difficulty = newDiff
+	client.TargetDiff = newDiff
 	return nil
 }
 
@@ -335,7 +334,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	}
 
 	shareDiff := CalcDifficulty(updatedBlock.Header)
-	if shareDiff >= client.Difficulty {
+	if shareDiff >= client.TargetDiff {
 		if shareDiff >= client.CurrentJob.NetworkDiff {
 			s := BlockSubmission{
 				ClientID: client.ID,
@@ -348,9 +347,9 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			client.stats.bestDiff = shareDiff
 			client.log("{green}new best session diff!")
 		}
-		client.stats.update(client.Difficulty)
-		client.log("diff {blue}%s{reset} (best: {blue}%s{reset}), avg submission delta {cyan}%ds", diffFormat(shareDiff), diffFormat(client.stats.bestDiff), client.stats.avgSubmissionDelta/1000)
-		client.log("{white}hashrate: %s", formatHashrate(client.stats.hashrate))
+		client.stats.update(client.TargetDiff)
+		client.log("diff {blue}%s{reset} of {blue}%s{reset} (best: {blue}%s{reset})", diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff))
+		client.log("{white}%s, avg submit delta: %ds", formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
 		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
 	} else {
 		client.stats.sharesRejected++
@@ -441,11 +440,11 @@ func (client *StratumClient) writeChan(msg string) {
 // logging
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	log(oigiki.ProcessTags("[{blue}%s{cyan}]{reset} %s", client.Name(), s))
+	log(oigiki.ProcessTags(fmt.Sprintf("[{blue}%s{cyan}]{reset} %s", client.Name(), s)))
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	logError(oigiki.ProcessTags("[{blue}%s{red}] %s", client.Name(), s))
+	logError(oigiki.ProcessTags(fmt.Sprintf("[{blue}%s{red}] %s", client.Name(), s)))
 }
 
 // stats for the api
@@ -524,7 +523,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
 	client := StratumClient{
 		ID:             ClientIDHash(),
-		Difficulty:     1,
+		TargetDiff:     1,
 		stats:          &ClientStats{},
 		conn:           conn,
 		statusChan:     make(chan string),

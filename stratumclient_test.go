@@ -19,8 +19,8 @@ func TestConfigure(t *testing.T) {
 	res := sendReqAndWaitForRes(t, req, lpipe)
 	client.Stop()
 	validateRes(req, res, t)
-	t.Logf("is ver rolling: %v, ver rolling mask: %x, supported: %v", client.VersionRolling, client.VersionRollingMask, params.Supported)
-	if client.VersionRolling == false {
+	t.Logf("ver rolling mask: %x, supported: %v", client.VersionRollingMask, params.Supported)
+	if client.VersionRollingMask == 0 {
 		t.Error("version rolling is wrong")
 	}
 }
@@ -99,7 +99,7 @@ func TestFullBlock(t *testing.T) {
 	/// workaround for the init difficulty routine
 	/// setDifficulty sends a stratum.Notification but thats not being read? it stalls
 	/// FIXME?
-	client.Difficulty = 0
+	client.TargetDiff = 0
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE_MERKLE)
 

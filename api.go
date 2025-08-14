@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 )
@@ -37,21 +36,22 @@ type getInfoUserAgent struct {
 	TotalHashrate  float64 `json:"totalHashRate"`
 }
 type getPoolRes struct {
-	TotalHashrate float64  `json:"totalHashRate"`
-	TotalMiners   uint64   `json:"totalMiners"`
-	BlockHeight   uint64   `json:"blockHeight"`
-	Fee           uint64   `json:"fee"`
+	TotalHashrate float64 `json:"totalHashRate"`
+	TotalMiners   uint64  `json:"totalMiners"`
+	BlockHeight   uint64  `json:"blockHeight"`
+	Fee           uint64  `json:"fee"`
 }
 
 func initAPI() {
 	/// public-pool-ui compat endpoints
-	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/info"), getInfo)
+	ppCompatPfx := "GET " + API_PFX
+	http.HandleFunc(ppCompatPfx+"/info", getInfo)
 	/// im not doin the chart
-	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/pool"), getPool)
-	http.HandleFunc(fmt.Sprintf("GET %s%s", API_PFX, "/network"), getNetwork)
+	http.HandleFunc(ppCompatPfx+"/pool", getPool)
+	http.HandleFunc(ppCompatPfx+"/network", getNetwork)
 
 	/// ok, now our api
-	http.HandleFunc(fmt.Sprintf("GET %s%s%s", API_PFX, API_VER, "/worker/{extranonce1}"), getWorkerInfo)
+	http.HandleFunc("GET "+API_PFX+API_VER+"/worker/{extranonce1}", getWorkerInfo)
 
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
 		writeError(http.StatusNotFound, res)
@@ -130,7 +130,7 @@ func marshalAndWrite(res http.ResponseWriter, v any) error {
 		return err
 	}
 	res.Header().Set("Content-Type", "application/json")
-	res.Header().Set("Server", fmt.Sprintf("%s/%s", NAME, VERSION))
+	res.Header().Set("Server", NAME+"/"+VERSION)
 	_, err = res.Write(x)
 	return err
 }

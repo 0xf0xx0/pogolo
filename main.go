@@ -11,6 +11,7 @@ import (
 	"pogolo/config"
 	"pogolo/constants"
 	"runtime/pprof"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -194,18 +195,18 @@ func startup() error {
 			if strings.Contains(addr, ":") {
 				addr = "[" + addr + "]"
 			}
-			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, conf.Pogolo.Port))
+			listener, err := net.Listen("tcp", addr+":"+strconv.Itoa(int(conf.Pogolo.Port)))
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("error listening on ip %q: %s", addr, err), constants.ERROR_NET)
 			}
-			go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", addr, conf.Pogolo.HTTPPort))
+			go listenerRoutine(shutdown, conns, listener, addr+":"+strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 		}
 	} else {
-		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.Port))
+		listener, err := net.Listen("tcp", conf.Pogolo.IP+":"+strconv.Itoa(int(conf.Pogolo.Port)))
 		if err != nil {
 			return cli.Exit(err.Error(), constants.ERROR_NET)
 		}
-		go listenerRoutine(shutdown, conns, listener, fmt.Sprintf("%s:%d", conf.Pogolo.IP, conf.Pogolo.HTTPPort))
+		go listenerRoutine(shutdown, conns, listener, conf.Pogolo.IP+":"+strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 	}
 
 	go backendRoutine()
@@ -349,12 +350,8 @@ func backendRoutine() {
 		go notifyClients(currTemplate) /// this might take a while
 		select {
 		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
-			{
-			}
 		/// shortcircuit
 		case <-triggerGBT:
-			{
-			}
 		}
 	}
 }
@@ -402,8 +399,8 @@ func notifyClients(j *JobTemplate) {
 }
 
 func log(s string, a ...any) {
-	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan"), a...))
+	fmt.Println(oigiki.ProcessTags(fmt.Sprintf(oigiki.TagString(s, "cyan"), a...)))
 }
 func logError(s string, a ...any) {
-	println(oigiki.ProcessTags(oigiki.TagString(s, "red"), a...))
+	println(oigiki.ProcessTags(fmt.Sprintf(oigiki.TagString(s, "red"), a...)))
 }

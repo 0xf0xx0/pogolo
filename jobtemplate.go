@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"slices"
 	"strconv"
 	"time"
@@ -20,13 +19,13 @@ import (
 /// public-pool my beloved
 
 type JobTemplate struct {
-	ID                 string
-	Block              *btcutil.Block
-	Bits               []byte
-	MerkleBranch       []*chainhash.Hash
-	NetworkDiff        float64
-	Subsidy            int64
-	Height             int64
+	ID           string
+	Block        *btcutil.Block
+	Bits         []byte
+	MerkleBranch []*chainhash.Hash
+	NetworkDiff  float64
+	Subsidy      int64
+	Height       int64
 }
 type MiningJob struct {
 	stratum.NotifyParams
@@ -107,23 +106,18 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 
 	/// bitties on the yitties
 	bits, _ := hex.DecodeString(template.Bits)
+	currTemplateID++
 	job := &JobTemplate{
-		ID:                 getNextTemplateID(),
-		Block:              block,
-		MerkleBranch:       merkleBranch,
-		Bits:               bits,
-		NetworkDiff:        CalcNetworkDifficulty(uint32(headerBits)),
-		Subsidy:            *template.CoinbaseValue,
-		Height:             template.Height,
+		ID:           strconv.FormatUint(currTemplateID, 16),
+		Block:        block,
+		MerkleBranch: merkleBranch,
+		Bits:         bits,
+		NetworkDiff:  CalcNetworkDifficulty(uint32(headerBits)),
+		Subsidy:      *template.CoinbaseValue,
+		Height:       template.Height,
 	}
 
 	return job
-}
-
-// counter but hex so its super hi-tek
-func getNextTemplateID() string {
-	currTemplateID++
-	return fmt.Sprintf("%x", currTemplateID)
 }
 
 // like public-pools copyAndUpdateBlock
