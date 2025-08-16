@@ -9,21 +9,23 @@ const (
 	EXTRANONCE_SIZE         = 4 // bytes
 	DEFAULT_DIFFICULTY      = 1024
 	DEFAULT_COINBASE_TAG    = "/pogolo - foss is freedom/"
-	MIN_DIFFICULTY          = 0.01 // hard min
-	SUBMISSION_DELTA_WINDOW = 32   // rolling avg window
+	MIN_DIFFICULTY          = 0.01       // hard min
+	SUBMISSION_DELTA_WINDOW = 32         // rolling avg window
 	HASHRATE_WINDOW         = int64(600) // 10 min windows
 )
 
 const (
-	ERROR_NONE = iota
-	ERROR_BACKEND
-	ERROR_CONFIG
-	ERROR_NET
+	EXIT_NONE = iota
+	EXIT_BACKEND
+	EXIT_CONFIG
+	EXIT_NET
 )
 
 // errors can be anything, so i chose http-ish codes :3
+//
 // don't add these to your mappings yet, wait till 1.0.0
 var (
+
 	ERROR_INTERNAL   = stratum.Error{Code: 500, Message: "internal server error"}
 	ERROR_UNK_METHOD = stratum.Error{Code: 501, Message: "unknown method"}
 
@@ -33,6 +35,8 @@ var (
 	ERROR_NOT_SUBBED = stratum.Error{Code: 401, Message: "not subscribed"}
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 403, Message: "not accepted"}
-	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 406, Message: "difficulty too low"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}
+	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 413, Message: "difficulty too low"}
+	// for data we understand but couldnt process
+	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "unprocessable content"}
 )

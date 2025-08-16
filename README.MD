@@ -53,6 +53,7 @@ suggested diff: [optional]
 
 TODO
 
+- check backend sync before making job template
 - document code for future viewers
     - link stratum and mining docs
       waiting for bip 41

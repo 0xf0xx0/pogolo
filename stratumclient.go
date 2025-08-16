@@ -10,6 +10,7 @@ import (
 	"net"
 	"pogolo/constants"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,10 +104,16 @@ func (client *StratumClient) Run(noCleanup bool) {
 				params.Read(m)
 				res := stratum.ConfigureResult{}
 				if slices.Contains(params.Supported, "version-rolling") {
-					if _, ok := params.Parameters["version-rolling.mask"]; ok {
+					if rawMask, ok := params.Parameters["version-rolling.mask"]; ok {
 						/// hardcoded??? bitaxe-only???
-						client.VersionRollingMask = 0xffffffff
-						//client.VersionRollingMask = mask ^ constants.VERSION_ROLLING_MASK
+						// client.VersionRollingMask = 0xffffffff
+						mask, err := strconv.ParseUint(rawMask.(string), 16, 32)
+						if err != nil {
+							client.error("couldnt parse version rolling mask %v", rawMask)
+							client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+							return
+						}
+						client.VersionRollingMask = uint32(mask)
 
 						err = res.Add(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
 						if err != nil {
@@ -117,6 +124,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					} else {
 						/// *uhhhhhhhhhhhhhhhh*
 						client.error("couldnt read version rolling mask? shouldnt happen i *think*")
+						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 						return
 					}
 				}
@@ -214,6 +222,10 @@ func (client *StratumClient) Run(noCleanup bool) {
 					panic(err)
 				}
 				client.validateShareSubmission(s, m)
+			}
+		case stratum.MiningExtranonceSubscribe:
+			{
+				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 			}
 		default:
 			{

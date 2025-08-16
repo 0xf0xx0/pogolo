@@ -92,7 +92,7 @@ func main() {
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
 			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
-					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.ERROR_CONFIG)
+					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.EXIT_CONFIG)
 				}
 			}
 
@@ -112,7 +112,7 @@ func main() {
 				backendConnConf.User = auth[0]
 				backendConnConf.Pass = auth[1]
 			} else {
-				return cli.Exit("neither valid rpc cookie path nor valid auth string in config", constants.ERROR_CONFIG)
+				return cli.Exit("neither valid rpc cookie path nor valid auth string in config", constants.EXIT_CONFIG)
 			}
 			var err error
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
@@ -122,12 +122,12 @@ func main() {
 				/// only needed for the backend.NotifyBlocks() call later
 			})
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.ERROR_BACKEND)
+				return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.EXIT_BACKEND)
 			}
 
 			mininginfo, err := backend.GetBlockChainInfo()
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to get chain info: %s", err), constants.ERROR_BACKEND)
+				return cli.Exit(fmt.Sprintf("failed to get chain info: %s", err), constants.EXIT_BACKEND)
 			}
 
 			switch mininginfo.Chain {
@@ -153,7 +153,7 @@ func main() {
 				}
 			default:
 				{
-					return cli.Exit("unknown backend chain", constants.ERROR_BACKEND)
+					return cli.Exit("unknown backend chain", constants.EXIT_BACKEND)
 				}
 			}
 
@@ -184,11 +184,11 @@ func startup() error {
 	if conf.Pogolo.Interface != "" {
 		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("error binding to interface: %s", err), constants.ERROR_NET)
+			return cli.Exit(fmt.Sprintf("error binding to interface: %s", err), constants.EXIT_NET)
 		}
 		addrs, err := inter.Addrs()
 		if err != nil {
-			return cli.Exit(err.Error(), constants.ERROR_NET)
+			return cli.Exit(err.Error(), constants.EXIT_NET)
 		}
 		for _, addr := range addrs {
 			addr := strings.Split(addr.String(), "/")[0]
@@ -197,14 +197,14 @@ func startup() error {
 			}
 			listener, err := net.Listen("tcp", addr+":"+strconv.Itoa(int(conf.Pogolo.Port)))
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("error listening on ip %q: %s", addr, err), constants.ERROR_NET)
+				return cli.Exit(fmt.Sprintf("error listening on ip %q: %s", addr, err), constants.EXIT_NET)
 			}
 			go listenerRoutine(shutdown, conns, listener, addr+":"+strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 		}
 	} else {
 		listener, err := net.Listen("tcp", conf.Pogolo.IP+":"+strconv.Itoa(int(conf.Pogolo.Port)))
 		if err != nil {
-			return cli.Exit(err.Error(), constants.ERROR_NET)
+			return cli.Exit(err.Error(), constants.EXIT_NET)
 		}
 		go listenerRoutine(shutdown, conns, listener, conf.Pogolo.IP+":"+strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 	}
@@ -310,7 +310,7 @@ func backendRoutine() {
 	if conf.Backend.Websocket {
 		/// FIXME: doesnt work :c
 		if err := backend.NotifyBlocks(); err != nil {
-			cli.Exit(err.Error(), constants.ERROR_BACKEND)
+			cli.Exit(err.Error(), constants.EXIT_BACKEND)
 			return
 		}
 	} else {

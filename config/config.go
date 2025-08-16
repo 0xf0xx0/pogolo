@@ -43,6 +43,7 @@ var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:18443",
 		PollInterval: 500,
+		Cookie: "/home/ging/.bitcoin/regtest/.cookie",
 	},
 	Pogolo: Pogolo{
 		Interface:           "lo",
