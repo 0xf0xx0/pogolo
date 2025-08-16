@@ -75,7 +75,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
 			}
-			go client.adjustDiffRoutine()
+			// go client.adjustDiffRoutine()
 			client.stats.startTime = time.Now()
 			client.writeChan("ready")
 		}
@@ -249,27 +249,23 @@ func (client *StratumClient) Stop() {
 }
 
 // aims for the target_share_interval
-// MAYBE: change to adjust every 16 or 32 shares?
+//
+// adjusts every `constants.SUBMISSION_DELTA_WINDOW`
 func (client *StratumClient) adjustDiffRoutine() {
-	for {
-		time.Sleep(time.Second * time.Duration(conf.Pogolo.DiffAdjustInterval))
 		if client.stats.avgSubmissionDelta == 0 {
-			continue
+			return
 		}
 		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.stats.avgSubmissionDelta/1000)
 		absDifference := math.Abs(float64(difference))
 		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 		/// tighten it to +-1s
 		if absDifference < 2 {
-			continue
+			return
 		}
 		/// cap the adjustment at +-2^12
 		delta := min(math.Pow(2, absDifference), 4096)
 		if difference < 0 {
-			delta = -delta / 2 /// TODO: nearest power of 2 calc
-		}
-		if delta == 0 {
-			continue
+			delta = -delta / 2 /// we want to be more conservative when adjusting downwards
 		}
 
 		newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
@@ -282,7 +278,6 @@ func (client *StratumClient) adjustDiffRoutine() {
 			}
 			client.error("failed to set new diff %s", err)
 		}
-	}
 }
 
 // reads job channel
@@ -366,6 +361,9 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	} else {
 		client.stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
+	}
+	if (client.stats.sharesAccepted+client.stats.sharesRejected) % constants.SUBMISSION_DELTA_WINDOW == 0 {
+		client.adjustDiffRoutine()
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
@@ -467,7 +465,7 @@ type ClientStats struct {
 	lastSubmission time.Time // used for calcing delta between `mining.submit`s
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
-	sharesRejected,
+	sharesRejected uint64
 	bestDiff, // session
 	hashrate float64
 }

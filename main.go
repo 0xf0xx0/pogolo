@@ -308,7 +308,6 @@ func backendRoutine() {
 	}()
 	/// poll getblockcount
 	if conf.Backend.Websocket {
-		/// FIXME: doesnt work :c
 		if err := backend.NotifyBlocks(); err != nil {
 			cli.Exit(err.Error(), constants.EXIT_BACKEND)
 			return

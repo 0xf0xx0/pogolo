@@ -120,6 +120,11 @@ func TestFullBlock(t *testing.T) {
 
 }
 
+func TesstCopySpam(t *testing.T) {
+
+}
+
+
 //
 
 // util
