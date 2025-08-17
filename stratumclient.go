@@ -178,7 +178,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 						},
 					},
 					ExtraNonce1:     client.ID,
-					ExtraNonce2Size: constants.EXTRANONCE_SIZE,
+					ExtraNonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
 				}
 				client.writeRes(stratum.SubscribeResponse(m.MessageID, params))
 				isSubscribed = true
@@ -402,7 +402,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 			Timestamp:      blockHeader.Timestamp,
 			/// minus 8 cause we wanna lop off the extranonce padding
 			/// TODO: variable extranonce2
-			CoinbasePart1: serializedCoinbaseTx[:partOneIndex-8],
+			CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
 			CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
 			Clean:         true, /// we don't support multiple active jobs
 		},

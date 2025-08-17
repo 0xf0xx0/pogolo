@@ -37,13 +37,14 @@ type Pogolo struct {
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 	DiffAdjustInterval  uint64  `toml:"difficulty_adjustment_interval" comment:"how often we should check to adjust a clients difficulty, in seconds"`
+	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size, usually shouldnt be touched"`
 }
 
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:18443",
 		PollInterval: 500,
-		Cookie: "/home/ging/.bitcoin/regtest/.cookie",
+		Cookie:       "/home/ging/.bitcoin/regtest/.cookie",
 	},
 	Pogolo: Pogolo{
 		Interface:           "lo",
@@ -55,7 +56,7 @@ var DEFAULT_CONFIG = Config{
 		JobInterval:         60,
 		TargetShareInterval: 10,
 		DiffAdjustInterval:  300,
-		// ExtraNonce2Size:     4,
+		ExtraNonce2Size:     4,
 	},
 }
 

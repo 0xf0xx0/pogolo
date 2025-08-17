@@ -64,13 +64,13 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
 	height := template.Height
-	padding := [7]byte{} /// 8 bytes of padding, for extranonces
-	///                 /// adding data pushes an extra byte for the opcode
+	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
+	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
 		AddData([]byte(conf.Pogolo.Tag)).
-		AddData(padding[:])
+		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
 		panic(err)
@@ -80,7 +80,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 		coinbaseScript = coinbaseScript.Reset().
 			AddInt64(height).
 			AddData([]byte(constants.DEFAULT_COINBASE_TAG)).
-			AddData(padding[:])
+			AddData(padding)
 		encodedCoinbaseScript, err = coinbaseScript.Script()
 		if err != nil {
 			panic(err)
@@ -107,12 +107,14 @@ func CreateCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64,
 
 	coinbase := block.Transactions()[0]
 	coinbaseTxMsg := coinbase.MsgTx()
+	/// workaround: mining.AddWitnessCommitment appends
+	coinbaseTxMsg.TxOut = coinbaseTxMsg.TxOut[:0]
+	/// AND I AM ITS SOLE WITNESS
+	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	coinbaseTxMsg.AddTxOut(&wire.TxOut{
 		Value:    subsidy,
 		PkScript: pkScript,
 	})
-	/// AND I AM ITS SOLE WITNESS
-	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	return coinbase
 }
 

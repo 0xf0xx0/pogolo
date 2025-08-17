@@ -84,7 +84,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	}
 	/// btcd does the witness merkle root for us :3
 	/// thisll be updated on share submission
-	/// TODO: dont capture as variable? its only used for tests :\
 	mining.AddWitnessCommitment(txns[0], txns)
 
 	msgTxns := make([]*wire.MsgTx, len(txns))
