@@ -137,22 +137,19 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
-				split := strings.Split(params.Username, ".")
-				if len(split) > 1 {
-					client.Worker = split[1]
-				}
 				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
 					client.error("invalid password")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 					return
 				}
-				decoded, err := btcutil.DecodeAddress(split[0], activeChainParams)
+				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
 				if err != nil {
 					client.error("failed decoding address: %s", err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					return
 				}
 				client.User = decoded
+				client.Worker = params.Worker
 				client.Password = params.Password
 				client.writeRes(stratum.AuthorizeResponse(m.MessageID, true))
 				isAuthed = true
