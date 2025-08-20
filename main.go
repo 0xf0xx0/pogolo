@@ -173,7 +173,7 @@ func startup() error {
 
 	conns := make(chan net.Conn)
 	clients = make(map[stratum.ID]*StratumClient, 5)
-	submissionChan = make(chan BlockSubmission)
+	submissionChan = make(chan BlockSubmission, 3) /// buffered just in case, it doesnt hurt
 
 	initAPI()
 

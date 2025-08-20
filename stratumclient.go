@@ -56,8 +56,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 	isAuthed := false
 	isSubscribed := false
 
-	/// 15 secs to send the initial stratum message
-	client.conn.SetDeadline(time.Now().Add(time.Second * 15))
+	/// 5 secs to send the initial stratum message
+	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 	reader := bufio.NewReader(client.conn)
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
@@ -190,13 +190,13 @@ func (client *StratumClient) Run(noCleanup bool) {
 				suggestedDiff := params.Difficulty.(float64)
 				/// only accept a suggested difficulty
 				/// if we haven't got one before
-				if client.SuggestedDifficulty == 0 &&
+				if !conf.Pogolo.IgnoreSuggDiff && client.SuggestedDifficulty == 0 &&
 					suggestedDiff != client.TargetDiff &&
 					suggestedDiff > constants.MIN_DIFFICULTY &&
 					stratum.ValidDifficulty(suggestedDiff) {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
-					client.log("{white}suggested difficulty {green}%g", client.SuggestedDifficulty)
+					client.log("{white}suggested difficulty {green}%g", suggestedDiff)
 					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error("failed to adjust difficulty: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))

@@ -37,6 +37,7 @@ type Pogolo struct {
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size, usually shouldnt be touched"`
+	IgnoreSuggDiff      bool    `toml:"ignore_suggested_difficulty,commented"`
 }
 
 var DEFAULT_CONFIG = Config{
