@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xf0xx0/oigiki"
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
 )
@@ -63,7 +62,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
-			log("===<{blue}%s{/blue} has joined the swarm!>===\n\tid: {blue}%s{cyan}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
+			log("===<{blue}%s{/blue} has joined the swarm!>===\n\tid: {blue}%s{/blue}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
 			/// the initial difficulty was set in CreateClient,
 			/// but the client may also suggested a difficulty before
 			/// fully initialized
@@ -208,7 +207,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 		case stratum.MiningSubmit:
 			{
-				/// TODO: adjust diff every 6 submissions?
 				if !stratumInited {
 					client.error("submit before subscribe")
 					return
@@ -249,32 +247,32 @@ func (client *StratumClient) Stop() {
 //
 // adjusts every `constants.SUBMISSION_DELTA_WINDOW`
 func (client *StratumClient) adjustDiffRoutine() {
-		if client.stats.avgSubmissionDelta == 0 {
-			return
-		}
-		difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.stats.avgSubmissionDelta/1000)
-		absDifference := math.Abs(float64(difference))
-		/// natural variance is +- 1-3s, this adjustment routine seems to consistently
-		/// tighten it to +-1s
-		if absDifference < 2 {
-			return
-		}
-		/// cap the adjustment at +-2^12
-		delta := min(math.Pow(2, absDifference), 4096)
-		if difference < 0 {
-			delta = -delta / 2 /// we want to be more conservative when adjusting downwards
-		}
+	if client.stats.avgSubmissionDelta == 0 {
+		return
+	}
+	difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.stats.avgSubmissionDelta/1000)
+	absDifference := math.Abs(float64(difference))
+	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
+	/// tighten it to +-1s
+	if absDifference < 2 {
+		return
+	}
+	/// cap the adjustment at +-2^12
+	delta := min(math.Pow(2, absDifference), 4096)
+	if difference < 0 {
+		delta = -delta / 2 /// we want to be more conservative when adjusting downwards
+	}
 
-		newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
-		client.log("{white}adjusting share target by {green}%+g{white} to {green}%g", delta, newDiff)
-		if err := client.setDifficulty(newDiff); err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				/// client died and we didnt notice?
-				client.Stop()
-				return
-			}
-			client.error("failed to set new diff %s", err)
+	newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
+	client.log("{white}adjusting share target by {green}%+g{/green} to {green}%g", delta, newDiff)
+	if err := client.setDifficulty(newDiff); err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			/// client died and we didnt notice?
+			client.Stop()
+			return
 		}
+		client.error("failed to set new diff %s", err)
+	}
 }
 
 // reads job channel
@@ -346,20 +344,20 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 			client.submitBlock(s)
 		}
-		client.stats.sharesAccepted++
+		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {blue}%s{/blue})", diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff))
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
 			client.log("{green}new best session diff!")
 		}
+		client.stats.sharesAccepted++
 		client.stats.update(client.TargetDiff)
-		client.log("diff {blue}%s{reset} of {blue}%s{reset} (best: {blue}%s{reset})", diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff))
 		client.log("{white}%s, avg submit delta: %ds", formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
-		client.writeRes(stratum.BooleanResponse(m.MessageID, true))
+		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		client.stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
-	if (client.stats.sharesAccepted+client.stats.sharesRejected) % constants.SUBMISSION_DELTA_WINDOW == 0 {
+	if (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
 		client.adjustDiffRoutine()
 	}
 }
@@ -447,11 +445,11 @@ func (client *StratumClient) writeChan(msg string) {
 // logging
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	log(oigiki.ProcessTags(fmt.Sprintf("[{blue}%s{cyan}]{reset} %s", client.Name(), s)))
+	log("[{blue}" + client.Name() + "{/blue}]{reset} " + s)
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	logError(oigiki.ProcessTags(fmt.Sprintf("[{blue}%s{red}] %s", client.Name(), s)))
+	logError("[{blue}" + client.Name() + "{/blue}] " + s)
 }
 
 // stats for the api

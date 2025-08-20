@@ -2,8 +2,8 @@ module pogolo
 
 go 1.24.4
 
-//replace github.com/0xf0xx0/stratum => ../stratum
-//replace github.com/0xf0xx0/oigiki => ../oigiki
+replace github.com/0xf0xx0/stratum => ../stratum
+replace github.com/0xf0xx0/oigiki => ../oigiki
 
 require (
 	github.com/0xf0xx0/oigiki v0.2.1

@@ -52,8 +52,6 @@ func main() {
 		UsageText:              "pogolo [options]",
 		UseShortOptionHandling: true,
 		EnableShellCompletion:  true,
-		// ExitErrHandler: func(ctx context.Context, c *cli.Command, err error) {
-		// },
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "conf",
@@ -158,7 +156,7 @@ func main() {
 			}
 
 			/// start
-			log("===<{bold}{blue}%s {green}v%s{/green} - %s{cyan}>===", ctx.Name, ctx.Version, ctx.Usage)
+			log("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage)
 			log("mining on {yellow}%s", activeChainParams.Name)
 			return startup()
 		},
@@ -169,7 +167,7 @@ func main() {
 }
 
 func startup() error {
-	var wg sync.WaitGroup
+	wg := sync.WaitGroup{}
 	sigs := make(chan os.Signal, 1)
 	shutdown := make(chan struct{})
 
@@ -323,7 +321,7 @@ func backendRoutine() {
 				}
 				/// we're mining on this height
 				if count == currTemplate.Height {
-					log("===<there are now {green}%d{cyan} bl00ks in the chain!>===", count)
+					log("===<there are now {green}%d{/green} bl00ks in the chain!>===", count)
 					triggerGBT <- true
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
@@ -344,7 +342,7 @@ func backendRoutine() {
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		log("===<the swarm is working on job {blue}%s{cyan}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
+		log("===<the swarm is working on job {blue}%s{/blue}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
@@ -369,9 +367,9 @@ func waitForTemplate() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
 	defer listener.Close()
-	log("stratum listening on {white}%s", listener.Addr())
+	log("stratum listening on {green}%s", listener.Addr())
 	go http.ListenAndServe(httpAddr, nil)
-	log("api listening on {white}%s", httpAddr)
+	log("api listening on {green}%s", httpAddr)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
