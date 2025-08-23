@@ -8,7 +8,7 @@ const (
 	//VERSION_ROLLING_MASK    = 0x1fffe000 // bip 320
 	EXTRANONCE_SIZE         = 4 // bytes
 	DEFAULT_DIFFICULTY      = 1024
-	DEFAULT_COINBASE_TAG    = "/pogolo - foss is freedom/"
+	DEFAULT_COINBASE_TAG    = "/pogolo - decentralize or die/"
 	MIN_DIFFICULTY          = 0.01       // hard min
 	SUBMISSION_DELTA_WINDOW = 32         // rolling avg window
 	HASHRATE_WINDOW         = int64(600) // 10 min windows

@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"math"
 	"math/big"
 	"pogolo/constants"
@@ -19,6 +17,7 @@ import (
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/zeebo/xxh3"
 )
 
 func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
@@ -51,12 +50,9 @@ func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
 }
 
 // 32-bit (4-byte) uint32 used for client id and extranonce1
-// TODO: hash client local ip address? for no reason other than being different
-func ClientIDHash() stratum.ID {
-	randomBytes := make([]byte, constants.EXTRANONCE_SIZE)
-	rand.Read(randomBytes)
-	/// im 90% sure this needs to be BE
-	return stratum.ID(binary.BigEndian.Uint32(randomBytes))
+// hashes client ip address+port for no reason other than being different
+func ClientIDHash(addr string) stratum.ID {
+	return stratum.ID(uint32(xxh3.HashString(addr)))
 }
 
 // placeholder tx, filled with MiningJob

@@ -38,13 +38,14 @@ type Pogolo struct {
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size, usually shouldnt be touched"`
 	IgnoreSuggDiff      bool    `toml:"ignore_suggested_difficulty,commented"`
+	DisableVarDiff      bool    `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 }
 
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:18443",
 		PollInterval: 500,
-		Cookie:       "/home/ging/.bitcoin/regtest/.cookie",
+		Cookie:       resolvePath("~/.bitcoin/regtest/.cookie"),
 	},
 	Pogolo: Pogolo{
 		Interface:           "lo",

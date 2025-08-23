@@ -53,7 +53,6 @@ suggested diff: [optional]
 
 TODO
 
-- check backend sync before making job template
 - document code for future viewers
     - link stratum and mining docs
       waiting for bip 41
@@ -61,10 +60,9 @@ TODO
     - hide cursor, use full term height
     - styled around standard 80x24
 - 0.1% dev fee for large miners
+- db interface for optional persistence?
 - public-pool compatible api?
-- better client difficulty adjustment? (interested? see `StratumClient.adjustDiffRoutine`)
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
-- option to turn off vardiff?
 - let clients version roll until range is exhausted? (protocol extension?)
 - extranonce subscription?
 - variable extranonce size?

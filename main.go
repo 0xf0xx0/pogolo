@@ -48,7 +48,7 @@ func main() {
 	app := &cli.Command{
 		Name:                   NAME,
 		Version:                VERSION,
-		Usage:                  "foss is freedom",
+		Usage:                  "Decentralize or die",
 		UsageText:              "pogolo [options]",
 		UseShortOptionHandling: true,
 		EnableShellCompletion:  true,

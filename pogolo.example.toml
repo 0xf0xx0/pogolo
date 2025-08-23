@@ -23,12 +23,15 @@ http_port = 5662
 # optional, required for clients if set
 # password = ''
 # will be replaced by default tag if too long (see coinbase scriptsig limit)
-tag = '/pogolo - foss is freedom/'
+tag = '/pogolo - decentralize or die/'
 # minimum 0.01
 default_difficulty = 1024.0
 # how often to send new work to clients, in seconds
 job_interval = 60
 # how often we want shares on average, in seconds
 target_share_interval = 10
-# how often we should check to adjust a clients difficulty, in seconds
-difficulty_adjustment_interval = 300
+# extranonce2 size, usually shouldnt be touched
+# extranonce2_size = 4
+# ignore_suggested_difficulty = false
+# disable automatic difficulty adjustment
+# disable_vardiff = false

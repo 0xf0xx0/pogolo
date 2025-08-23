@@ -74,7 +74,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
 			}
-			// go client.adjustDiffRoutine()
 			client.stats.startTime = time.Now()
 			client.writeChan("ready")
 		}
@@ -357,7 +356,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.stats.sharesRejected++
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
-	if (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
+	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
 		client.adjustDiffRoutine()
 	}
 }
@@ -527,7 +526,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
 	client := StratumClient{
-		ID:             ClientIDHash(),
+		ID:             ClientIDHash(conn.RemoteAddr().String()),
 		TargetDiff:     1,
 		stats:          &ClientStats{},
 		conn:           conn,
