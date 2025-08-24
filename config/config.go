@@ -55,7 +55,7 @@ var DEFAULT_CONFIG = Config{
 		Tag:                 constants.DEFAULT_COINBASE_TAG,
 		DefaultDifficulty:   constants.DEFAULT_DIFFICULTY,
 		JobInterval:         60,
-		TargetShareInterval: 10,
+		TargetShareInterval: 5,
 		ExtraNonce2Size:     4,
 	},
 }
