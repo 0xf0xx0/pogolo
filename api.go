@@ -12,11 +12,14 @@ const API_PFX = "/api"
 const API_VER = "/v1"
 
 type getWorkerInfoRes struct {
-	UserAgent      string  `json:"userAgent"`
-	Uptime         uint64  `json:"uptime"`
-	Extranonce1    string  `json:"extranonce1"`
-	BestDifficulty float64 `json:"bestDifficulty"`
-	Hashrate       float64 `json:"hashrate"` // TODO: currently mh/s, use h/s?
+	Uptime           uint64  `json:"uptime"`
+	Hashrate         float64 `json:"hashrate"` // TODO: currently mh/s, use h/s?
+	AcceptedShares   uint64  `json:"sharesAccepted"`
+	RejectedShares   uint64  `json:"sharesRejected"`
+	TargetDifficulty float64 `json:"targetDifficulty"`
+	BestDifficulty   float64 `json:"bestDifficulty"`
+	UserAgent        string  `json:"userAgent"`
+	Extranonce1      string  `json:"extranonce1"`
 }
 type highScore struct {
 	UpdatedAt string  `json:"updatedAt"` // yyyy-mm-dd hh:mm:ss
@@ -66,8 +69,8 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 	for _, client := range clients {
 		workerStats = append(workerStats, getInfoUserAgent{
 			UserAgent:      client.Name(),
-			BestDifficulty: client.stats.BestDiff(),
-			TotalHashrate:  client.stats.Hashrate() * 1e6, /// public-pool expects h/s, we use mh/s
+			BestDifficulty: client.stats.bestDiff,
+			TotalHashrate:  client.stats.HashrateH(), /// public-pool-ui expects h/s
 		})
 	}
 	marshalAndWrite(res, getInfoRes{
@@ -80,7 +83,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 func getPool(res http.ResponseWriter, _ *http.Request) {
 	hashrateSum := float64(0)
 	for _, client := range clients {
-		hashrateSum += client.stats.Hashrate()
+		hashrateSum += client.stats.HashrateMH()
 	}
 	marshalAndWrite(res, getPoolRes{
 		TotalHashrate: hashrateSum,
@@ -107,11 +110,14 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	}
 
 	info := getWorkerInfoRes{
-		UserAgent:      client.UserAgent,
-		Uptime:         client.stats.Uptime(),
-		Extranonce1:    client.ID.String(),
-		Hashrate:       client.stats.Hashrate(),
-		BestDifficulty: client.stats.BestDiff(),
+		UserAgent:        client.UserAgent,
+		Uptime:           client.stats.Uptime(),
+		Extranonce1:      client.ID.String(),
+		Hashrate:         client.stats.HashrateMH(),
+		TargetDifficulty: client.TargetDiff,
+		BestDifficulty:   client.stats.bestDiff,
+		AcceptedShares:   client.stats.sharesAccepted,
+		RejectedShares:   client.stats.sharesRejected,
 	}
 	marshalAndWrite(res, info)
 }
@@ -152,7 +158,7 @@ func getHighScores() []highScore {
 	for _, client := range clients {
 		scores = append(scores, highScore{
 			UpdatedAt: "", /// i dont wanna, so i wont
-			BestDiff:  client.stats.BestDiff(),
+			BestDiff:  client.stats.bestDiff,
 			UserAgent: client.Name(), /// lets use the name :3
 		})
 	}

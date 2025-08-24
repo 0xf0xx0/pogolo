@@ -488,11 +488,11 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 func (stats *ClientStats) Uptime() uint64 {
 	return uint64(time.Now().Sub(stats.startTime).Milliseconds())
 }
-func (stats *ClientStats) BestDiff() float64 {
-	return stats.bestDiff
-}
-func (stats *ClientStats) Hashrate() float64 {
+func (stats *ClientStats) HashrateMH() float64 {
 	return stats.hashrate
+}
+func (stats *ClientStats) HashrateH() float64 {
+	return stats.hashrate * 1e6
 }
 
 // live hashrate in MH/s

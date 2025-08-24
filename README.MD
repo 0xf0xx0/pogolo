@@ -13,6 +13,11 @@ start it, point your miners to it, and watch the logs roll by
 go install github.com/0xf0xx0/pogolo@latest
 # or from git
 go install github.com/0xf0xx0/pogolo@logopo
+# or build yourself
+git clone https://github.com/0xf0xx0/pogolo.git
+cd pogolo
+go build
+go install
 ```
 
 ## run
@@ -54,10 +59,10 @@ suggested diff: [optional]
 TODO
 
 - document code for future viewers
-    - link stratum and mining docs
+    - link stratum and mining docs  
       waiting for bip 41
 - logs with personality
-    - hide cursor, use full term height
+    - hide cursor, use full term height?
     - styled around standard 80x24
 - 0.1% dev fee for large miners
 - db interface for optional persistence?
