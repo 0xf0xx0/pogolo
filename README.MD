@@ -26,11 +26,9 @@ go install
 pogolo
 ```
 
-## server config
+## setup
 
-by default, pogolo listens on localhost v4 and v6.  
-see [pogolo.example.toml](./pogolo.example.toml) for config docs.  
-the default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml, use `--conf` for a custom path
+copy [pogolo.example.toml](./pogolo.example.toml) to `$XDG_CONFIG_HOME/pogolo/pogolo.toml` (usually `~/.config/pogolo/pogolo.toml`) and configure the backend host and auth
 
 ## miner config
 

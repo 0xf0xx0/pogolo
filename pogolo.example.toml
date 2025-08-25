@@ -1,10 +1,10 @@
 [backend]
 # RPC host:port
-host = '[::1]:18443'
-# RPC cookie path
-# cookie = '~/.bitcoin/regtest/.cookie'
-# RPC user/pass
-# rpcauth = ''
+host = '[::1]:8332'
+# RPC cookie path, relative is supported
+# cookie = '~/.bitcoin/.cookie'
+# RPC user:pass
+# rpcauth = 'bitty:axxy'
 # whether to use the btcd websocket interface
 websocket = false
 # how quickly to poll for block updates, in milliseconds
@@ -29,7 +29,7 @@ default_difficulty = 1024.0
 # how often to send new work to clients, in seconds
 job_interval = 60
 # how often we want shares on average, in seconds
-target_share_interval = 10
+target_share_interval = 5
 # extranonce2 size, usually shouldnt be touched
 # extranonce2_size = 4
 # ignore_suggested_difficulty = false

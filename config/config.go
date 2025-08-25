@@ -21,8 +21,8 @@ type Config struct {
 }
 type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port"`
-	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path"`
-	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user/pass"`
+	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported"`
+	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass"`
 	Websocket    bool   `toml:"websocket" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is used"`
 }
@@ -43,9 +43,10 @@ type Pogolo struct {
 
 var DEFAULT_CONFIG = Config{
 	Backend: Backend{
-		Host:         "[::1]:18443",
+		Host:         "[::1]:8332",
 		PollInterval: 500,
-		Cookie:       resolvePath("~/.bitcoin/regtest/.cookie"),
+		Cookie:       "~/.bitcoin/.cookie",
+		Rpcauth:      "bitty:axxy",
 	},
 	Pogolo: Pogolo{
 		Interface:           "lo",
@@ -74,7 +75,6 @@ func LoadConfig(path string, conf *Config) error {
 	return nil
 }
 func WriteDefaultConfig(path string) error {
-	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/regtest/.cookie"
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
