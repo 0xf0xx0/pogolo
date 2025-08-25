@@ -11,7 +11,7 @@ start it, point your miners to it, and watch the logs roll by
 ```
 # latest release
 go install github.com/0xf0xx0/pogolo@latest
-# or from git
+# or latest commit
 go install github.com/0xf0xx0/pogolo@logopo
 # or build yourself
 git clone https://github.com/0xf0xx0/pogolo.git
@@ -28,7 +28,7 @@ pogolo
 
 ## server config
 
-by default, pogolo runs on regtest and listens on localhost v4 and v6.  
+by default, pogolo listens on localhost v4 and v6.  
 see [pogolo.example.toml](./pogolo.example.toml) for config docs.  
 the default path is $XDG_CONFIG_HOME/pogolo/pogolo.toml, use `--conf` for a custom path
 
@@ -70,7 +70,6 @@ TODO
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
 - let clients version roll until range is exhausted? (protocol extension?)
 - extranonce subscription?
-- variable extranonce size?
 - longpoll?
 - more config options?
 - more fine-grained client errors?
