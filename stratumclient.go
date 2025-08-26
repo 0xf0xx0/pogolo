@@ -25,7 +25,7 @@ type StratumClient struct {
 	Password            string
 	UserAgent           string
 	TargetDiff          float64
-	SuggestedDifficulty float64 // TODO: float32?
+	SuggestedDifficulty float64
 	VersionRollingMask  uint32
 	// internal
 	conn           net.Conn
@@ -33,7 +33,7 @@ type StratumClient struct {
 	templateChan   chan *JobTemplate
 	submissionChan chan<- BlockSubmission
 	CurrentJob     MiningJob // TODO: store the previous temporarily when switching?
-	stats          *ClientStats // TODO: embed?
+	stats          *ClientStats
 }
 
 // used for hashrate calc
@@ -341,11 +341,14 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	shareDiff := CalcDifficulty(updatedBlock.Header)
 	if shareDiff >= client.TargetDiff {
 		if shareDiff >= client.CurrentJob.NetworkDiff {
+			/// !!! block! dont say ANYTHING until after submitted
 			s := BlockSubmission{
 				ClientID: client.ID,
 				Block:    btcutil.NewBlock(updatedBlock),
 			}
+
 			client.submitBlock(s)
+			client.log("block submitted")
 		}
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
@@ -359,7 +362,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		client.stats.sharesRejected++
-		client.error("share rejected: diff too low (%g/%g)", shareDiff, client.TargetDiff)
+		client.error("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDiff)
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
@@ -419,7 +422,6 @@ func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
 // chatter
 func (client *StratumClient) submitBlock(block BlockSubmission) {
 	client.submissionChan <- block
-	client.log("block submitted")
 }
 func (client *StratumClient) writeRes(res stratum.Response) error {
 	bytes, err := res.Marshal()

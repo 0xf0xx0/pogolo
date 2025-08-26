@@ -343,7 +343,7 @@ func backendRoutine() {
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		log("===<the swarm is working on job {blue}%s{/blue}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
+		log("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
@@ -368,9 +368,9 @@ func waitForTemplate() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
 	defer listener.Close()
-	log("stratum listening on {green}%s", listener.Addr())
+	log("stratum listening on {white}%s", listener.Addr())
 	go http.ListenAndServe(httpAddr, nil)
-	log("api listening on {green}%s", httpAddr)
+	log("api listening on {white}%s", httpAddr)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
