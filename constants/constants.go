@@ -33,8 +33,9 @@ var (
 
 	// submission before subscription
 	ERROR_NOT_SUBBED = stratum.Error{Code: 401, Message: "not subscribed"}
+	ERROR_WRONG_PASS = stratum.Error{Code: 403, Message: "wrong password"}
 	// for data we understand but will ignore, optionally disconnecting
-	ERROR_NOT_ACCEPTED = stratum.Error{Code: 403, Message: "not accepted"}
+	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "not accepted"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}
 	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 413, Message: "difficulty too low"}
 	// for data we understand but couldnt process

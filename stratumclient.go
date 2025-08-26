@@ -32,7 +32,7 @@ type StratumClient struct {
 	statusChan     chan string // messages to server
 	templateChan   chan *JobTemplate
 	submissionChan chan<- BlockSubmission
-	CurrentJob     MiningJob
+	CurrentJob     MiningJob // TODO: store the previous temporarily when switching?
 	stats          *ClientStats // TODO: embed?
 }
 
@@ -137,13 +137,13 @@ func (client *StratumClient) Run(noCleanup bool) {
 				params.Read(m)
 				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
 					client.error("invalid password")
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_WRONG_PASS))
 					return
 				}
 				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
 				if err != nil {
 					client.error("failed decoding address: %s", err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					return
 				}
 				client.User = decoded
@@ -184,6 +184,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 
 				if err := params.Read(m); err != nil {
 					client.error("couldnt read mining.suggest_difficulty: %s", err)
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
@@ -201,6 +202,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
 				} else {
+					client.error("ignored suggested difficulty")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
 			}
@@ -324,12 +326,14 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
 	if s.JobID != client.CurrentJob.NotifyParams.JobID {
 		client.stats.sharesRejected++
+		client.error("share rejected: unknown job")
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
 		return
 	}
 
 	updatedBlock, err := client.CurrentJob.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	if err != nil {
+		client.error("internal error: %s", err)
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 		return
 	}
@@ -343,17 +347,19 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 			client.submitBlock(s)
 		}
-		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {blue}%s{/blue})", diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff))
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
 			client.log("{green}new best session diff!")
 		}
 		client.stats.sharesAccepted++
 		client.stats.update(client.TargetDiff)
-		client.log("{white}%s, avg submit delta: %ds", formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
+		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {blue}%s{/blue})\n\t{white}%s, avg submit delta: %ds",
+			diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff),
+			formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
 		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		client.stats.sharesRejected++
+		client.error("share rejected: diff too low (%g/%g)", shareDiff, client.TargetDiff)
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
