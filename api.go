@@ -74,7 +74,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		})
 	}
 	marshalAndWrite(res, getInfoRes{
-		Uptime:     uint64(time.Now().Sub(serverStartTime).Milliseconds()),
+		Uptime:     uint64(time.Since(serverStartTime).Milliseconds()),
 		UserAgents: workerStats,
 		HighScores: getHighScores(),
 		Tag:        conf.Pogolo.Tag,
@@ -141,18 +141,6 @@ func marshalAndWrite(res http.ResponseWriter, v any) error {
 	return err
 }
 
-// for such a simple language go lacks a lot of basic things...
-func getSetOfUAs() []string {
-	uaset := make(map[string]struct{})
-	for _, client := range clients {
-		uaset[client.UserAgent] = struct{}{}
-	}
-	uas := make([]string, 0, len(uaset))
-	for ua := range uaset {
-		uas = append(uas, ua)
-	}
-	return uas
-}
 func getHighScores() []highScore {
 	scores := make([]highScore, 0, 5)
 	for _, client := range clients {

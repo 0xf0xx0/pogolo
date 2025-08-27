@@ -196,7 +196,7 @@ func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash
 			nodes = append(nodes, right)
 		}
 
-		index = (index / 2) | 0
+		index = (index / 2)
 		i += layerWidth
 	}
 	nodes = append(nodes, tree[n-1])
