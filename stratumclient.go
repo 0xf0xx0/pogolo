@@ -78,6 +78,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			client.writeChan("ready")
 		}
 
+		/// messages are newline separated (either lf or crlf)
 		line, err := reader.ReadBytes(byte('\n'))
 
 		switch err {
@@ -103,8 +104,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 				res := stratum.ConfigureResult{}
 				if slices.Contains(params.Supported, "version-rolling") {
 					if rawMask, ok := params.Parameters["version-rolling.mask"]; ok {
-						/// hardcoded??? bitaxe-only???
-						// client.VersionRollingMask = 0xffffffff
 						mask, err := strconv.ParseUint(rawMask.(string), 16, 32)
 						if err != nil {
 							client.error("couldnt parse version rolling mask %v", rawMask)
@@ -180,8 +179,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 		case stratum.MiningSuggestDifficulty:
 			{
-				params := stratum.SuggestDifficultyParams{}
+				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty != 0 {
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					break
+				}
 
+				params := stratum.SuggestDifficultyParams{}
 				if err := params.Read(m); err != nil {
 					client.error("couldnt read mining.suggest_difficulty: %s", err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
@@ -190,13 +193,11 @@ func (client *StratumClient) Run(noCleanup bool) {
 				suggestedDiff := params.Difficulty.(float64)
 				/// only accept a suggested difficulty
 				/// if we haven't got one before
-				if !conf.Pogolo.IgnoreSuggDiff && client.SuggestedDifficulty == 0 &&
-					suggestedDiff != client.TargetDiff &&
-					suggestedDiff > constants.MIN_DIFFICULTY &&
-					stratum.ValidDifficulty(suggestedDiff) {
+				if suggestedDiff != client.TargetDiff && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
 					client.log("{white}suggested difficulty {green}%g", suggestedDiff)
+
 					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error("failed to adjust difficulty: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))

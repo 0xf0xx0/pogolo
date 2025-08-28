@@ -41,7 +41,7 @@ suggested diff: [optional]
 
 ## supported
 
-- \*axe family
+- \*axe family (bitaxe, nerd\*axe)
 - cpuminer
 
 ### supported backends
@@ -51,7 +51,7 @@ suggested diff: [optional]
 
 ## unsupported
 
-- miners needing extranonce.subscribe
+- miners requiring extranonce.subscribe
 - luckyminers
 
 TODO
