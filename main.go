@@ -297,8 +297,9 @@ func backendRoutine() {
 			}
 			worker := clients[submission.ClientID].Name()
 			log(
-				"{green}=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==\nhash: %s\nworker: %s",
+				"{green}=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==\nhash: %s\ndifficulty: %f\nworker: %s",
 				submission.Block.Hash(),
+				CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
 				worker,
 			)
 
