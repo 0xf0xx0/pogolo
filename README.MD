@@ -4,41 +4,6 @@ think of this as public-pool but minimal and for self-sovereign nerds
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
 start it, point your miners to it, and watch the logs roll by
 
-# setup
-
-## install
-
-```
-# latest release
-go install github.com/0xf0xx0/pogolo@latest
-# or latest commit
-go install github.com/0xf0xx0/pogolo@logopo
-# or build yourself
-git clone https://github.com/0xf0xx0/pogolo.git
-cd pogolo
-go build
-go install
-```
-
-## run
-
-```
-pogolo
-```
-
-## setup
-
-copy [pogolo.example.toml](./pogolo.example.toml) to `$XDG_CONFIG_HOME/pogolo/pogolo.toml` (usually `~/.config/pogolo/pogolo.toml`) and configure the backend host and auth
-
-## miner config
-
-```
-host: stratum+tcp://<your lan ip>:5661
-username: <your onchain address>[.<worker name>]
-password: [required if set in pogolo.toml]
-suggested diff: [optional]
-```
-
 ## supported
 
 - \*axe family (bitaxe, nerd\*axe)
@@ -54,7 +19,37 @@ suggested diff: [optional]
 - miners requiring extranonce.subscribe
 - luckyminers
 
-TODO
+# setup
+
+## install
+
+```sh
+git clone https://github.com/0xf0xx0/pogolo.git
+cd pogolo
+go build
+go install
+# config
+mkdir $XDG_CONFIG_HOME/pogolo
+pogolo --writedefaultconf # or copy pogolo.example.toml to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`
+# then configure the backend host and auth
+```
+
+## run
+
+```sh
+pogolo
+```
+
+## miner config
+
+```
+host: stratum+tcp://<your lan ip>:5661
+username: <your onchain address>[.<worker name>]
+password: [required if set in pogolo.toml]
+suggested diff: [optional]
+```
+
+## TODO
 
 - document code for future viewers
     - link stratum and mining docs  
@@ -66,10 +61,7 @@ TODO
 - db interface for optional persistence?
 - public-pool compatible api?
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
-- let clients version roll until range is exhausted? (protocol extension?)
+- let clients version roll until range is exhausted?
 - extranonce subscription?
-- longpoll?
-- more config options?
-- more fine-grained client errors?
 - stratum keepalive?
 - zmq for block notifs?
