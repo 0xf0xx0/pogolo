@@ -57,7 +57,7 @@ suggested diff: [optional]
 - logs with personality
     - hide cursor, use full term height?
     - styled around standard 80x24
-- 0.1% dev fee for large miners
+- 0.5% dev fee for large miners (>=50th), optionally scaling up to 1.5 for >= 50PH
 - db interface for optional persistence?
 - public-pool compatible api?
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
