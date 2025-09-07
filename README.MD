@@ -57,6 +57,7 @@ suggested diff: [optional]
 - logs with personality
     - hide cursor, use full term height?
     - styled around standard 80x24
+    - tui??
 - 0.5% dev fee for large miners (>=50th), optionally scaling up to 1.5 for >= 50PH
 - db interface for optional persistence?
 - public-pool compatible api?
@@ -65,3 +66,6 @@ suggested diff: [optional]
 - extranonce subscription?
 - stratum keepalive?
 - zmq for block notifs?
+- drop the client address for a pool address?
+    - would remove the need to copy the block for each client, as theyd all be effectively one miner
+    - not useful if you actually want to mine to multiple addresses, make client address optional?

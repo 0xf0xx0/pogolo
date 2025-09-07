@@ -356,7 +356,7 @@ func backendRoutine() {
 }
 
 // util func, for delaying components that rely on the template like
-// client subscribes and the chain update routine
+// the chain update routine
 func waitForTemplate() {
 	for {
 		if currTemplate != nil {
