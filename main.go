@@ -38,6 +38,7 @@ var (
 	backend           *rpcclient.Client
 	activeChainParams *chaincfg.Params
 	conf              config.Config
+	poolAddr *btcutil.Address
 	clients           map[stratum.ID]*StratumClient // map of client ids to clients
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
@@ -155,6 +156,13 @@ func main() {
 				}
 			}
 
+			if conf.Pogolo.ChainAddress != "" {
+				addr, err := btcutil.DecodeAddress(conf.Pogolo.ChainAddress, activeChainParams)
+				if err != nil {
+					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
+				}
+				poolAddr = &addr
+			}
 			/// start
 			log("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage)
 			log("mining on {yellow}%s", activeChainParams.Name)

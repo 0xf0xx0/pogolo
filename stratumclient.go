@@ -141,9 +141,16 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
 				if err != nil {
-					client.error("failed decoding address: %s", err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
-					return
+					if poolAddr == nil {
+						client.error("failed decoding address: %s", err)
+						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+						return
+					}
+					/// assume just the workername was passed
+					if params.Username != "" {
+						params.Worker = params.Username
+					}
+					decoded = *poolAddr
 				}
 				client.User = decoded
 				client.Worker = params.Worker
