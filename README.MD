@@ -4,6 +4,12 @@ think of this as public-pool but minimal and for self-sovereign nerds
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
 start it, point your miners to it, and watch the logs roll by
 
+## features
+
+- api (both our own and a semi-compatible public-pool api)
+  public-pool-ui compat is wip and likely wont ever be 1:1, but the main page lists stats uwu
+  see api.go, swagger spec eventually in 1.0.0
+
 ## supported
 
 - \*axe family (bitaxe, nerd\*axe)
@@ -57,12 +63,10 @@ suggested diff: [optional]
 - logs with personality
     - hide cursor, use full term height?
     - styled around standard 80x24
-    - tui??
+    - tui?? idk i need a tui dev lol
 - 0.5% dev fee for large miners (>=50th), optionally scaling up to 1.5 for >= 50PH
 - db interface for optional persistence?
-- public-pool compatible api?
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
-- let clients version roll until range is exhausted?
 - extranonce subscription?
 - stratum keepalive?
 - zmq for block notifs?
