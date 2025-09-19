@@ -38,7 +38,7 @@ var (
 	backend           *rpcclient.Client
 	activeChainParams *chaincfg.Params
 	conf              config.Config
-	poolAddr *btcutil.Address
+	poolAddr          *btcutil.Address
 	clients           map[stratum.ID]*StratumClient // map of client ids to clients
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
@@ -156,6 +156,7 @@ func main() {
 				}
 			}
 
+			/// decode the default mining address
 			if conf.Pogolo.ChainAddress != "" {
 				addr, err := btcutil.DecodeAddress(conf.Pogolo.ChainAddress, activeChainParams)
 				if err != nil {
@@ -186,7 +187,7 @@ func startup() error {
 	initAPI()
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	/// listener
+	/// start listening on configured interface or ip
 	if conf.Pogolo.Interface != "" {
 		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
 		if err != nil {
@@ -305,7 +306,7 @@ func backendRoutine() {
 			}
 			worker := clients[submission.ClientID].Name()
 			log(
-				"{green}=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==<BLOCK FOUND>=={yellow}[!]{/yellow}==\nhash: %s\ndifficulty: %f\nworker: %s",
+				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nhash: %s\ndifficulty: %f\nworker: %s",
 				submission.Block.Hash(),
 				CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
 				worker,

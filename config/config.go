@@ -91,6 +91,7 @@ func getConfigDir() string {
 	return filepath.Join(userConfigDir, "./pogolo")
 }
 func DeepCopyConfig(dest, src *Config) {
+	/// primitives are implicitly copied
 	dest.Backend = src.Backend
 	dest.Pogolo = src.Pogolo
 }

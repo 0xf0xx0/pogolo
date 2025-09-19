@@ -7,8 +7,8 @@ start it, point your miners to it, and watch the logs roll by
 ## features
 
 - api (both our own and a semi-compatible public-pool api)
-  public-pool-ui compat is wip and likely wont ever be 1:1, but the main page lists stats uwu
   see api.go, swagger spec eventually in 1.0.0
+- public-pool-ui compat (is wip and likely wont ever be 1:1, but the main page lists stats uwu)
 
 ## supported
 

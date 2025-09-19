@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"time"
@@ -123,6 +125,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
 	msgBlock := job.Block.MsgBlock().Copy()
 
+	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
+		return nil, errors.New("invalid extranonce2 size")
+	}
 	coinbase := hex.EncodeToString(notif.CoinbasePart1) + client.ID.String() +
 		hex.EncodeToString(share.ExtraNonce2) + hex.EncodeToString(notif.CoinbasePart2)
 	decodedCoinbase, err := hex.DecodeString(coinbase)
