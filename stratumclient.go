@@ -110,6 +110,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 							client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 							return
 						}
+						/// TODO: AND with default  version mask?
 						client.VersionRollingMask = uint32(mask)
 
 						err = res.Add(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})

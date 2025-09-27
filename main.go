@@ -130,6 +130,8 @@ func main() {
 			}
 
 			switch mininginfo.Chain {
+			case "mainnet":
+				fallthrough
 			case "main":
 				{
 					activeChainParams = &chaincfg.MainNetParams
@@ -193,11 +195,18 @@ func startup() error {
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface: %s", err), constants.EXIT_NET)
 		}
+		if inter.Flags&(net.FlagUp|net.FlagRunning) == 0 {
+			return cli.Exit("the chosen interface isnt up and/or running!", constants.EXIT_NET)
+		}
 		addrs, err := inter.Addrs()
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface addrs: %s", err), constants.EXIT_NET)
 		}
+		if len(addrs) == 0 {
+			return cli.Exit("the chosen interface has no addresses!", constants.EXIT_NET)
+		}
 		for _, addr := range addrs {
+			/// trim bitmask or whatever its called
 			addr := strings.Split(addr.String(), "/")[0]
 			/// wrap up ipv6 addrs
 			if strings.Contains(addr, ":") {

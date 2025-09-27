@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"slices"
 	"strconv"
 	"time"

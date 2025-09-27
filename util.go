@@ -41,13 +41,6 @@ func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
 	}
 	return serializedTx.Bytes(), nil
 }
-func SerializeBlock(blk *btcutil.Block) ([]byte, error) {
-	buf := bytes.NewBuffer([]byte{})
-	if err := blk.MsgBlock().Serialize(buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
 
 // 32-bit (4-byte) uint32 used for client id and extranonce1
 // hashes client ip address+port for no reason other than being different
@@ -82,6 +75,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 			panic(err)
 		}
 	}
+	//println(hex.EncodeToString(encodedCoinbaseScript))
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
 		SignatureScript:  encodedCoinbaseScript,
