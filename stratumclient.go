@@ -74,6 +74,9 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
 			}
+			if client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+				client.log("{white}mining to pool address")
+			}
 			client.stats.startTime = time.Now()
 			client.writeChan("ready")
 		}
@@ -142,7 +145,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
 				if err != nil {
-					if poolAddr == nil {
+					if defaultMiningAddr == nil {
 						client.error("failed decoding address: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 						return
@@ -151,7 +154,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					if params.Username != "" {
 						params.Worker = params.Username
 					}
-					decoded = *poolAddr
+					decoded = *defaultMiningAddr
 				}
 				client.User = decoded
 				client.Worker = params.Worker
@@ -459,9 +462,10 @@ func (client *StratumClient) writeChan(msg string) {
 }
 
 // logging
+// maybe: pick random color for client?
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	log("[{blue}" + client.Name() + "{/blue}]{reset} " + s)
+	log("[{blue}" + client.Name() + "{/blue}]{cyan} " + s)
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)

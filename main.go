@@ -35,10 +35,10 @@ const (
 
 // state
 var (
+	conf              config.Config
 	backend           *rpcclient.Client
 	activeChainParams *chaincfg.Params
-	conf              config.Config
-	poolAddr          *btcutil.Address
+	defaultMiningAddr *btcutil.Address
 	clients           map[stratum.ID]*StratumClient // map of client ids to clients
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
@@ -164,7 +164,8 @@ func main() {
 				if err != nil {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
-				poolAddr = &addr
+				defaultMiningAddr = &addr
+				log("{blue}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress)
 			}
 			/// start
 			log("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage)
@@ -195,9 +196,10 @@ func startup() error {
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface: %s", err), constants.EXIT_NET)
 		}
-		if inter.Flags&(net.FlagUp|net.FlagRunning) == 0 {
-			return cli.Exit("the chosen interface isnt up and/or running!", constants.EXIT_NET)
-		}
+		/// FIXME
+		// if inter.Flags&(net.FlagUp&net.FlagRunning) == 0 {
+		// 	return cli.Exit("the chosen interface isnt up and/or running!", constants.EXIT_NET)
+		// }
 		addrs, err := inter.Addrs()
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface addrs: %s", err), constants.EXIT_NET)
@@ -208,22 +210,23 @@ func startup() error {
 		for _, addr := range addrs {
 			/// trim bitmask or whatever its called
 			addr := strings.Split(addr.String(), "/")[0]
-			/// wrap up ipv6 addrs
-			if strings.Contains(addr, ":") {
-				addr = "[" + addr + "]"
+
+			/// listen on the link-local too, if its there
+			if strings.HasPrefix(addr, "fe80::") {
+				addr += "%" + inter.Name
 			}
-			listener, err := net.Listen("tcp", addr+":"+strconv.Itoa(int(conf.Pogolo.Port)))
+			listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
 			}
-			go listenerRoutine(shutdown, conns, listener, addr+":"+strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+			go listenerRoutine(shutdown, conns, listener, net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort))))
 		}
 	} else {
-		listener, err := net.Listen("tcp", conf.Pogolo.IP+":"+strconv.Itoa(int(conf.Pogolo.Port)))
+		listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.Port))))
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
 		}
-		go listenerRoutine(shutdown, conns, listener, conf.Pogolo.IP+":"+strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+		go listenerRoutine(shutdown, conns, listener, net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort))))
 	}
 
 	go backendRoutine()
