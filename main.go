@@ -344,7 +344,7 @@ func backendRoutine() {
 				}
 				/// we're mining on this height
 				if count == currTemplate.Height {
-					log("===<there are now {green}%d{/green} bl00ks in the chain!>===", count)
+					log("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count)
 					triggerGBT <- true
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
@@ -365,7 +365,7 @@ func backendRoutine() {
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		log("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {green}%d", currTemplate.ID, len(template.Transactions))
+		log("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {

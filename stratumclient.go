@@ -62,7 +62,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
-			log("===<{blue}%s{/blue} has joined the swarm!>===\n\tid: {blue}%s{/blue}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
+			log("===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
 			/// the initial difficulty was set in CreateClient,
 			/// but the client may also suggested a difficulty before
 			/// fully initialized
@@ -207,7 +207,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				if suggestedDiff != client.TargetDiff && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
-					client.log("{white}suggested difficulty {green}%g", suggestedDiff)
+					client.log("{white}suggested difficulty {blue}%g", suggestedDiff)
 
 					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error("failed to adjust difficulty: %s", err)
@@ -253,7 +253,7 @@ func (client *StratumClient) Stop() {
 	close(client.templateChan)
 	client.templateChan = nil
 	client.conn.Close()
-	log("===<{blue}%s{/blue} has left the swarm!>===", client.Name())
+	log("===<{green}%s{/green} has left the swarm!>===", client.Name())
 }
 
 // aims for the target_share_interval
@@ -277,7 +277,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 	}
 
 	newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
-	client.log("{white}adjusting share target by {green}%+g{/green} to {green}%g", delta, newDiff)
+	client.log("{white}adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
 	if err := client.setDifficulty(newDiff); err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			/// client died and we didnt notice?
@@ -368,7 +368,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		}
 		client.stats.sharesAccepted++
 		client.stats.update(client.TargetDiff)
-		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {blue}%s{/blue})\n\t{white}%s, avg submit delta: %ds",
+		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{white}%s, avg submit delta: %ds",
 			diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff),
 			formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
 		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
@@ -465,11 +465,11 @@ func (client *StratumClient) writeChan(msg string) {
 // maybe: pick random color for client?
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	log("[{blue}" + client.Name() + "{/blue}]{cyan} " + s)
+	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
 }
 func (client *StratumClient) error(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	logError("[{blue}" + client.Name() + "{/blue}] " + s)
+	logError("[{green}" + client.Name() + "{/green}] " + s)
 }
 
 // stats for the api
