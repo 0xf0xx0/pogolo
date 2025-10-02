@@ -61,7 +61,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:  "writedefaultconf",
-				Usage: "write default config to `path`",
+				Usage: "write default config to `path` and exit",
 			},
 			&cli.BoolFlag{
 				Name:   "profile",
@@ -190,6 +190,9 @@ func startup() error {
 	initAPI()
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go backendRoutine()
+
 	/// start listening on configured interface or ip
 	if conf.Pogolo.Interface != "" {
 		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
@@ -228,8 +231,6 @@ func startup() error {
 		}
 		go listenerRoutine(shutdown, conns, listener, net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort))))
 	}
-
-	go backendRoutine()
 
 	/// connections
 	go func() {
