@@ -46,8 +46,8 @@ var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:8332",
 		PollInterval: 500,
-		Cookie:       "~/.bitcoin/.cookie",
-		Rpcauth:      "bitty:axxy",
+		Cookie:       "",
+		Rpcauth:      "",
 	},
 	Pogolo: Pogolo{
 		Interface:           "lo",
@@ -76,6 +76,9 @@ func LoadConfig(path string, conf *Config) error {
 	return nil
 }
 func WriteDefaultConfig(path string) error {
+	/// done here to not fuck up runtime
+	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
+	DEFAULT_CONFIG.Backend.Rpcauth = "bitty:axxy"
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)

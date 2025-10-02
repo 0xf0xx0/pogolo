@@ -249,8 +249,9 @@ func (client *StratumClient) Stop() {
 	}
 	client.writeChan("done")
 	close(client.statusChan)
-	client.statusChan = nil
 	close(client.templateChan)
+	/// nil because receive-side closure
+	client.statusChan = nil
 	client.templateChan = nil
 	client.conn.Close()
 	log("===<{green}%s{/green} has left the swarm!>===", client.Name())
