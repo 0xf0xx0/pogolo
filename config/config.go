@@ -24,7 +24,7 @@ type Backend struct {
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported"`
 	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass"`
 	Websocket    bool   `toml:"websocket" comment:"whether to use the btcd websocket interface"`
-	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is used"`
+	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is true"`
 }
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"takes precedence over ip, will listen on all interface ips"`

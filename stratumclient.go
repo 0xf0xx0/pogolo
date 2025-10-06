@@ -361,13 +361,14 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 
 			client.submitBlock(s)
-			client.log("block submitted")
+			client.log("block candidate submitted")
 		}
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
 			client.log("{green}new best session diff!")
 		}
 		client.stats.sharesAccepted++
+		/// MAYBE: save en2?
 		client.stats.update(client.TargetDiff)
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{white}%s, avg submit delta: %ds",
 			diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff),
@@ -399,7 +400,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
-	/// TODO/FIXME: honestly this shouldnt be less than halfway
+	/// MAYBE/FIXME: honestly this shouldnt be less than halfway
 	if partOneIndex < 0 {
 		panic("partOneIndex shoudnt be below 0")
 	}
@@ -416,7 +417,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 			Version:        uint32(blockHeader.Version),
 			Bits:           template.Bits,
 			Timestamp:      blockHeader.Timestamp,
-			/// minus 8 cause we wanna lop off the extranonce padding
+			/// we wanna lop off the extranonce padding
 			/// TODO: variable extranonce2
 			CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
 			CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
