@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -94,7 +95,7 @@ func getPool(res http.ResponseWriter, _ *http.Request) {
 func getNetwork(res http.ResponseWriter, req *http.Request) {
 	info, err := backend.GetMiningInfo()
 	if err != nil {
-		logError("error in getNetwork: %s", err)
+		logError(fmt.Sprintf("error in getNetwork: %s", err))
 		writeError(http.StatusInternalServerError, res)
 		return
 	}
@@ -104,7 +105,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	name := req.PathValue("extranonce1")
 	client := findClientFromName(name)
 	if client == nil {
-		logError("failed to find client %s", name)
+		logError(fmt.Sprintf("failed to find client %s", name))
 		writeError(http.StatusBadRequest, res)
 		return
 	}

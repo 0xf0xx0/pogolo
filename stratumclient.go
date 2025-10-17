@@ -62,7 +62,10 @@ func (client *StratumClient) Run(noCleanup bool) {
 	for {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
-			log("===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {white}%s", client.Name(), client.ID, client.Addr())
+			log(fmt.Sprintf(
+				"===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {white}%s",
+				client.Name(), client.ID, client.Addr(),
+			))
 			/// the initial difficulty was set in CreateClient,
 			/// but the client may also suggested a difficulty before
 			/// fully initialized
@@ -83,6 +86,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 
 		/// messages are newline separated (either lf or crlf)
 		line, err := reader.ReadBytes(byte('\n'))
+		/// we dont need the training newline
+		line = line[:len(line)-1]
 
 		switch err {
 		case nil:
@@ -93,6 +98,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 			client.error("%s", err)
 		}
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
+		/// TODO: add stratum log option
+		//client.log("{blackbright}> %#q", line)
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
 			client.error("stratum decode error: %s", err)
@@ -254,7 +261,7 @@ func (client *StratumClient) Stop() {
 	client.statusChan = nil
 	client.templateChan = nil
 	client.conn.Close()
-	log("===<{green}%s{/green} has left the swarm!>===", client.Name())
+	log(fmt.Sprintf("===<{green}%s{/green} has left the swarm!>===", client.Name()))
 }
 
 // aims for the target_share_interval
@@ -467,6 +474,7 @@ func (client *StratumClient) writeChan(msg string) {
 // maybe: pick random color for client?
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
+	/// MAYBE: move prefix to StratumClient?
 	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
 }
 func (client *StratumClient) error(s string, a ...any) {

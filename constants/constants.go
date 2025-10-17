@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	//VERSION_ROLLING_MASK    = 0x1fffe000 // bip 320
+	VERSION_ROLLING_MASK    = 0x1fffe000 // bip 320
 	EXTRANONCE_SIZE         = 4 // bytes
 	DEFAULT_DIFFICULTY      = 1024
 	DEFAULT_COINBASE_TAG    = "/pogolo - decentralize or die/"
@@ -37,7 +37,7 @@ var (
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "not accepted"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}
-	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 413, Message: "difficulty too low"}
+	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 413, Message: "diff too low"}
 	// for data we understand but couldnt process
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "unprocessable content"}
 )

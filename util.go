@@ -108,13 +108,19 @@ func CreateCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64,
 	return coinbase
 }
 
+/// MAYBE: move to constants?
+var trueDiff1 = func() *big.Float {
+	td1 := big.Int{}
+	td1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
+	return new(big.Float).SetInt(&td1)
+}()
+
 // port of public-pools calculateDifficulty
 func CalcDifficulty(header wire.BlockHeader) float64 {
 	hashResult := header.BlockHash()
-	s64 := blockchain.HashToBig(&hashResult)
-	trueDiff1 := big.Int{}
-	trueDiff1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
-	diff, _ := new(big.Float).Quo(new(big.Float).SetInt(&trueDiff1), new(big.Float).SetInt(s64)).Float64()
+	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hashResult))
+
+	diff, _ := new(big.Float).Quo(trueDiff1, s64).Float64()
 	return diff
 }
 

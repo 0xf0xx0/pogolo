@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/0xf0xx0/stratum"
@@ -127,18 +128,27 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
 		return nil, errors.New("invalid extranonce2 size")
 	}
-	coinbase := hex.EncodeToString(notif.CoinbasePart1) + client.ID.String() +
-		hex.EncodeToString(share.ExtraNonce2) + hex.EncodeToString(notif.CoinbasePart2)
-	decodedCoinbase, err := hex.DecodeString(coinbase)
+
+	coinbase := strings.Builder{}
+	/// alloc enough space for the cb (we're goin for speed so 512 is enough without over-allocing)
+	/// assuming avg tx size of 330, alloc at most 660
+	coinbase.Grow(512)
+	coinbase.WriteString(hex.EncodeToString(notif.CoinbasePart1))
+	coinbase.WriteString(client.ID.String())
+	coinbase.WriteString(hex.EncodeToString(share.ExtraNonce2))
+	coinbase.WriteString(hex.EncodeToString(notif.CoinbasePart2))
+	decodedCoinbase, err := hex.DecodeString(coinbase.String())
 	if err != nil {
 		return nil, err
 	}
-	tx, err := btcutil.NewTxFromBytes(decodedCoinbase)
+	coinbaseTx, err := btcutil.NewTxFromBytes(decodedCoinbase)
 	if err != nil {
 		return nil, err
 	}
 
-	msgBlock.Transactions[0] = tx.MsgTx()
+	msgBlock.Transactions[0] = coinbaseTx.MsgTx()
+
+	/// update the header
 	msgBlock.Header.Nonce = share.Nonce
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
@@ -147,7 +157,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	}
 
 	/// coinbase was changed, thus recalc the root
-	branches := append([]*chainhash.Hash{tx.Hash()}, job.MerkleBranch...)
+	branches := append([]*chainhash.Hash{coinbaseTx.Hash()}, job.MerkleBranch...)
 	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
 	return msgBlock, nil

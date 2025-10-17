@@ -165,16 +165,16 @@ func main() {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
 				defaultMiningAddr = &addr
-				log("{blue}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress)
+				log(fmt.Sprintf("{blue}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
 			}
 			/// start
-			log("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage)
-			log("mining on {yellow}%s", activeChainParams.Name)
+			log(fmt.Sprintf("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage))
+			log(fmt.Sprintf("mining on {yellow}%s", activeChainParams.Name))
 			return startup()
 		},
 	}
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		logError("%s", err)
+		logError(fmt.Sprintf("%s", err))
 	}
 }
 
@@ -225,6 +225,7 @@ func startup() error {
 			go listenerRoutine(shutdown, conns, listener, net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort))))
 		}
 	} else {
+		/// TODO: use net.LookupHost for domains?
 		listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.Port))))
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
@@ -268,7 +269,7 @@ func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := CreateClient(conn, submissionChan)
 	channel := client.MsgChannel()
-	/// remove ourself from the client map on disconnect
+	/// remove ourselves from the client map on disconnect
 	defer func() {
 		delete(clients, client.ID)
 	}()
@@ -314,16 +315,16 @@ func backendRoutine() {
 			}
 			err := backend.SubmitBlock(submission.Block, nil)
 			if err != nil {
-				logError("error from backend while submitting block: %s", err)
+				logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 				continue
 			}
 			worker := clients[submission.ClientID].Name()
-			log(
-				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nhash: %s\ndifficulty: %f\nworker: %s",
-				submission.Block.Hash(),
-				CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
-				worker,
-			)
+			log(fmt.Sprintf(
+					"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nhash: %s\ndifficulty: %f\nworker: %s",
+					submission.Block.Hash(),
+					CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
+					worker,
+			))
 
 			triggerGBT <- true
 		}
@@ -341,11 +342,11 @@ func backendRoutine() {
 			for {
 				count, err := backend.GetBlockCount()
 				if err != nil {
-					logError("%s", err)
+					logError(fmt.Sprintf("%s", err))
 				}
 				/// we're mining on this height
 				if count == currTemplate.Height {
-					log("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count)
+					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count))
 					triggerGBT <- true
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
@@ -361,12 +362,12 @@ func backendRoutine() {
 			Mode:         "template",
 		})
 		if err != nil {
-			logError("error fetching template: %s", err)
+			logError(fmt.Sprintf("error fetching template: %s", err))
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue
 		}
 		currTemplate = CreateJobTemplate(template)
-		log("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions))
+		log(fmt.Sprintf("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
@@ -391,9 +392,9 @@ func waitForTemplate() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
 	defer listener.Close()
-	log("stratum listening on {white}%s", listener.Addr())
+	log(fmt.Sprintf("stratum listening on {white}%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
-	log("api listening on {white}%s", httpAddr)
+	log(fmt.Sprintf("api listening on {white}%s", httpAddr))
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -419,9 +420,9 @@ func notifyClients(j *JobTemplate) {
 	}
 }
 
-func log(s string, a ...any) {
-	fmt.Println(oigiki.ProcessTags(fmt.Sprintf(oigiki.TagString(s, "cyan"), a...)))
+func log(s string) {
+	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan")))
 }
-func logError(s string, a ...any) {
-	println(oigiki.ProcessTags(fmt.Sprintf(oigiki.TagString(s, "red"), a...)))
+func logError(s string) {
+	println(oigiki.ProcessTags(oigiki.TagString(s, "red")))
 }
