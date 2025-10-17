@@ -119,8 +119,7 @@ var trueDiff1 = func() *big.Float {
 func CalcDifficulty(header wire.BlockHeader) float64 {
 	hashResult := header.BlockHash()
 	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hashResult))
-
-	diff, _ := new(big.Float).Quo(trueDiff1, s64).Float64()
+	diff, _ := s64.Quo(trueDiff1, s64).Float64()
 	return diff
 }
 

@@ -271,15 +271,16 @@ func (client *StratumClient) adjustDiffRoutine() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
 	}
-	difference := int64(conf.Pogolo.TargetShareInterval) - int64(client.stats.avgSubmissionDelta/1000)
-	absDifference := math.Abs(float64(difference))
+	/// megative = running slow, positive = running fast
+	difference := float64(conf.Pogolo.TargetShareInterval) - (float64(client.stats.avgSubmissionDelta)/1000)
+	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 	/// tighten it to +-1s
-	if absDifference < 2 {
+	if absDifference < 3 {
 		return
 	}
-	/// cap the adjustment at +-2^12
-	delta := min(math.Pow(2, absDifference), 4096)
+	/// cap the adjustment at +-2^9
+	delta := min(math.Pow(2, absDifference), 512)
 	if difference < 0 {
 		delta = -delta / 2 /// we want to be more conservative when adjusting downwards
 	}
