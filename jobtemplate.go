@@ -22,7 +22,7 @@ import (
 
 type JobTemplate struct {
 	ID           string
-	Block        *btcutil.Block
+	MsgBlock     *wire.MsgBlock
 	Bits         []byte
 	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
@@ -33,6 +33,7 @@ type MiningJob struct {
 	stratum.NotifyParams
 	MerkleBranch []*chainhash.Hash
 	Block        *btcutil.Block
+	Version      int32
 	NetworkDiff  float64
 }
 
@@ -93,7 +94,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		msgTxns[idx] = tx.MsgTx()
 	}
 
-	block := btcutil.NewBlock(&wire.MsgBlock{
+	block := &wire.MsgBlock{
 		Header: wire.BlockHeader{
 			Version:    template.Version,
 			Bits:       uint32(headerBits),
@@ -102,28 +103,27 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 			MerkleRoot: *merkleRoot,
 		},
 		Transactions: msgTxns,
-	})
-	block.SetHeight(int32(template.Height))
+	}
 
 	/// bitties on the yitties
 	bits, _ := hex.DecodeString(template.Bits)
 	currTemplateID++
 	job := &JobTemplate{
 		ID:           strconv.FormatUint(currTemplateID, 16),
-		Block:        block,
+		MsgBlock:     block,
 		MerkleBranch: merkleBranch,
 		Bits:         bits,
 		NetworkDiff:  CalcNetworkDifficulty(uint32(headerBits)),
 		Subsidy:      *template.CoinbaseValue,
 		Height:       template.Height,
 	}
-
 	return job
 }
 
-// like public-pools copyAndUpdateBlock
+// like public-pools copyAndUpdateBlock without the copy
 func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
-	msgBlock := job.Block.MsgBlock().Copy()
+	/// because we copied the block from the template when making the job, we can just reuse it
+	msgBlock := job.Block.MsgBlock()
 
 	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
 		return nil, errors.New("invalid extranonce2 size")
@@ -132,6 +132,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	coinbase := strings.Builder{}
 	/// alloc enough space for the cb (we're goin for speed so 512 is enough without over-allocing)
 	/// assuming avg tx size of 330, alloc at most 660
+	/// our coinbase is at max 256 bytes, nice
 	coinbase.Grow(512)
 	coinbase.WriteString(hex.EncodeToString(notif.CoinbasePart1))
 	coinbase.WriteString(client.ID.String())
@@ -150,14 +151,13 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 
 	/// update the header
 	msgBlock.Header.Nonce = share.Nonce
+	msgBlock.Header.Version = job.Version + int32(share.VersionMask)
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
-	if share.VersionMask != 0 {
-		msgBlock.Header.Version += int32(share.VersionMask)
-	}
-
 	/// coinbase was changed, thus recalc the root
-	branches := append([]*chainhash.Hash{coinbaseTx.Hash()}, job.MerkleBranch...)
+	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
+	branches[0] = coinbaseTx.Hash()
+	branches = append(branches, job.MerkleBranch...)
 	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
 	return msgBlock, nil

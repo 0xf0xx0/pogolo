@@ -10,7 +10,7 @@ const (
 	DEFAULT_DIFFICULTY      = 1024
 	DEFAULT_COINBASE_TAG    = "/pogolo - decentralize or die/"
 	MIN_DIFFICULTY          = 0.01       // hard min
-	SUBMISSION_DELTA_WINDOW = 32         // rolling avg window
+	SUBMISSION_DELTA_WINDOW = 32         // rolling avg window, also the diff adjust period
 	HASHRATE_WINDOW         = int64(600) // 10 min windows
 )
 

@@ -80,24 +80,29 @@ func (client *StratumClient) Run(noCleanup bool) {
 			if client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
 				client.log("{white}mining to pool address")
 			}
+			if client.VersionRollingMask > 0 {
+				client.log("{white}version rolling enabled! mask: %#x", client.VersionRollingMask)
+			}
 			client.stats.startTime = time.Now()
 			client.writeChan("ready")
 		}
 
 		/// messages are newline separated (either lf or crlf)
 		line, err := reader.ReadBytes(byte('\n'))
-		/// we dont need the training newline
-		line = line[:len(line)-1]
+		/// we dont need the trailing newline
+		line = []byte(strings.TrimRight(string(line), "\n\r "))
 
 		switch err {
 		case nil:
 		case io.ErrClosedPipe:
 			fallthrough
 		case io.EOF:
+			return
 		default:
 			client.error("%s", err)
+			return
 		}
-		client.conn.SetDeadline(time.Now().Add(time.Minute * 5))
+		client.conn.SetDeadline(time.Now().Add(time.Minute * 3))
 		/// TODO: add stratum log option
 		//client.log("{blackbright}> %#q", line)
 		m, err := DecodeStratumMessage(line)
@@ -107,6 +112,19 @@ func (client *StratumClient) Run(noCleanup bool) {
 		}
 
 		switch m.GetMethod() {
+		case stratum.MiningSubmit:
+			{
+				if !stratumInited {
+					client.error("submit before subscribe")
+					return
+				}
+				s := stratum.Share{}
+				err := s.Read(m)
+				if err != nil {
+					panic(err)
+				}
+				client.validateShareSubmission(s, m)
+			}
 		case stratum.MiningConfigure:
 			{
 				params := stratum.ConfigureParams{}
@@ -120,8 +138,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 							client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 							return
 						}
-						/// TODO: AND with default  version mask?
-						client.VersionRollingMask = uint32(mask)
+						/// bip-310
+						client.VersionRollingMask = uint32(mask) & constants.VERSION_ROLLING_MASK
 
 						err = res.Add(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
 						if err != nil {
@@ -225,19 +243,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
 			}
-		case stratum.MiningSubmit:
-			{
-				if !stratumInited {
-					client.error("submit before subscribe")
-					return
-				}
-				s := stratum.Share{}
-				err := s.Read(m)
-				if err != nil {
-					panic(err)
-				}
-				client.validateShareSubmission(s, m)
-			}
 		case stratum.MiningExtranonceSubscribe:
 			{
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
@@ -272,7 +277,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		return
 	}
 	/// megative = running slow, positive = running fast
-	difference := float64(conf.Pogolo.TargetShareInterval) - (float64(client.stats.avgSubmissionDelta)/1000)
+	difference := float64(conf.Pogolo.TargetShareInterval) - float64(client.stats.avgSubmissionDelta/1000)
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 	/// tighten it to +-1s
@@ -392,7 +397,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	block := btcutil.NewBlock(template.Block.MsgBlock().Copy())
+	block := btcutil.NewBlock(template.MsgBlock.Copy())
 	blockHeader := block.MsgBlock().Header
 
 	merkleBranches := make([][]byte, len(template.MerkleBranch))
@@ -417,6 +422,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	job := MiningJob{
 		NetworkDiff:  template.NetworkDiff,
 		Block:        block,
+		Version: block.MsgBlock().Header.Version,
 		MerkleBranch: template.MerkleBranch,
 		NotifyParams: stratum.NotifyParams{
 			JobID:          template.ID,

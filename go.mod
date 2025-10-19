@@ -2,13 +2,13 @@ module pogolo
 
 go 1.24.4
 
-//replace github.com/0xf0xx0/stratum => ../stratum
+replace github.com/0xf0xx0/stratum => ../stratum
 
 replace github.com/0xf0xx0/oigiki => ../oigiki
 
 require (
-	github.com/0xf0xx0/oigiki v1.0.1
-	github.com/0xf0xx0/stratum v0.0.4
+	github.com/0xf0xx0/oigiki v1.0.2
+	github.com/0xf0xx0/stratum v0.0.5
 	github.com/btcsuite/btcd v0.24.3-0.20250728230003-baebb836c2d4
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20250728230003-baebb836c2d4
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20250728230003-baebb836c2d4

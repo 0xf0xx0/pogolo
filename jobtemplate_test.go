@@ -61,8 +61,8 @@ func TestCreateJobTemplate(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
 	job := main.CreateJobTemplate(template)
 
-	if job.Height != template.Height || job.Block.Height() != int32(template.Height) {
-		t.Errorf("job height mismatch: expected %d, got job: %d and block: %d", template.Height, job.Height, job.Block.Height())
+	if job.Height != template.Height {
+		t.Errorf("job height mismatch: expected %d, got job: %d", template.Height, job.Height)
 	}
 	if job.Subsidy != *template.CoinbaseValue {
 		t.Errorf("job coinbase value mismatch, expected %d, got %d", template.CoinbaseValue, job.Subsidy)
@@ -71,10 +71,10 @@ func TestCreateJobTemplate(t *testing.T) {
 	if jobBits != template.Bits {
 		t.Errorf("job bits mismatch, expected %s, got %s", template.Bits, jobBits)
 	}
-	if job.Block.MsgBlock().Header.PrevBlock.String() != template.PreviousHash {
+	if job.MsgBlock.Header.PrevBlock.String() != template.PreviousHash {
 		t.Errorf("job prevhash mismatch, expected %s, got %s",
 			template.PreviousHash,
-			job.Block.MsgBlock().Header.PrevBlock.String())
+			job.MsgBlock.Header.PrevBlock.String())
 	}
 	/// .DefaultWitnessCommitment includes the magic bytes, trim em before comparing
 	/// FIXME: by removing unused struct fields im also breaking my tests :D
