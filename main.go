@@ -165,7 +165,7 @@ func main() {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
 				defaultMiningAddr = &addr
-				log(fmt.Sprintf("{blue}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
+				log(fmt.Sprintf("{yellow}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
 			}
 			/// start
 			log(fmt.Sprintf("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage))
@@ -393,9 +393,9 @@ func waitForTemplate() {
 // listens on one ip
 func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
 	defer listener.Close()
-	log(fmt.Sprintf("stratum listening on {white}%s", listener.Addr()))
+	log(fmt.Sprintf("stratum listening on {green}%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
-	log(fmt.Sprintf("api listening on {white}%s", httpAddr))
+	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

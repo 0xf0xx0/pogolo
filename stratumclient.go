@@ -63,7 +63,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
 			log(fmt.Sprintf(
-				"===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {white}%s",
+				"===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {green}%s",
 				client.Name(), client.ID, client.Addr(),
 			))
 			/// the initial difficulty was set in CreateClient,
@@ -78,10 +78,10 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 			}
 			if client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
-				client.log("{white}mining to pool address")
+				client.log("{yellow}mining to pool address")
 			}
 			if client.VersionRollingMask > 0 {
-				client.log("{white}version rolling enabled! mask: %#x", client.VersionRollingMask)
+				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
 			}
 			client.stats.startTime = time.Now()
 			client.writeChan("ready")
@@ -232,7 +232,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				if suggestedDiff != client.TargetDiff && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
-					client.log("{white}suggested difficulty {blue}%g", suggestedDiff)
+					client.log("suggested difficulty {blue}%g", suggestedDiff)
 
 					if err := client.setDifficulty(suggestedDiff); err != nil {
 						client.error("failed to adjust difficulty: %s", err)
@@ -291,7 +291,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 	}
 
 	newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
-	client.log("{white}adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
+	client.log("adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
 	if err := client.setDifficulty(newDiff); err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			/// client died and we didnt notice?
@@ -374,7 +374,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			}
 
 			client.submitBlock(s)
-			client.log("block candidate submitted")
+			client.log("{yellow}block candidate submitted")
 		}
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
@@ -383,7 +383,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.stats.sharesAccepted++
 		/// MAYBE: save en2?
 		client.stats.update(client.TargetDiff)
-		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{white}%s, avg submit delta: %ds",
+		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
 			diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff),
 			formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
 		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
