@@ -37,10 +37,6 @@ type MiningJob struct {
 	NetworkDiff  float64
 }
 
-var (
-	currTemplateID = uint64(0)
-)
-
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 
 	currTime := time.Now().Unix()

@@ -40,6 +40,7 @@ var (
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
 	clients           map[stratum.ID]*StratumClient // map of client ids to clients
+	currTemplateID    = uint64(0)
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission
 	serverStartTime   time.Time
@@ -320,10 +321,10 @@ func backendRoutine() {
 			}
 			worker := clients[submission.ClientID].Name()
 			log(fmt.Sprintf(
-					"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nworker: %s\nhash: %s\ndifficulty: %f",
-					worker,
-					submission.Block.Hash(),
-					CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
+				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nworker: %s\nhash: %s\ndifficulty: %f",
+				worker,
+				submission.Block.Hash(),
+				CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
 
 			))
 
@@ -367,6 +368,8 @@ func backendRoutine() {
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue
 		}
+		/// MAYBE: option to ignore empty templates
+		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
 		log(fmt.Sprintf("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob

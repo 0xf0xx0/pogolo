@@ -66,6 +66,7 @@ the address is also optional if the pool has a default address configured.
     - hide cursor, use full term height?
     - styled around standard 80x24
     - tui?? idk i need a tui dev lol
+- option to ignore empty templates?
 - 0.5% dev fee for large miners (>=50th), optionally scaling up to 1.5 for >= 50PH?
 - db interface for optional stats persistence?
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
