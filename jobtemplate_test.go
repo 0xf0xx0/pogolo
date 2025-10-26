@@ -46,7 +46,7 @@ func TestUpdateBlock(t *testing.T) {
 		User: getAddr(),
 	}
 	tml := CreateJobTemplate(template)
-	job := client.CreateJob(tml)
+	job := client.createJob(tml)
 	blk, err := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
 	if err != nil {
 		t.Error(err)
