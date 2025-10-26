@@ -440,11 +440,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	return job
 }
 
-// for testing
-func (client *StratumClient) CreateJob(template *JobTemplate) MiningJob {
-	return client.createJob(template)
-}
-
 // chatter
 func (client *StratumClient) submitBlock(block BlockSubmission) {
 	client.submissionChan <- block
@@ -491,7 +486,7 @@ func (client *StratumClient) error(s string, a ...any) {
 type ClientStats struct {
 	lastTimeSlot,
 	currTimeSlot timeSlot
-	startTime, // time the client subscribes
+	startTime, // time the client subscribed
 	lastSubmission time.Time // used for calcing delta between `mining.submit`s
 	avgSubmissionDelta uint64 // in ms
 	sharesAccepted,
