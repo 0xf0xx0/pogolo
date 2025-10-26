@@ -8,7 +8,7 @@ host = '[::1]:8332'
 # whether to use the btcd websocket interface
 websocket = false
 # how quickly to poll for block updates, in milliseconds
-# ignored if websocket is used
+# ignored if websocket is true
 poll_interval = 500
 
 [pogolo]
@@ -34,6 +34,7 @@ job_interval = 60
 target_share_interval = 5
 # extranonce2 size, usually shouldnt be touched
 # extranonce2_size = 4
+# ignore the client-suggested difficulty
 # ignore_suggested_difficulty = false
 # disable automatic difficulty adjustment
 # disable_vardiff = false
