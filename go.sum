@@ -1,7 +1,7 @@
 github.com/0xf0xx0/oigiki v1.0.2 h1:BuEALyMKj75LMHMyHbUHe+TClr9nQsS04EvcHNI97pE=
 github.com/0xf0xx0/oigiki v1.0.2/go.mod h1:TKpjJDwCIdXZVKR7a8jIP2oo3W8VADqLgMyuPe7KpXA=
-github.com/0xf0xx0/stratum v0.0.5 h1:hjogzr/IPldsaM2ZX9PrtTsx6E65aLsFqm6qZXOOcQ0=
-github.com/0xf0xx0/stratum v0.0.5/go.mod h1:QAwM0ukI8XBZwKmv8O9eSH2I+tedjG1Wstrs6jdO4fk=
+github.com/0xf0xx0/stratum v0.0.6 h1:27GuqRy1Lz9hAkrx6nd7IYzjFEGhNoUXgSYoTtGOMZY=
+github.com/0xf0xx0/stratum v0.0.6/go.mod h1:QAwM0ukI8XBZwKmv8O9eSH2I+tedjG1Wstrs6jdO4fk=
 github.com/btcsuite/btcd v0.25.0-beta.rc1.0.20250925015248-b7d070601def h1:t2NTKvDXNP71BTEFb9NF0IMz39x0VkyY7YG1fshSLsM=
 github.com/btcsuite/btcd v0.25.0-beta.rc1.0.20250925015248-b7d070601def/go.mod h1:qbPE+pEiR9643E1s1xu57awsRhlCIm1ZIi6FfeRA4KE=
 github.com/btcsuite/btcd/btcec/v2 v2.3.6-0.20250728230003-baebb836c2d4 h1:B96E3s4bAcP/T9bad1vHPyfkF5/U9gBJJI7kSs06DpM=
