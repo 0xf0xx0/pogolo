@@ -100,16 +100,16 @@ var (
 
 // requests
 var (
-	authorizeReq         = stratum.AuthorizeRequest("2", authorizeParams)
-	configureReq         = stratum.ConfigureRequest("1", configureParams)
-	subscribeReq         = stratum.SubscribeRequest("3", subscribeParams)
-	suggestDifficultyReq = stratum.SuggestDifficultyRequest("4", suggestDiffParams)
+	subscribeReq         = stratum.SubscribeRequest(1, subscribeParams)
+	configureReq         = stratum.ConfigureRequest(2, configureParams)
+	authorizeReq         = stratum.AuthorizeRequest(3, authorizeParams)
+	suggestDifficultyReq = stratum.SuggestDifficultyRequest(4, suggestDiffParams)
 
 	notifyReq = stratum.Notify(notifyParams)
-	submitReq = stratum.Submit("5", submitParams)
+	submitReq = stratum.Submit(5, submitParams)
 
 	notifyReqMerkle = stratum.Notify(notifyParamsMerkle)
-	submitReqMerkle = stratum.Submit("5", submitParamsMerkle)
+	submitReqMerkle = stratum.Submit(5, submitParamsMerkle)
 )
 
 // data

@@ -122,7 +122,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	msgBlock := job.Block.MsgBlock()
 
 	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
-		return nil, errors.New("invalid extranonce2 size")
+		return nil, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
 	}
 
 	coinbase := strings.Builder{}

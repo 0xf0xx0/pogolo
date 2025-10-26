@@ -7,10 +7,13 @@ import (
 	"testing"
 
 	main "pogolo"
-	"pogolo/constants"
 
 	"github.com/0xf0xx0/stratum"
 )
+
+func TestMain(t *testing.T) {
+
+}
 
 func TestConfigure(t *testing.T) {
 	lpipe, client, _ := initClient()
@@ -39,8 +42,8 @@ func TestAuthorize(t *testing.T) {
 	}
 	t.Logf("user: %q, worker: %q", client.User, client.Worker)
 	rebuiltUser := fmt.Sprintf("%s.%s", client.User, client.Worker)
-	if rebuiltUser != params.Username {
-		t.Errorf("username mismatch: expected %q, got %q", params.Username, rebuiltUser)
+	if rebuiltUser != params.Username+"."+params.Worker {
+		t.Errorf("username mismatch: expected %q, got %q", params.Username+"."+params.Worker, rebuiltUser)
 	}
 }
 
@@ -55,15 +58,15 @@ func TestSubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	if r.Subscriptions[0].Method != stratum.MiningNotify {
+		t.Errorf("subscription method mismatch: expected %q, got %q", stratum.MiningNotify, r.Subscriptions[0].Method)
+	}
 	if r.ExtraNonce1 != client.ID {
 		t.Errorf("extranonce1 mismatch: expected %q, got %q", client.ID, r.ExtraNonce1)
 	}
-	if r.ExtraNonce2Size != constants.EXTRANONCE_SIZE {
+	if r.ExtraNonce2Size != 0 {
 		t.Errorf("extranonce2 size mismatch: expected %d, got %d",
-			constants.EXTRANONCE_SIZE, r.ExtraNonce2Size)
-	}
-	if r.Subscriptions[0].Method != stratum.MiningNotify {
-		t.Errorf("subscription method mismatch: expected %q, got %q", stratum.MiningNotify, r.Subscriptions[0].Method)
+			0, r.ExtraNonce2Size)
 	}
 	validateRes(req, res, t)
 }
@@ -71,7 +74,7 @@ func TestSubscribe(t *testing.T) {
 func TestSuggestDifficulty(t *testing.T) {
 	lpipe, client, _ := initClient()
 	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
-	suggestDifficultyReq.MessageID = nil
+	suggestDifficultyReq.MessageID = 0
 	client.Stop()
 	validateRes(suggestDifficultyReq, res, t)
 }
@@ -105,11 +108,12 @@ func TestFullBlock(t *testing.T) {
 
 	template := main.CreateJobTemplate(MOCK_BLOCK_TEMPLATE_MERKLE)
 	job := client.CreateJob(template)
-	// job.NotifyParams = notifyParamsMerkle
+	//job.NotifyParams = notifyParamsMerkle
 	job.NotifyParams.JobID = "1"
 	client.CurrentJob = job
 
 	sendReqAndWaitForRes(t, submitReqMerkle, lpipe)
+	/// TODO: invalid hash
 	finalCoinbaseTx, err := main.SerializeTx(client.CurrentJob.Block.MsgBlock().Transactions[0], true)
 	if err != nil {
 		t.Error(err)
@@ -120,20 +124,18 @@ func TestFullBlock(t *testing.T) {
 
 }
 
-func TesstCopySpam(t *testing.T) {
-
-}
-
-
 //
 
 // util
 
 func sendReqAndWaitForRes(t *testing.T, r stratum.Request, lpipe net.Conn) stratum.Response {
-	b, _ := r.Marshal()
+	b, err := r.Marshal()
+	if err != nil {
+		t.Fatalf("error marshalling req: %s", err)
+	}
 	t.Logf("sending message: %s", b)
 	//time.Sleep(time.Millisecond * 100) /// if needed
-	_, err := lpipe.Write(b)
+	_, err = lpipe.Write(b)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

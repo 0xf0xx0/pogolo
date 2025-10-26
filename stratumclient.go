@@ -77,7 +77,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
 			}
-			if client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+			if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
 				client.log("{yellow}mining to pool address")
 			}
 			if client.VersionRollingMask > 0 {
@@ -413,7 +413,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
-	/// MAYBE/FIXME: honestly this shouldnt be less than halfway
 	if partOneIndex < 0 {
 		panic("partOneIndex shoudnt be below 0")
 	}
@@ -422,7 +421,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	job := MiningJob{
 		NetworkDiff:  template.NetworkDiff,
 		Block:        block,
-		Version: block.MsgBlock().Header.Version,
+		Version:      block.MsgBlock().Header.Version,
 		MerkleBranch: template.MerkleBranch,
 		NotifyParams: stratum.NotifyParams{
 			JobID:          template.ID,
@@ -432,7 +431,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 			Bits:           template.Bits,
 			Timestamp:      blockHeader.Timestamp,
 			/// we wanna lop off the extranonce padding
-			/// TODO: variable extranonce2
 			CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
 			CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
 			Clean:         true, /// we don't support multiple active jobs

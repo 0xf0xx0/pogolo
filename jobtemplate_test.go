@@ -45,10 +45,15 @@ func TestUpdateBlock(t *testing.T) {
 	}
 	tml := main.CreateJobTemplate(template)
 	job := client.CreateJob(tml)
-	blk, _ := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
+	blk, err := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	shareDiff := main.CalcDifficulty(blk.Header)
 	if shareDiff != expectedShareDiff {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
+		return
 	}
 	serializedHeader := bytes.NewBuffer([]byte{})
 	blk.Header.Serialize(serializedHeader)
