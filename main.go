@@ -30,7 +30,7 @@ import (
 // things
 const (
 	NAME    = "pogolo"
-	VERSION = "0.0.8"
+	VERSION = "0.0.9"
 )
 
 // state
