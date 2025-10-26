@@ -1,11 +1,11 @@
-package main_test
+package main
 
 // this file is just for storing the data as variables
 import (
 	"encoding/json"
 	"os"
 
-	main "pogolo"
+	// main "pogolo"
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcjson"
@@ -187,7 +187,7 @@ func getAddr() btcutil.Address {
 }
 func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
-	job := main.CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	tx := main.CreateCoinbaseTx(addr, btcutil.NewBlock(job.MsgBlock), job.Subsidy, MOCK_CHAIN)
+	job := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
+	tx := CreateCoinbaseTx(addr, btcutil.NewBlock(job.MsgBlock), job.Subsidy, MOCK_CHAIN)
 	return tx
 }

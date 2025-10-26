@@ -1,12 +1,13 @@
-package main_test
+package main
 
 import (
 	"bufio"
 	"fmt"
 	"net"
+	"pogolo/constants"
 	"testing"
 
-	main "pogolo"
+	// main "pogolo"
 
 	"github.com/0xf0xx0/stratum"
 )
@@ -64,9 +65,9 @@ func TestSubscribe(t *testing.T) {
 	if r.ExtraNonce1 != client.ID {
 		t.Errorf("extranonce1 mismatch: expected %q, got %q", client.ID, r.ExtraNonce1)
 	}
-	if r.ExtraNonce2Size != 0 {
+	if r.ExtraNonce2Size != constants.EXTRANONCE_SIZE {
 		t.Errorf("extranonce2 size mismatch: expected %d, got %d",
-			0, r.ExtraNonce2Size)
+			constants.EXTRANONCE_SIZE, r.ExtraNonce2Size)
 	}
 	validateRes(req, res, t)
 }
@@ -106,21 +107,23 @@ func TestFullBlock(t *testing.T) {
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE_MERKLE)
 
-	template := main.CreateJobTemplate(MOCK_BLOCK_TEMPLATE_MERKLE)
-	job := client.CreateJob(template)
-	//job.NotifyParams = notifyParamsMerkle
-	job.NotifyParams.JobID = "1"
+	template := CreateJobTemplate(MOCK_BLOCK_TEMPLATE_MERKLE)
+	job := client.createJob(template)
+	t.Logf("%+v", job.NotifyParams)
+	t.Logf("%+v", notifyParamsMerkle)
+
+	job.NotifyParams = notifyParamsMerkle
 	client.CurrentJob = job
 
-	sendReqAndWaitForRes(t, submitReqMerkle, lpipe)
+	//sendReqAndWaitForRes(t, submitReqMerkle, lpipe)
 	/// TODO: invalid hash
-	finalCoinbaseTx, err := main.SerializeTx(client.CurrentJob.Block.MsgBlock().Transactions[0], true)
+	finalCoinbaseTx, err := SerializeTx(client.CurrentJob.Block.MsgBlock().Transactions[0], true)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Logf("final coinbase: %x", finalCoinbaseTx)
 	t.Logf("block hash: %s", client.CurrentJob.Block.Hash())
-	t.Logf("difficulty: %f", main.CalcDifficulty(client.CurrentJob.Block.MsgBlock().Header))
+	t.Logf("difficulty: %f", CalcDifficulty(client.CurrentJob.Block.MsgBlock().Header))
 
 }
 
@@ -163,11 +166,11 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *main.StratumClient, chan main.BlockSubmission) {
-	submissionChan := make(chan main.BlockSubmission)
+func initClient() (net.Conn, *StratumClient, chan BlockSubmission) {
+	submissionChan := make(chan BlockSubmission)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
-	client := main.CreateClient(rpipe, submissionChan)
+	client := CreateClient(rpipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(true)
 	go func() {

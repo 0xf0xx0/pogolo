@@ -1,11 +1,12 @@
-package main_test
+package main
 
 import (
 	"bytes"
 	"encoding/hex"
+	"pogolo/config"
 	"testing"
 
-	main "pogolo"
+	// main "pogolo"
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
@@ -29,28 +30,29 @@ func TestWitnessCalc(t *testing.T) {
 		}
 		txns[idx+1] = tx
 	}
-	txns[0] = main.CreateEmptyCoinbase(template)
+	txns[0] = CreateEmptyCoinbase(template)
 	witnessCommit := hex.EncodeToString(mining.AddWitnessCommitment(txns[0], txns))
 	t.Log(witnessCommit)
 	t.Log(template.DefaultWitnessCommitment[12:])
 }
 
 func TestUpdateBlock(t *testing.T) {
+	conf = config.DEFAULT_CONFIG
 	template := MOCK_BLOCK_TEMPLATE_MERKLE
 	expectedShareDiff := MOCK_SHAREDIFF_MERKLE
 	id, _ := stratum.DecodeID(MOCK_EXTRANONCE_MERKLE)
-	client := &main.StratumClient{
+	client := &StratumClient{
 		ID:   id,
 		User: getAddr(),
 	}
-	tml := main.CreateJobTemplate(template)
+	tml := CreateJobTemplate(template)
 	job := client.CreateJob(tml)
 	blk, err := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	shareDiff := main.CalcDifficulty(blk.Header)
+	shareDiff := CalcDifficulty(blk.Header)
 	if shareDiff != expectedShareDiff {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 		return
@@ -64,7 +66,7 @@ func TestUpdateBlock(t *testing.T) {
 
 func TestCreateJobTemplate(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
-	job := main.CreateJobTemplate(template)
+	job := CreateJobTemplate(template)
 
 	if job.Height != template.Height {
 		t.Errorf("job height mismatch: expected %d, got job: %d", template.Height, job.Height)
