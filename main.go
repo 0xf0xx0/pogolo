@@ -334,7 +334,7 @@ func backendRoutine() {
 	/// poll getblockcount
 	if conf.Backend.Websocket {
 		if err := backend.NotifyBlocks(); err != nil {
-			cli.Exit(err.Error(), constants.EXIT_BACKEND)
+			cli.Exit(fmt.Sprintf("error subscribing to block notifs: %s", err), constants.EXIT_BACKEND)
 			return
 		}
 	} else {
@@ -344,7 +344,7 @@ func backendRoutine() {
 			for {
 				count, err := backend.GetBlockCount()
 				if err != nil {
-					logError(fmt.Sprintf("%s", err))
+					logError(err.Error())
 				}
 				/// we're mining on this height
 				if count == currTemplate.Height {
