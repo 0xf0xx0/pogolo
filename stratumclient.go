@@ -376,6 +376,8 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 			client.submitBlock(s)
 			client.log("{yellow}block candidate submitted")
 		}
+		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
+
 		if shareDiff > client.stats.bestDiff {
 			client.stats.bestDiff = shareDiff
 			client.log("{green}new best session diff!")
@@ -386,11 +388,10 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
 			diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff),
 			formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
-		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
+		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 		client.stats.sharesRejected++
 		client.error("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDiff)
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 	}
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
 		client.adjustDiffRoutine()

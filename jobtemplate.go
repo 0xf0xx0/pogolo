@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/hex"
 	"errors"
+	"pogolo/constants"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/0xf0xx0/stratum"
@@ -125,25 +125,14 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 		return nil, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
 	}
 
-	coinbase := strings.Builder{}
-	/// alloc enough space for the cb (we're goin for speed so 512 is enough without over-allocing)
-	/// assuming avg tx size of 330, alloc at most 660
-	/// our coinbase is at max 256 bytes, nice
-	coinbase.Grow(512)
-	coinbase.WriteString(hex.EncodeToString(notif.CoinbasePart1))
-	coinbase.WriteString(client.ID.String())
-	coinbase.WriteString(hex.EncodeToString(share.ExtraNonce2))
-	coinbase.WriteString(hex.EncodeToString(notif.CoinbasePart2))
-	decodedCoinbase, err := hex.DecodeString(coinbase.String())
-	if err != nil {
-		return nil, err
-	}
-	coinbaseTx, err := btcutil.NewTxFromBytes(decodedCoinbase)
-	if err != nil {
-		return nil, err
-	}
-
-	msgBlock.Transactions[0] = coinbaseTx.MsgTx()
+	coinbaseTx := btcutil.NewTx(msgBlock.Transactions[0])
+	coinbaseMsgTx := coinbaseTx.MsgTx()
+	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
+	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
+		len(sigscript)-(constants.EXTRANONCE_SIZE+int(conf.Pogolo.ExtraNonce2Size)),
+		len(sigscript),
+		append(client.ID.Bytes(), share.ExtraNonce2...)...,
+	)
 
 	/// update the header
 	msgBlock.Header.Nonce = share.Nonce
