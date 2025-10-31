@@ -37,7 +37,7 @@ go build
 go install
 # config
 mkdir $XDG_CONFIG_HOME/pogolo
-pogolo --writedefaultconf # or copy pogolo.example.toml to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`
+pogolo --writedefaultconf $XDG_CONFIG_HOME/pogolo/pogolo.toml # or copy pogolo.example.toml to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`
 # then configure the interface, backend, and auth
 ```
 
