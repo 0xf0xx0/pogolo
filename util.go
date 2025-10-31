@@ -124,6 +124,7 @@ func CalcDifficulty(header wire.BlockHeader) float64 {
 }
 
 // port of public-pools calculateNetworkDifficulty
+// TODO: use blockchain.CompactToBig() instead?
 func CalcNetworkDifficulty(nBits uint32) float64 {
 	mantissa := float64(nBits & 0x007fffff)
 	exponent := float64((nBits >> 24) & 0xff)
