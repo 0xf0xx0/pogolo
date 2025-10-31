@@ -55,7 +55,7 @@ username: <your onchain address>[.<worker name>]
 password: [required if set in pogolo.toml]
 suggested diff: [optional]
 ```
-the address is also optional if the pool has a default address configured.
+the onchain address is also optional if the pool has a default configured.
 
 ## TODO
 

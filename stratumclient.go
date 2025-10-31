@@ -66,10 +66,9 @@ func (client *StratumClient) Run(noCleanup bool) {
 				"===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {green}%s",
 				client.Name(), client.ID, client.Addr(),
 			))
-			/// the initial difficulty was set in CreateClient,
-			/// but the client may also suggested a difficulty before
+			/// the client may have suggested a difficulty before
 			/// fully initialized
-			/// if they haven't, alert them to our default diff
+			/// if they haven't, alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
 				if strings.Contains(client.UserAgent, "cpuminer") {
 					client.setDifficulty(0.16)
@@ -555,11 +554,10 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 		}
 	}
 }
-
+// clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
 	client := StratumClient{
 		ID:             ClientIDHash(conn.RemoteAddr().String()),
-		TargetDiff:     1,
 		stats:          &ClientStats{},
 		conn:           conn,
 		statusChan:     make(chan string),
