@@ -88,8 +88,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 
 		/// messages are newline separated (either lf or crlf)
 		line, err := reader.ReadBytes(byte('\n'))
-		/// we dont need the trailing newline
-		line = []byte(strings.TrimRight(string(line), "\n\r "))
 
 		switch err {
 		case nil:
@@ -104,6 +102,11 @@ func (client *StratumClient) Run(noCleanup bool) {
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 3))
 		/// TODO: add stratum log option
 		//client.log("{blackbright}> %#q", line)
+
+		/// we dont need the trailing newline
+		line = bytes.TrimRight(line, "\n\r ")
+
+		/// process the message
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
 			client.error("stratum decode error: %s", err)
@@ -214,6 +217,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 		case stratum.MiningSuggestDifficulty:
 			{
+				/// only accept a suggested difficulty if we haven't got one before
 				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty != 0 {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 					break
@@ -226,8 +230,6 @@ func (client *StratumClient) Run(noCleanup bool) {
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
-				/// only accept a suggested difficulty
-				/// if we haven't got one before
 				if suggestedDiff != client.TargetDiff && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
@@ -238,7 +240,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
 				} else {
-					client.error("ignored suggested difficulty")
+					client.error("rejected suggested difficulty")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
 			}

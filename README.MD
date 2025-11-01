@@ -66,7 +66,6 @@ the onchain address is also optional if the pool has a default configured.
     - hide cursor, use full term height?
     - styled around standard 80x24
     - tui?? idk i need a tui dev lol
-- docker image when 1.0.0
 - option to ignore empty templates?
 - 0.5% dev fee for large miners (>=50th), optionally scaling up to 1.5 for >= 50PH?
 - db interface for optional stats persistence?
@@ -75,3 +74,6 @@ the onchain address is also optional if the pool has a default configured.
 - stratum keepalive?
 - zmq for block notifs?
 - btcd tls? yuck
+- when 1.0.0:
+    - docker image
+    - aur packages
