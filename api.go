@@ -71,16 +71,6 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		BlockHeight:   uint64(currTemplate.Height),
 	})
 }
-
-func getNetwork(res http.ResponseWriter, req *http.Request) {
-	info, err := backend.GetMiningInfo()
-	if err != nil {
-		logError(fmt.Sprintf("error in getNetwork: %s", err))
-		writeError(http.StatusInternalServerError, res)
-		return
-	}
-	marshalAndWrite(res, info)
-}
 // Takes a name (id or worker name) and returns for the matching client, if any
 func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	name := req.PathValue("extranonce1")
