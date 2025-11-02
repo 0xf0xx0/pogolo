@@ -392,7 +392,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		client.stats.update(client.TargetDiff)
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
 			DiffFormat(shareDiff), DiffFormat(client.TargetDiff), DiffFormat(client.stats.bestDiff),
-			FormatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
+			FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 	} else {
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 		client.stats.sharesRejected++
@@ -526,10 +526,10 @@ func (stats *ClientStats) Uptime() uint64 {
 	return uint64(time.Since(stats.startTime).Milliseconds())
 }
 func (stats *ClientStats) HashrateMH() float64 {
-	return stats.hashrate
+	return stats.hashrate / 1e6
 }
 func (stats *ClientStats) HashrateH() float64 {
-	return stats.hashrate * 1e6
+	return stats.hashrate
 }
 
 // live hashrate in MH/s
@@ -554,8 +554,8 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
 			time := float64(shareTime.Sub(stats.lastTimeSlot.time).Seconds())
+			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
-			stats.hashrate /= 1e6 /// turn into megahashy
 		}
 	}
 }

@@ -33,15 +33,15 @@ type getInfoRes struct {
 	Tag           string       `json:"tag"`
 	BlockHeight   uint64       `json:"blockHeight"`
 	TotalHashrate float64      `json:"totalHashrate"`
-	TotalWorkers  uint64       `json:"totalWorkers"`
-	Workers       []workerInfo `json:"workers"` /// TODO: come up with a cool name, swarm? gophers?
+	TotalWorkers  uint64       `json:"totalGophers"`
+	Workers       []workerInfo `json:"gophers"`
 }
 
 func initAPI() {
 	/// TODO: wip
 	pfx := fmt.Sprintf("GET %s/v%d", API_PFX, API_VER)
-	http.HandleFunc(pfx+"/", getInfo)
-	http.HandleFunc(pfx+"/worker/{extranonce1}", getWorkerInfo)
+	http.HandleFunc(pfx+"/info", getInfo)
+	http.HandleFunc(pfx+"/gopher/{extranonce1}", getWorkerInfo)
 
 	/// default handlers
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
@@ -81,9 +81,10 @@ func getNetwork(res http.ResponseWriter, req *http.Request) {
 	}
 	marshalAndWrite(res, info)
 }
+// Takes a name (id or worker name) and returns for the matching client, if any
 func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	name := req.PathValue("extranonce1")
-	client := findClientFromName(name)
+	client := getClientFromNameOrID(name)
 	if client == nil {
 		logError(fmt.Sprintf("failed to find client %s", name))
 		writeError(http.StatusBadRequest, res)
@@ -123,9 +124,9 @@ func marshalAndWrite(res http.ResponseWriter, v any) error {
 	return err
 }
 
-func findClientFromName(name string) *StratumClient {
+func getClientFromNameOrID(name string) *StratumClient {
 	for _, client := range clients {
-		if client.Name() == name {
+		if client.Worker == name || client.ID.String() == name {
 			return client
 		}
 	}
