@@ -6,9 +6,7 @@ start it, point your miners to it, and watch the logs roll by
 
 ## features
 
-- api (both our own and a semi-compatible public-pool api)
-  see api.go, swagger spec eventually in 1.0.0
-- public-pool-ui compat (is wip and wont ever be 1:1, but the main page lists stats uwu)
+- api (see api.go, swagger spec eventually in 1.0.0)
 - set a default address to mine to poolside, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 
 ## supported
@@ -67,7 +65,7 @@ the onchain address is also optional if the pool has a default configured.
     - styled around standard 80x24
     - tui?? idk i need a tui dev lol
 - option to ignore empty templates?
-- 0.5% dev fee for large miners (>=50th), optionally scaling up to 1.5 for >= 50PH?
+- optional 0.5% host fee for large miners (>=50th), scaling up to 1.5% for >= 50PH? (might be cool for private miners)
 - db interface for optional stats persistence?
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
 - extranonce subscription?
