@@ -47,6 +47,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	prevBlockHash, _ := chainhash.NewHashFromStr(template.PreviousHash)
 
 	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
+
 	/// decode the serialized txns into nice lil btcutil.Txs
 	for idx, templateTx := range template.Transactions {
 		decoded, err := hex.DecodeString(templateTx.Data)
@@ -125,6 +126,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 		return nil, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
 	}
 
+	/// mutate the coinbase script with the client id and extranonce2
 	coinbaseTx := btcutil.NewTx(msgBlock.Transactions[0])
 	coinbaseMsgTx := coinbaseTx.MsgTx()
 	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
@@ -143,7 +145,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
 	branches[0] = coinbaseTx.Hash()
 	branches = append(branches, job.MerkleBranch...)
-	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
+	msgBlock.Header.MerkleRoot = *MerkleRootFromBranches(branches)
 
 	return msgBlock, nil
 }

@@ -277,7 +277,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
 	}
-	/// megative = running slow, positive = running fast
+	/// negative = running slow, positive = running fast
 	difference := float64(conf.Pogolo.TargetShareInterval) - float64(client.stats.avgSubmissionDelta/1000)
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
@@ -358,6 +358,9 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		return
 	}
 
+	/// we'll only verify the difficulty
+	/// the backing node will do the full block validation, we only care if the
+	/// submission was high enough
 	updatedBlock, err := client.CurrentJob.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
 	if err != nil {
 		client.error("internal error: %s", err)
@@ -385,10 +388,11 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 		}
 		client.stats.sharesAccepted++
 		/// MAYBE: save en2?
+		/// update with the target diff for a more accurate estimation
 		client.stats.update(client.TargetDiff)
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
-			diffFormat(shareDiff), diffFormat(client.TargetDiff), diffFormat(client.stats.bestDiff),
-			formatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
+			DiffFormat(shareDiff), DiffFormat(client.TargetDiff), DiffFormat(client.stats.bestDiff),
+			FormatHashrate(client.stats.hashrate), client.stats.avgSubmissionDelta/1000)
 	} else {
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
 		client.stats.sharesRejected++
@@ -407,7 +411,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		merkleBranches[i] = branch[:]
 	}
 
-	coinbaseTx := CreateCoinbaseTx(client.User, block, template.Subsidy, activeChainParams)
+	coinbaseTx := FillCoinbaseTx(client.User, block, template.Subsidy, activeChainParams)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
@@ -545,7 +549,6 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 		/// otherwise just update stats
 	} else {
 		/// we wanna use the target difficulty for a stable number
-		/// TODO: pass in?
 		stats.currTimeSlot.accDiff += uint64(currTargetDiff)
 		if stats.currTimeSlot.accDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
@@ -583,7 +586,7 @@ func parseUserAgent(ua string) string {
 	} else if strings.Contains(ua, "luckyminer") {
 		return "luckyminer"
 	}
-	/// copy public-pools parsing
+	/// otherwise fall back to public-pools parsing
 	ua = strings.Split(ua, " ")[0]
 	ua = strings.Split(ua, "/")[0]
 	ua = strings.Split(ua, "v")[0]

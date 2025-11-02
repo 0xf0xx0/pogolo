@@ -12,7 +12,7 @@ import (
 const API_PFX = "/api"
 const API_VER = "/v1"
 
-type getWorkerInfoRes struct {
+type workerInfo struct {
 	Uptime           uint64  `json:"uptime"`
 	Hashrate         float64 `json:"hashrate"` // TODO: currently mh/s, use h/s?
 	AcceptedShares   uint64  `json:"sharesAccepted"`
@@ -57,6 +57,7 @@ func initAPI() {
 	/// ok, now our api
 	http.HandleFunc("GET "+API_PFX+API_VER+"/worker/{extranonce1}", getWorkerInfo)
 
+	/// default handlers
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
 		writeError(http.StatusNotFound, res)
 	})
@@ -110,7 +111,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	info := getWorkerInfoRes{
+	info := workerInfo{
 		UserAgent:        client.UserAgent,
 		Uptime:           client.stats.Uptime(),
 		Extranonce1:      client.ID.String(),

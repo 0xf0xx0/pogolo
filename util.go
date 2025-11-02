@@ -27,9 +27,9 @@ func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
 	}
 	return &m, nil
 }
-func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
-	serializedTx := bytes.NewBuffer([]byte{})
 
+func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
+	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
 	if witness {
 		if err := tx.Serialize(serializedTx); err != nil {
 			return nil, err
@@ -48,7 +48,7 @@ func ClientIDHash(addr string) stratum.ID {
 	return stratum.ID(uint32(xxh3.HashString(addr)))
 }
 
-// placeholder tx, filled with MiningJob
+// placeholder tx, filled by MiningJob
 func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
@@ -75,7 +75,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 			panic(err)
 		}
 	}
-	//println(hex.EncodeToString(encodedCoinbaseScript))
+
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
 		SignatureScript:  encodedCoinbaseScript,
@@ -89,19 +89,20 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 }
 
 // thank you btcd devs for doin all this boilerplate work
-func CreateCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
+func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		panic(err)
 	}
 
 	coinbase := block.Transactions()[0]
-	coinbaseTxMsg := coinbase.MsgTx()
-	/// workaround: mining.AddWitnessCommitment appends
-	coinbaseTxMsg.TxOut = coinbaseTxMsg.TxOut[:0]
+	coinbaseMsgTx := coinbase.MsgTx()
+	/// HACK: mining.AddWitnessCommitment appends, empty txout
+	coinbaseMsgTx.TxOut = coinbaseMsgTx.TxOut[:0]
 	/// AND I AM ITS SOLE WITNESS
 	mining.AddWitnessCommitment(coinbase, block.Transactions())
-	coinbaseTxMsg.AddTxOut(&wire.TxOut{
+	/// we gotta add the subsidy too
+	coinbaseMsgTx.AddTxOut(&wire.TxOut{
 		Value:    subsidy,
 		PkScript: pkScript,
 	})
@@ -134,7 +135,7 @@ func CalcNetworkDifficulty(nBits uint32) float64 {
 	return difficulty
 }
 
-func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
+func MerkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	root := branches[0]
 
 	for _, h := range branches[1:] {
@@ -212,8 +213,8 @@ func treeNodeCount(leafCount int) int {
 	}
 	return count
 }
-
-func diffFormat(value float64) string {
+// pretty-print difficulty
+func DiffFormat(value float64) string {
 	unit := ""
 	if value >= 1e12 {
 		unit = "T"
@@ -233,7 +234,7 @@ func diffFormat(value float64) string {
 }
 
 // takes MH/s
-func formatHashrate(value float64) string {
+func FormatHashrate(value float64) string {
 	unit := "M"
 	if value > 1e6 {
 		value /= 1e6

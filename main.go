@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
 
@@ -33,10 +35,11 @@ const (
 	VERSION = "0.0.9"
 )
 
-// state
+// global state
 var (
 	conf              config.Config
 	backend           *rpcclient.Client
+	longpollid        string
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
 	clients           map[stratum.ID]*StratumClient // map of client ids to clients
@@ -88,10 +91,20 @@ func main() {
 				config.WriteDefaultConfig(ctx.String("writedefaultconf"))
 				return nil
 			}
+
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
 			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
+				/// overwrite with user conf
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
+					decodeErr := &toml.DecodeError{}
+					strictErr := &toml.StrictMissingError{}
+					if errors.As(err, &decodeErr) {
+						return cli.Exit(fmt.Sprintf("error decoding config:\n%s", decodeErr.String()), constants.EXIT_CONFIG)
+					} else if errors.As(err, &strictErr) {
+						return cli.Exit(fmt.Sprintf("unknown keys in config:\n%s", strictErr.String()), constants.EXIT_CONFIG)
+					}
+					/// fs error
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.EXIT_CONFIG)
 				}
 			}
@@ -168,6 +181,7 @@ func main() {
 				defaultMiningAddr = &addr
 				log(fmt.Sprintf("{yellow}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
 			}
+
 			/// start
 			log(fmt.Sprintf("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage))
 			log(fmt.Sprintf("mining on {yellow}%s", activeChainParams.Name))
@@ -302,9 +316,9 @@ func clientHandler(conn net.Conn) {
 
 // handles templates and block submissions
 func backendRoutine() {
-	/// TODO: longpoll?
+	/// TODO: longpoll
 	/// TODO: do we need anything special for btcd/knots/etc?
-	triggerGBT := make(chan bool)
+	triggerGBT := make(chan struct{})
 	/// block submissions
 	go func() {
 		for {
@@ -324,20 +338,21 @@ func backendRoutine() {
 				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nworker: %s\nhash: %s\ndifficulty: %f",
 				worker,
 				submission.Block.Hash(),
-				CalcDifficulty(submission.Block.MsgBlock().Header), /// TODO: pass the share info from the client?
-
+				/// TODO: pass the share info from the client
+				CalcDifficulty(submission.Block.MsgBlock().Header),
 			))
 
-			triggerGBT <- true
+			triggerGBT <- struct{}{}
 		}
 	}()
-	/// poll getblockcount
 	if conf.Backend.Websocket {
+		/// wait for new blocks to come in
 		if err := backend.NotifyBlocks(); err != nil {
 			cli.Exit(fmt.Sprintf("error subscribing to block notifs: %s", err), constants.EXIT_BACKEND)
 			return
 		}
 	} else {
+		/// poll getblockcount
 		go func() {
 			/// needs to start after the gbt loop
 			waitForTemplate()
@@ -349,7 +364,7 @@ func backendRoutine() {
 				/// we're mining on this height
 				if count == currTemplate.Height {
 					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count))
-					triggerGBT <- true
+					triggerGBT <- struct{}{}
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			}
@@ -362,13 +377,18 @@ func backendRoutine() {
 			Rules:        []string{"segwit"}, /// required by gbt
 			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 			Mode:         "template",
+			LongPollID:   longpollid,
 		})
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue
 		}
-		/// MAYBE: option to ignore empty templates
+
+		/// save longpoll id
+		longpollid = template.LongPollID
+
+		/// TODO: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
 		log(fmt.Sprintf("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))

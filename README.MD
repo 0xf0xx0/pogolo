@@ -8,7 +8,7 @@ start it, point your miners to it, and watch the logs roll by
 
 - api (both our own and a semi-compatible public-pool api)
   see api.go, swagger spec eventually in 1.0.0
-- public-pool-ui compat (is wip and likely wont ever be 1:1, but the main page lists stats uwu)
+- public-pool-ui compat (is wip and wont ever be 1:1, but the main page lists stats uwu)
 - set a default address to mine to poolside, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 
 ## supported
