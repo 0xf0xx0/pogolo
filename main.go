@@ -97,6 +97,7 @@ func main() {
 			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
 				/// overwrite with user conf
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
+					/// dont like that i ahve to do these but oki
 					decodeErr := &toml.DecodeError{}
 					strictErr := &toml.StrictMissingError{}
 					if errors.As(err, &decodeErr) {

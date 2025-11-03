@@ -41,8 +41,8 @@ func TestAuthorize(t *testing.T) {
 	if resp.Result == false {
 		t.Error("result was false")
 	}
-	t.Logf("user: %q, worker: %q", client.User, client.Worker)
-	rebuiltUser := fmt.Sprintf("%s.%s", client.User, client.Worker)
+	t.Logf("user: %q, worker: %q", client.User, client.Nickname)
+	rebuiltUser := fmt.Sprintf("%s.%s", client.User, client.Nickname)
 	if rebuiltUser != params.Username+"."+params.Worker {
 		t.Errorf("username mismatch: expected %q, got %q", params.Username+"."+params.Worker, rebuiltUser)
 	}

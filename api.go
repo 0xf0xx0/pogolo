@@ -121,7 +121,7 @@ func writeResponse(res http.ResponseWriter, x []byte) error {
 
 func getClientFromNameOrID(name string) *StratumClient {
 	for _, client := range clients {
-		if client.Worker == name || client.ID.String() == name {
+		if client.Nickname == name || client.ID.String() == name {
 			return client
 		}
 	}

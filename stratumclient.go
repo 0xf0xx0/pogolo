@@ -18,10 +18,11 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 )
 
+// aka gopher
 type StratumClient struct {
 	ID                  stratum.ID
 	User                btcutil.Address
-	Worker              string
+	Nickname            string
 	Password            string
 	UserAgent           string
 	TargetDiff          float64
@@ -60,10 +61,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 	reader := bufio.NewReader(client.conn)
 	for {
+		/// we only send work after authed and subbed (and set a flag so we dont do this again)
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
 			log(fmt.Sprintf(
-				"===<{green}%s{/green} has joined the swarm!>===\n\tid: {green}%s{/green}\n\taddr: {green}%s",
+				/// dig, cause gophers, get it?
+				"===<{green}%s{/green} has joined the dig!>===\n\tid: {green}%s{/green}\n\taddr: {green}%s",
 				client.Name(), client.ID, client.Addr(),
 			))
 			/// the client may have suggested a difficulty before
@@ -184,7 +187,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					decoded = *defaultMiningAddr
 				}
 				client.User = decoded
-				client.Worker = params.Worker
+				client.Nickname = params.Worker
 				client.Password = params.Password
 				client.writeRes(stratum.AuthorizeResponse(m.MessageID, true))
 				isAuthed = true
@@ -334,8 +337,8 @@ func (client *StratumClient) Addr() net.Addr {
 
 // returns the worker name if set and falls back to the id
 func (client *StratumClient) Name() string {
-	if client.Worker != "" {
-		return client.Worker
+	if client.Nickname != "" {
+		return client.Nickname
 	}
 	return client.ID.String()
 }
@@ -559,6 +562,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 		}
 	}
 }
+
 // clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
 	client := StratumClient{
