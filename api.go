@@ -45,10 +45,10 @@ func initAPI() {
 
 	/// default handlers
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
-		writeError(http.StatusNotFound, res)
+		writeError(res, http.StatusNotFound, "nothing to see here, move along $citizen")
 	})
 	http.HandleFunc("/", func(res http.ResponseWriter, _ *http.Request) {
-		writeError(http.StatusMethodNotAllowed, res)
+		writeError(res, http.StatusMethodNotAllowed, "method not allowed")
 	})
 }
 
@@ -71,46 +71,51 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		BlockHeight:   uint64(currTemplate.Height),
 	})
 }
-// Takes a name (id or worker name) and returns for the matching client, if any
+
+// Takes a name (id or worker name) and returns a snapshot of the matching client, if any
 func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	name := req.PathValue("extranonce1")
-	client := getClientFromNameOrID(name)
-	if client == nil {
+	worker := getClientFromNameOrID(name)
+	if worker == nil {
 		logError(fmt.Sprintf("failed to find client %s", name))
-		writeError(http.StatusBadRequest, res)
+		writeError(res, http.StatusBadRequest, "failed to find client")
 		return
 	}
 
 	info := detailedWorkerInfo{
-		UserAgent:        client.UserAgent,
-		Uptime:           client.stats.Uptime(),
-		ExtraNonce1:      client.ID.String(),
-		Hashrate:         client.stats.HashrateH(),
-		TargetDifficulty: client.TargetDiff,
-		BestDifficulty:   client.stats.bestDiff,
-		AcceptedShares:   client.stats.sharesAccepted,
-		RejectedShares:   client.stats.sharesRejected,
+		UserAgent:        worker.UserAgent,
+		ExtraNonce1:      worker.ID.String(),
+		Hashrate:         worker.stats.HashrateH(),
+		TargetDifficulty: worker.TargetDiff,
+		BestDifficulty:   worker.stats.bestDiff,
+		AcceptedShares:   worker.stats.sharesAccepted,
+		RejectedShares:   worker.stats.sharesRejected,
+		Uptime:           worker.stats.Uptime(),
 	}
 	marshalAndWrite(res, info)
 }
 
-func writeError(code int, res http.ResponseWriter) error {
+func writeError(res http.ResponseWriter, code int, msg string) error {
 	res.WriteHeader(code)
-	if code == http.StatusNotFound {
-		_, err := res.Write([]byte(`{"error":"nothing to see here, move along $citizen"}`))
-		return err
+	if msg != "" {
+		return writeResponse(res, []byte(fmt.Sprintf(`{"error":%q}`, msg)))
 	}
 	return nil
 }
 func marshalAndWrite(res http.ResponseWriter, v any) error {
 	x, err := json.Marshal(v)
 	if err != nil {
+		writeError(res, http.StatusInternalServerError, "")
 		return err
 	}
+	return writeResponse(res, x)
+}
+
+func writeResponse(res http.ResponseWriter, x []byte) error {
 	res.Header().Set("Content-Type", "application/json")
 	res.Header().Set("Server", NAME+"/"+VERSION)
 	res.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	_, err = res.Write(x)
+	_, err := res.Write(x)
 	return err
 }
 

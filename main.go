@@ -335,7 +335,7 @@ func backendRoutine() {
 			}
 			worker := clients[submission.ClientID].Name()
 			log(fmt.Sprintf(
-				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\nworker: %s\nhash: %s\ndifficulty: %f",
+				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\ngopher: %s\nhash: %s\ndifficulty: %f",
 				worker,
 				submission.Block.Hash(),
 				/// TODO: pass the share info from the client
