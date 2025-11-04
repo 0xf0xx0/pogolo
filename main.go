@@ -72,6 +72,13 @@ func main() {
 				Hidden: true,
 			},
 		},
+		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
+			logError(err.Error())
+			var ec cli.ExitCoder
+			if errors.As(err, &ec) {
+				os.Exit(ec.ExitCode())
+			}
+		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if ctx.Bool("profile") {
 				log("{bold}{yellow}===/!/===<profiling>===/!/===")
@@ -189,9 +196,9 @@ func main() {
 			return startup()
 		},
 	}
-	if err := app.Run(context.Background(), os.Args); err != nil {
-		logError(fmt.Sprintf("%s", err))
-	}
+
+	/// no need to handle any errors here, ExitErrHandler will do it
+	app.Run(context.Background(), os.Args)
 }
 
 func startup() error {
