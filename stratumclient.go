@@ -46,6 +46,7 @@ type timeSlot struct {
 type BlockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
 	Block    *btcutil.Block
+	Share    stratum.Share
 }
 
 func (client *StratumClient) Run(noCleanup bool) {
@@ -335,7 +336,7 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 
-// returns the worker name if set and falls back to the id
+// returns the nickname if set and falls back to the id
 func (client *StratumClient) Name() string {
 	if client.Nickname != "" {
 		return client.Nickname
@@ -353,8 +354,8 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	return nil
 }
 
-func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum.Request) {
-	if s.JobID != client.CurrentJob.NotifyParams.JobID {
+func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
+	if share.JobID != client.CurrentJob.NotifyParams.JobID {
 		client.stats.sharesRejected++
 		client.error("share rejected: unknown job")
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
@@ -364,7 +365,7 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	/// we'll only verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedBlock, err := client.CurrentJob.UpdateBlock(client, s, client.CurrentJob.NotifyParams)
+	updatedBlock, err := client.CurrentJob.UpdateBlock(client, share, client.CurrentJob.NotifyParams)
 	if err != nil {
 		client.error("internal error: %s", err)
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
@@ -375,12 +376,13 @@ func (client *StratumClient) validateShareSubmission(s stratum.Share, m *stratum
 	if shareDiff >= client.TargetDiff {
 		if shareDiff >= client.CurrentJob.NetworkDiff {
 			/// !!! block! dont say ANYTHING until after submitted
-			s := BlockSubmission{
+			submission := BlockSubmission{
 				ClientID: client.ID,
 				Block:    btcutil.NewBlock(updatedBlock),
+				Share:    share,
 			}
 
-			client.submitBlock(s)
+			client.submitBlock(submission)
 			client.log("{yellow}block candidate submitted")
 		}
 		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
