@@ -78,6 +78,7 @@ func main() {
 			if errors.As(err, &ec) {
 				os.Exit(ec.ExitCode())
 			}
+			os.Exit(constants.EXIT_MISC)
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if ctx.Bool("profile") {

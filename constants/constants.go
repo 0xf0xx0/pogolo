@@ -16,6 +16,7 @@ const (
 
 const (
 	EXIT_NONE = iota
+	EXIT_MISC
 	EXIT_BACKEND
 	EXIT_CONFIG
 	EXIT_NET
