@@ -5,13 +5,14 @@ import (
 )
 
 const (
-	VERSION_ROLLING_MASK    = 0x1fffe000 // bip 320
-	EXTRANONCE_SIZE         = 4 // bytes
-	DEFAULT_DIFFICULTY      = 1024
-	DEFAULT_COINBASE_TAG    = "/pogolo - decentralize or die/"
-	MIN_DIFFICULTY          = 0.01       // hard min
-	SUBMISSION_DELTA_WINDOW = 32         // rolling avg window, also the diff adjust period
-	HASHRATE_WINDOW         = int64(600) // 10 min windows
+	VERSION_ROLLING_MASK         = 0x1fffe000 // bip 320 constant
+	EXTRANONCE_SIZE              = 4          // in bytes
+	DEFAULT_DIFFICULTY           = 1024       // for gpu, fpga, and asic miners
+	DEFAULT_DIFFICULTY_LOW_POWER = 0.16       // for cpu miners
+	DEFAULT_COINBASE_TAG         = "/pogolo - decentralize or die/"
+	MIN_DIFFICULTY               = 0.01       // hard min
+	SUBMISSION_DELTA_WINDOW      = 32         // rolling avg window, also the diff adjust period
+	HASHRATE_WINDOW              = int64(600) // 10 min windows
 )
 
 const (
@@ -23,12 +24,13 @@ const (
 )
 
 // errors can be anything, so i chose http-ish codes :3
-//
-// don't add these to your mappings yet, wait till 1.0.0
 var (
-
-	ERROR_INTERNAL   = stratum.Error{Code: 500, Message: "internal server error"}
-	ERROR_UNK_METHOD = stratum.Error{Code: 501, Message: "unknown or unsupported method"}
+	// internal server error
+	ERROR_INTERNAL = stratum.Error{Code: 500, Message: "internal server error"}
+	// unknown stratum method
+	ERROR_UNK_METHOD = stratum.Error{Code: 501, Message: "unknown method"}
+	// unsupported stratum method
+	ERROR_UNSUPP_METHOD = stratum.Error{Code: 502, Message: "unsupported method"}
 
 	// client errors
 
@@ -38,7 +40,7 @@ var (
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "not accepted"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}
-	ERROR_DIFF_TOO_LOW = stratum.Error{Code: 413, Message: "diff too low"}
+	ERROR_LOW_DIFF     = stratum.Error{Code: 413, Message: "diff too low"}
 	// for data we understand but couldnt process
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "unprocessable content"}
 )

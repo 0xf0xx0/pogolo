@@ -1,3 +1,6 @@
+/*
+
+*/
 package main
 
 import (
@@ -42,10 +45,10 @@ var (
 	longpollid        string
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
-	clients           map[stratum.ID]*StratumClient // map of client ids to clients
+	clients           map[stratum.ID]*StratumClient // map of active client ids to clients
 	currTemplateID    = uint64(0)
 	currTemplate      *JobTemplate
-	submissionChan    chan BlockSubmission
+	submissionChan    chan BlockSubmission // global cause it gets passed around :\
 	serverStartTime   time.Time
 )
 
@@ -82,7 +85,7 @@ func main() {
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if ctx.Bool("profile") {
-				log("{bold}{yellow}===/!/===<profiling>===/!/===")
+				log("{bold}{yellow}===//!//===<profiling>===//!//===")
 				profileFile, err := os.Create("cpu.prof")
 				if err != nil {
 					return err
@@ -288,7 +291,7 @@ func startup() error {
 	return nil
 }
 
-// handles individual conns
+// handles individual conns, spawned as a goroutine
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
 	client := CreateClient(conn, submissionChan)
@@ -323,11 +326,39 @@ func clientHandler(conn net.Conn) {
 	}
 }
 
-// handles templates and block submissions
+// handles templates, block notifications, and block submissions
 func backendRoutine() {
-	/// TODO: longpoll
-	/// TODO: do we need anything special for btcd/knots/etc?
 	triggerGBT := make(chan struct{})
+
+	/// block notifications
+	/// TODO: do we need anything special for btcd/knots/etc?
+	if conf.Backend.Websocket {
+		/// TODO: fallback to polling if err
+		/// wait for new blocks to come in
+		if err := backend.NotifyBlocks(); err != nil {
+			cli.Exit(fmt.Sprintf("error subscribing to block notifs: %s", err), constants.EXIT_BACKEND)
+			return
+		}
+	} else {
+		/// poll getblockcount
+		go func() {
+			/// needs to start after the gbt loop
+			waitForTemplate()
+			for {
+				count, err := backend.GetBlockCount()
+				if err != nil {
+					logError(err.Error())
+				}
+				/// we're mining on this height
+				if count == currTemplate.Height {
+					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count))
+					triggerGBT <- struct{}{}
+				}
+				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
+			}
+		}()
+	}
+
 	/// block submissions
 	go func() {
 		for {
@@ -354,31 +385,6 @@ func backendRoutine() {
 			triggerGBT <- struct{}{}
 		}
 	}()
-	if conf.Backend.Websocket {
-		/// wait for new blocks to come in
-		if err := backend.NotifyBlocks(); err != nil {
-			cli.Exit(fmt.Sprintf("error subscribing to block notifs: %s", err), constants.EXIT_BACKEND)
-			return
-		}
-	} else {
-		/// poll getblockcount
-		go func() {
-			/// needs to start after the gbt loop
-			waitForTemplate()
-			for {
-				count, err := backend.GetBlockCount()
-				if err != nil {
-					logError(err.Error())
-				}
-				/// we're mining on this height
-				if count == currTemplate.Height {
-					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count))
-					triggerGBT <- struct{}{}
-				}
-				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
-			}
-		}()
-	}
 
 	/// main gbt loop
 	for {
@@ -397,7 +403,7 @@ func backendRoutine() {
 		/// save longpoll id
 		longpollid = template.LongPollID
 
-		/// TODO: option to ignore empty templates?
+		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
 		log(fmt.Sprintf("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))

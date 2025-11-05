@@ -103,7 +103,7 @@ func TestFullBlock(t *testing.T) {
 	/// workaround for the init difficulty routine
 	/// setDifficulty sends a stratum.Notification but thats not being read? it stalls
 	/// FIXME?
-	client.TargetDiff = 0
+	client.TargetDifficulty = 0
 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE_MERKLE)
 

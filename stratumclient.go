@@ -25,7 +25,7 @@ type StratumClient struct {
 	Nickname            string
 	Password            string
 	UserAgent           string
-	TargetDiff          float64
+	TargetDifficulty    float64
 	SuggestedDifficulty float64
 	VersionRollingMask  uint32
 	// internal
@@ -75,7 +75,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			/// if they haven't, alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
 				if strings.Contains(client.UserAgent, "cpuminer") {
-					client.setDifficulty(0.16)
+					client.setDifficulty(constants.DEFAULT_DIFFICULTY_LOW_POWER)
 				} else {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
@@ -234,7 +234,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					break
 				}
 				suggestedDiff := params.Difficulty.(float64)
-				if suggestedDiff != client.TargetDiff && suggestedDiff > constants.MIN_DIFFICULTY {
+				if suggestedDiff != client.TargetDifficulty && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
 					client.log("suggested difficulty {blue}%g", suggestedDiff)
@@ -275,8 +275,7 @@ func (client *StratumClient) Stop() {
 }
 
 // aims for the target_share_interval
-//
-// adjusts every `constants.SUBMISSION_DELTA_WINDOW`
+// and adjusts every `constants.SUBMISSION_DELTA_WINDOW`
 func (client *StratumClient) adjustDiffRoutine() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
@@ -295,7 +294,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		delta = -delta / 2 /// we want to be more conservative when adjusting downwards
 	}
 
-	newDiff := max(client.TargetDiff+delta, constants.MIN_DIFFICULTY)
+	newDiff := max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
 	client.log("adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
 	if err := client.setDifficulty(newDiff); err != nil {
 		if errors.Is(err, net.ErrClosed) {
@@ -344,13 +343,13 @@ func (client *StratumClient) Name() string {
 	return client.ID.String()
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
-	if newDiff == client.TargetDiff {
+	if newDiff == client.TargetDifficulty {
 		return nil
 	}
 	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
 		return err
 	}
-	client.TargetDiff = newDiff
+	client.TargetDifficulty = newDiff
 	return nil
 }
 
@@ -373,7 +372,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	}
 
 	shareDiff := CalcDifficulty(updatedBlock.Header)
-	if shareDiff >= client.TargetDiff {
+	if shareDiff >= client.TargetDifficulty {
 		if shareDiff >= client.CurrentJob.NetworkDiff {
 			/// !!! block! dont say ANYTHING until after submitted
 			submission := BlockSubmission{
@@ -394,14 +393,14 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.stats.sharesAccepted++
 		/// MAYBE: save en2?
 		/// update with the target diff for a more accurate estimation
-		client.stats.update(client.TargetDiff)
+		client.stats.update(client.TargetDifficulty)
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
-			DiffFormat(shareDiff), DiffFormat(client.TargetDiff), DiffFormat(client.stats.bestDiff),
+			DiffFormat(shareDiff), DiffFormat(client.TargetDifficulty), DiffFormat(client.stats.bestDiff),
 			FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 	} else {
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DIFF_TOO_LOW))
+		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_LOW_DIFF))
 		client.stats.sharesRejected++
-		client.error("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDiff)
+		client.error("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 	}
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
 		client.adjustDiffRoutine()

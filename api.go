@@ -86,7 +86,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 		UserAgent:        worker.UserAgent,
 		ExtraNonce1:      worker.ID.String(),
 		Hashrate:         worker.stats.HashrateH(),
-		TargetDifficulty: worker.TargetDiff,
+		TargetDifficulty: worker.TargetDifficulty,
 		BestDifficulty:   worker.stats.bestDiff,
 		AcceptedShares:   worker.stats.sharesAccepted,
 		RejectedShares:   worker.stats.sharesRejected,

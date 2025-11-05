@@ -8,6 +8,8 @@ start it, point your miners to it, and watch the logs roll by
 
 - api (see api.go, swagger spec eventually in 1.0.0)
 - set a default address to mine to poolside, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
+- btcd websocket support
+- longpoll support (i think)
 
 ## supported BIPs
 - 310 (minus `info` and `subscribe-extranonce`)
