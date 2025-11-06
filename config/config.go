@@ -37,7 +37,7 @@ type Pogolo struct {
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.01"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
-	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size, usually shouldnt be touched"`
+	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
 	IgnoreSuggDiff      bool    `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool    `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 }
@@ -56,7 +56,7 @@ var DEFAULT_CONFIG = Config{
 		DefaultDifficulty:   constants.DEFAULT_DIFFICULTY,
 		JobInterval:         60,
 		TargetShareInterval: 5,
-		ExtraNonce2Size:     4,
+		ExtraNonce2Size:     constants.EXTRANONCE_SIZE,
 	},
 }
 
