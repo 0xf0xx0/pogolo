@@ -25,6 +25,9 @@ const (
 
 // errors can be anything, so i chose http-ish codes :3
 var (
+
+	// server errors
+
 	// internal server error
 	ERROR_INTERNAL = stratum.Error{Code: 500, Message: "internal server error"}
 	// unknown stratum method
@@ -35,8 +38,8 @@ var (
 	// client errors
 
 	// submission before subscription
-	ERROR_NOT_SUBBED = stratum.Error{Code: 401, Message: "not subscribed"}
-	ERROR_WRONG_PASS = stratum.Error{Code: 403, Message: "wrong password"}
+	ERROR_NOT_SUBBED   = stratum.Error{Code: 401, Message: "not subscribed"}
+	ERROR_UNAUTHORIZED = stratum.Error{Code: 403, Message: "unauthorized"}
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "not accepted"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "unknown job"}

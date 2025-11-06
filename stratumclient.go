@@ -171,7 +171,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 				params.Read(m)
 				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
 					client.error("invalid password")
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_WRONG_PASS))
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNAUTHORIZED))
 					return
 				}
 				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
@@ -250,12 +250,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 		case stratum.MiningExtranonceSubscribe:
 			{
-				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNSUPP_METHOD))
 			}
 		default:
 			{
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
-				client.error("unhandled stratum message: %+v", m)
+				client.error("unknown stratum message: %+v", m)
 			}
 		}
 	}
