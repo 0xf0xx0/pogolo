@@ -106,9 +106,9 @@ Version:
 				Name:  "writedefaultconf",
 				Usage: "write default config to `path` and exit",
 			},
-			&cli.BoolFlag{
+			&cli.StringFlag{
 				Name:   "profile",
-				Hidden: true,
+				Usage: "write cpu and memory profiles to `dir`",
 			},
 		},
 		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
@@ -120,13 +120,13 @@ Version:
 			os.Exit(constants.EXIT_MISC)
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
-			if ctx.Bool("profile") {
-				log("{bold}{yellow}===//!//===<profiling>===//!//===")
-				profileFile, err := os.Create("cpu.prof")
+			if profileDir := ctx.String("profile"); profileDir != "" {
+				log(fmt.Sprintf("{bold}{yellow}===//!//===<profiling>===//!//===\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
+				profileFile, err := os.Create(filepath.Join(profileDir,"./cpu.prof"))
 				if err != nil {
 					return err
 				}
-				memProfFile, err := os.Create("mem.prof")
+				memProfFile, err := os.Create(filepath.Join(profileDir,"./mem.prof"))
 				if err != nil {
 					return err
 				}
