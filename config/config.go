@@ -21,14 +21,14 @@ type Config struct {
 }
 type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port"`
-	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported"`
-	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass"`
+	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported (takes precedence over rpcauth)"`
+	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)"`
 	Websocket    bool   `toml:"websocket" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is true"`
 }
 type Pogolo struct {
-	Interface           string  `toml:"interface" comment:"takes precedence over ip, will listen on all interface ips"`
-	IP                  string  `toml:"ip,commented" comment:"ipv4, v6, or domain (domain will only resolve the first ip)"`
+	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
+	IP                  string  `toml:"ip,commented" comment:"ipv4, v6, or domain (domain will only resolve the first ip) (ignored if interface is set)"`
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
 	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
@@ -46,8 +46,6 @@ var DEFAULT_CONFIG = Config{
 	Backend: Backend{
 		Host:         "[::1]:8332",
 		PollInterval: 500,
-		Cookie:       "",
-		Rpcauth:      "",
 	},
 	Pogolo: Pogolo{
 		Interface:           "lo",
@@ -78,6 +76,7 @@ func WriteDefaultConfig(path string) error {
 	/// done here to not fuck up runtime
 	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
 	DEFAULT_CONFIG.Backend.Rpcauth = "bitty:axxy"
+	DEFAULT_CONFIG.Pogolo.IP = "[::1]"
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
