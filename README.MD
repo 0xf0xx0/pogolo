@@ -1,3 +1,7 @@
+```
+/pogolo - decentralize or die/
+```
+
 solo db-less bitcoin-only mining pool  
 meant for lan swarms, not the internet  
 think of this as public-pool but minimal and for self-sovereign nerds  
@@ -13,6 +17,7 @@ start it, point your miners to it, and watch the logs roll by
 
 ## supported BIPs
 - 310 (minus `info` and `subscribe-extranonce`)
+- 320
 
 ## supported miners
 
@@ -70,11 +75,11 @@ the onchain address is also optional if the pool has a default configured.
     - hide cursor, use full term height?
     - styled around standard 80x24
     - tui?? idk i need a tui dev lol
+- completion
+- option to set bits for signalling support
 - option to ignore empty templates?
-- optional 0.5% host fee for large miners (>=50th), scaling up to 1.5% for >= 50PH? (might be cool for private miners)
 - db interface for optional stats persistence?
 - special bitaxe functions like auto-restart on flatline and hashrate polling?
-- extranonce subscription?
 - stratum keepalive?
 - zmq for block notifs?
 - btcd tls? yuck

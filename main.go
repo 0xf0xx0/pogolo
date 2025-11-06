@@ -1,5 +1,30 @@
 /*
+	/pogolo - decentralize or die/
 
+solo db-less bitcoin-only mining pool,
+meant for lan swarms, not the internet;
+start it, point your miners to it, and watch the logs roll by
+
+think of this as public-pool but minimal and for self-sovereign nerds
+
+infinite thanks to [github.com/btcsuite/btcd] for bitcoin tooling and public-pool for reference
+
+setup:
+
+	mkdir $XDG_CONFIG_HOME/pogolo
+	pogolo --writedefaultconf $XDG_CONFIG_HOME/pogolo/pogolo.toml # or copy pogolo.example.toml to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`
+	# then configure the interface, backend, and auth
+
+usage:
+
+	pogolo [options]
+
+options:
+
+	--conf path              config file path (default: "$XDG_CONFIG_HOME/.config/pogolo/pogolo.toml")
+	--writedefaultconf path  write default config to path and exit
+	--help, -h               show help
+	--version, -v            print the version
 */
 package main
 
@@ -46,18 +71,29 @@ var (
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
 	clients           map[stratum.ID]*StratumClient // map of active client ids to clients
-	currTemplateID    = uint64(0)
+	currTemplateID    uint64
 	currTemplate      *JobTemplate
 	submissionChan    chan BlockSubmission // global cause it gets passed around :\
 	serverStartTime   time.Time
 )
 
 func main() {
+	cli.RootCommandHelpTemplate = oigiki.ProcessTags(`Name:
+    {bold}{blue}{{.Name}} - {{.Usage}}{/}
+
+Usage:
+    {green}pogolo {blue}[options]{/}
+
+Options:{blue}
+    {{range .VisibleFlags}}{{.String}}
+    {{end}}{/}
+Version:
+    {green}{{.Version}}
+`)
 	app := &cli.Command{
 		Name:                   NAME,
 		Version:                VERSION,
 		Usage:                  "Decentralize or die",
-		UsageText:              "pogolo [options]",
 		UseShortOptionHandling: true,
 		EnableShellCompletion:  true,
 		Flags: []cli.Flag{
@@ -108,7 +144,7 @@ func main() {
 			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
 				/// overwrite with user conf
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
-					/// dont like that i ahve to do these but oki
+					/// dont like that i have to do these but oki
 					decodeErr := &toml.DecodeError{}
 					strictErr := &toml.StrictMissingError{}
 					if errors.As(err, &decodeErr) {
