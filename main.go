@@ -75,6 +75,7 @@ var (
 	currTemplateID  uint64
 	currTemplate    *JobTemplate
 	submissionChan  chan BlockSubmission // global cause it gets passed around :\
+	triggerGBT      chan struct{}        // ditto cause of websocket
 	serverStartTime time.Time
 )
 
@@ -182,6 +183,7 @@ Version:
 				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 					/// ok we kinda care
 					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", height))
+					triggerGBT <- struct{}{}
 				},
 				OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
 				/// only needed for the backend.NotifyBlocks() call later
@@ -368,7 +370,7 @@ func clientHandler(conn net.Conn) {
 
 // handles templates, block notifications, and block submissions
 func backendRoutine() {
-	triggerGBT := make(chan struct{})
+	triggerGBT = make(chan struct{})
 
 	/// block notifications
 	/// TODO: do we need anything special for btcd/knots/etc?
@@ -446,7 +448,7 @@ func backendRoutine() {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
-		log(fmt.Sprintf("===<the swarm is mining on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		log(fmt.Sprintf("===<the gophers are mining on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
