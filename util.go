@@ -22,6 +22,39 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
+// basically typed sync.Map
+type clientMap struct {
+	// TODO: better name
+	lock        sync.RWMutex
+	mapparoonie map[stratum.ID]*StratumClient
+}
+
+func (m *clientMap) Add(client *StratumClient) {
+	m.lock.Lock()
+	m.mapparoonie[client.ID] = client
+	m.lock.Unlock()
+}
+func (m *clientMap) Delete(id stratum.ID) {
+	m.lock.Lock()
+	delete(m.mapparoonie, id)
+	m.lock.Unlock()
+}
+func (m *clientMap) Get(id stratum.ID) *StratumClient {
+	m.lock.RLock()
+	ret := m.mapparoonie[id]
+	m.lock.RUnlock()
+	return ret
+}
+func (m *clientMap) All() []*StratumClient {
+	m.lock.RLock()
+	ret := make([]*StratumClient, len(m.mapparoonie))
+	for i, client := range m.mapparoonie {
+		ret[i] = client
+	}
+	m.lock.RUnlock()
+	return ret
+}
+
 func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
 	var m stratum.Request
 	if err := m.Unmarshal(msg); err != nil {
@@ -44,7 +77,6 @@ func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
 	return serializedTx.Bytes(), nil
 }
 
-// 32-bit (4-byte) uint32 used for client id and extranonce1
 // hashes client ip address+port for no reason other than being different
 func ClientIDHash(addr string) stratum.ID {
 	return stratum.ID(uint32(xxh3.HashString(addr)))

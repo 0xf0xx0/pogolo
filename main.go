@@ -78,39 +78,6 @@ var (
 	serverStartTime   time.Time
 )
 
-// basically typed sync.Map
-type clientMap struct {
-	// TODO: better name
-	lock        sync.RWMutex
-	mapparoonie map[stratum.ID]*StratumClient
-}
-
-func (m *clientMap) Add(client *StratumClient) {
-	m.lock.Lock()
-	m.mapparoonie[client.ID] = client
-	m.lock.Unlock()
-}
-func (m *clientMap) Delete(id stratum.ID) {
-	m.lock.Lock()
-	delete(m.mapparoonie, id)
-	m.lock.Unlock()
-}
-func (m *clientMap) Get(id stratum.ID) *StratumClient {
-	m.lock.RLock()
-	ret := m.mapparoonie[id]
-	m.lock.RUnlock()
-	return ret
-}
-func (m *clientMap) All() []*StratumClient {
-	m.lock.RLock()
-	ret := make([]*StratumClient, len(m.mapparoonie))
-	for i, client := range m.mapparoonie {
-		ret[i] = client
-	}
-	m.lock.RUnlock()
-	return ret
-}
-
 func main() {
 	cli.RootCommandHelpTemplate = oigiki.ProcessTags(`Name:
     {bold}{blue}{{.Name}} - {{.Usage}}{/}
