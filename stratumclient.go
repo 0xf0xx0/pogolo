@@ -67,7 +67,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			stratumInited = true
 			log(fmt.Sprintf(
 				/// dig, cause gophers, get it?
-				"===<{green}%s{/green} has joined the dig!>===\n\tid: {green}%s{/green}\n\taddr: {green}%s",
+				"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
 				client.Name(), client.ID, client.Addr(),
 			))
 			/// the client may have suggested a difficulty before
@@ -270,7 +270,7 @@ func (client *StratumClient) Stop() {
 	client.statusChan = nil
 	client.templateChan = nil
 	client.conn.Close()
-	log(fmt.Sprintf("===<{green}%s{/green} has left the swarm!>===", client.Name()))
+	log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
 }
 
 // aims for the target_share_interval

@@ -121,7 +121,7 @@ Version:
 		},
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if profileDir := ctx.String("profile"); profileDir != "" {
-				log(fmt.Sprintf("{bold}{yellow}===//!//===<profiling>===//!//===\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
+				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
 				if err != nil {
 					return err
@@ -180,7 +180,7 @@ Version:
 				/// we do not care
 				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 					/// ok we kinda care
-					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", height))
+					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
 					triggerGBT <- struct{}{}
 				},
 				OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
@@ -231,12 +231,12 @@ Version:
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
 				defaultMiningAddr = &addr
-				log(fmt.Sprintf("{yellow}default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
+				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
 			}
 
 			/// start
-			log(fmt.Sprintf("===<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>===", ctx.Name, ctx.Version, ctx.Usage))
-			log(fmt.Sprintf("mining on {yellow}%s", activeChainParams.Name))
+			log(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", ctx.Name, ctx.Version, ctx.Usage))
+			log(fmt.Sprintf("mining on {green}%s", activeChainParams.Name))
 			return startup()
 		},
 	}
@@ -391,7 +391,7 @@ func backendRoutine() {
 				}
 				/// we're mining on this height
 				if count == currTemplate.Height {
-					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", count))
+					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
 					triggerGBT <- struct{}{}
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
@@ -415,7 +415,7 @@ func backendRoutine() {
 			}
 			worker := clients.Get(submission.ClientID).Name()
 			log(fmt.Sprintf(
-				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\ngopher: %s\nhash: %s\ndifficulty: %f",
+				"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f",
 				worker,
 				submission.Block.Hash(),
 				/// TODO: use pased share info
@@ -446,7 +446,7 @@ func backendRoutine() {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
-		log(fmt.Sprintf("==//==<the swarm is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
