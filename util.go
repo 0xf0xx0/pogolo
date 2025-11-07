@@ -8,6 +8,7 @@ import (
 	"pogolo/constants"
 	"slices"
 	"strconv"
+	"sync"
 
 	"github.com/0xf0xx0/oigiki"
 	"github.com/0xf0xx0/stratum"
