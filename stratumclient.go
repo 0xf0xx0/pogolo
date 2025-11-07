@@ -295,8 +295,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 	}
 
 	newDiff := max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
-	/// MAYBE: display diff in hex?
-	client.log("adjusting share target by {blue}%+g{/blue} to %x ({blue}%g)", delta, newDiff, newDiff)
+	client.log("adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
 	if err := client.setDifficulty(newDiff); err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			/// client died and we didnt notice?
