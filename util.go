@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"math/big"
 	"pogolo/constants"
 	"slices"
 	"strconv"
 
+	"github.com/0xf0xx0/oigiki"
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
@@ -109,7 +111,7 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 	return coinbase
 }
 
-/// MAYBE: move to constants?
+// / MAYBE: move to constants?
 var trueDiff1 = func() *big.Float {
 	td1 := big.Int{}
 	td1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
@@ -213,6 +215,7 @@ func treeNodeCount(leafCount int) int {
 	}
 	return count
 }
+
 // pretty-print difficulty
 func DiffFormat(value float64) string {
 	unit := ""
@@ -244,4 +247,11 @@ func FormatHashrate(value float64) string {
 		unit = "G"
 	}
 	return strconv.FormatFloat(value, 'g', 5, 64) + " " + unit + "H/s"
+}
+
+func log(s string) {
+	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan")))
+}
+func logError(s string) {
+	println(oigiki.ProcessTags(oigiki.TagString(s, "red")))
 }

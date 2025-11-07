@@ -53,9 +53,10 @@ func initAPI() {
 }
 
 func getInfo(res http.ResponseWriter, req *http.Request) {
-	workerStats := make([]workerInfo, 0, len(clients))
+	allClients := clients.All()
+	workerStats := make([]workerInfo, 0, len(allClients))
 	hashrateSum := float64(0)
-	for _, client := range clients {
+	for _, client := range allClients {
 		workerStats = append(workerStats, workerInfo{
 			UserAgent:   client.UserAgent,
 			ExtraNonce1: client.ID.String(),
@@ -67,7 +68,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		Workers:       workerStats,
 		Tag:           conf.Pogolo.Tag,
 		TotalHashrate: hashrateSum,
-		TotalWorkers:  uint64(len(clients)),
+		TotalWorkers:  uint64(len(allClients)),
 		BlockHeight:   uint64(currTemplate.Height),
 	})
 }
@@ -120,7 +121,7 @@ func writeResponse(res http.ResponseWriter, x []byte) error {
 }
 
 func getClientFromNameOrID(name string) *StratumClient {
-	for _, client := range clients {
+	for _, client := range clients.All() {
 		if client.Nickname == name || client.ID.String() == name {
 			return client
 		}

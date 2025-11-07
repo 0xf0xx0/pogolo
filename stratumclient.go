@@ -264,7 +264,6 @@ func (client *StratumClient) Stop() {
 	if client.statusChan == nil {
 		return
 	}
-	client.writeChan("done")
 	close(client.statusChan)
 	close(client.templateChan)
 	/// nil because receive-side closure

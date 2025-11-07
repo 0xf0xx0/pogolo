@@ -70,14 +70,46 @@ var (
 	longpollid        string
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
-	// TODO: sync.Map
-	clients         map[stratum.ID]*StratumClient // map of active client ids to clients
-	currTemplateID  uint64
-	currTemplate    *JobTemplate
-	submissionChan  chan BlockSubmission // global cause it gets passed around :\
-	triggerGBT      chan struct{}        // ditto cause of websocket
-	serverStartTime time.Time
+	clients           = &clientMap{} // map of active client ids to clients
+	currTemplateID    uint64
+	currTemplate      *JobTemplate
+	submissionChan    chan BlockSubmission // global cause it gets passed around :\
+	triggerGBT        chan struct{}        // ditto cause of websocket
+	serverStartTime   time.Time
 )
+
+// basically typed sync.Map
+type clientMap struct {
+	// TODO: better name
+	lock        sync.RWMutex
+	mapparoonie map[stratum.ID]*StratumClient
+}
+
+func (m *clientMap) Add(client *StratumClient) {
+	m.lock.Lock()
+	m.mapparoonie[client.ID] = client
+	m.lock.Unlock()
+}
+func (m *clientMap) Delete(id stratum.ID) {
+	m.lock.Lock()
+	delete(m.mapparoonie, id)
+	m.lock.Unlock()
+}
+func (m *clientMap) Get(id stratum.ID) *StratumClient {
+	m.lock.RLock()
+	ret := m.mapparoonie[id]
+	m.lock.RUnlock()
+	return ret
+}
+func (m *clientMap) All() []*StratumClient {
+	m.lock.RLock()
+	ret := make([]*StratumClient, len(m.mapparoonie))
+	for i, client := range m.mapparoonie {
+		ret[i] = client
+	}
+	m.lock.RUnlock()
+	return ret
+}
 
 func main() {
 	cli.RootCommandHelpTemplate = oigiki.ProcessTags(`Name:
@@ -253,7 +285,6 @@ func startup() error {
 	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
-	clients = make(map[stratum.ID]*StratumClient, 5)
 	submissionChan = make(chan BlockSubmission, 3) /// buffered just in case, it doesnt hurt
 
 	initAPI()
@@ -334,15 +365,20 @@ func startup() error {
 }
 
 // handles individual conns, spawned as a goroutine
+// TODO: refactor?
 func clientHandler(conn net.Conn) {
 	defer conn.Close()
+
 	client := CreateClient(conn, submissionChan)
 	channel := client.MsgChannel()
+
 	/// remove ourselves from the client map on disconnect
 	defer func() {
-		delete(clients, client.ID)
+		clients.Delete(client.ID)
 	}()
+
 	go client.Run(false)
+
 	for {
 		msg, ok := <-channel
 		if !ok {
@@ -358,11 +394,7 @@ func clientHandler(conn net.Conn) {
 				if currTemplate != nil {
 					client.Channel() <- currTemplate
 				}
-				clients[client.ID] = &client
-			}
-		case "done":
-			{
-				return
+				clients.Add(&client)
 			}
 		}
 	}
@@ -415,7 +447,7 @@ func backendRoutine() {
 				logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 				continue
 			}
-			worker := clients[submission.ClientID].Name()
+			worker := clients.Get(submission.ClientID).Name()
 			log(fmt.Sprintf(
 				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\ngopher: %s\nhash: %s\ndifficulty: %f",
 				worker,
@@ -448,7 +480,7 @@ func backendRoutine() {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
-		log(fmt.Sprintf("===<the gophers are mining on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		log(fmt.Sprintf("===<the swarm is mining on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
@@ -496,14 +528,7 @@ func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.L
 }
 
 func notifyClients(j *JobTemplate) {
-	for _, client := range clients {
+	for _, client := range clients.All() {
 		client.Channel() <- j
 	}
-}
-
-func log(s string) {
-	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan")))
-}
-func logError(s string) {
-	println(oigiki.ProcessTags(oigiki.TagString(s, "red")))
 }
