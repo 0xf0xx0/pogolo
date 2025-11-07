@@ -71,11 +71,11 @@ var (
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
 	// TODO: sync.Map
-	clients           map[stratum.ID]*StratumClient // map of active client ids to clients
-	currTemplateID    uint64
-	currTemplate      *JobTemplate
-	submissionChan    chan BlockSubmission // global cause it gets passed around :\
-	serverStartTime   time.Time
+	clients         map[stratum.ID]*StratumClient // map of active client ids to clients
+	currTemplateID  uint64
+	currTemplate    *JobTemplate
+	submissionChan  chan BlockSubmission // global cause it gets passed around :\
+	serverStartTime time.Time
 )
 
 func main() {
@@ -108,7 +108,7 @@ Version:
 				Usage: "write default config to `path` and exit",
 			},
 			&cli.StringFlag{
-				Name:   "profile",
+				Name:  "profile",
 				Usage: "write cpu and memory profiles to `dir`",
 			},
 		},
@@ -123,11 +123,11 @@ Version:
 		Action: func(_ context.Context, ctx *cli.Command) error {
 			if profileDir := ctx.String("profile"); profileDir != "" {
 				log(fmt.Sprintf("{bold}{yellow}===//!//===<profiling>===//!//===\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
-				profileFile, err := os.Create(filepath.Join(profileDir,"./cpu.prof"))
+				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
 				if err != nil {
 					return err
 				}
-				memProfFile, err := os.Create(filepath.Join(profileDir,"./mem.prof"))
+				memProfFile, err := os.Create(filepath.Join(profileDir, "./mem.prof"))
 				if err != nil {
 					return err
 				}
@@ -179,7 +179,10 @@ Version:
 			var err error
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 				/// we do not care
-				OnFilteredBlockConnected:    func(_ int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {},
+				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
+					/// ok we kinda care
+					log(fmt.Sprintf("===<there are now {blue}%d{/blue} bl00ks in the chain!>===", height))
+				},
 				OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
 				/// only needed for the backend.NotifyBlocks() call later
 			})
@@ -443,7 +446,7 @@ func backendRoutine() {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
-		log(fmt.Sprintf("===<the swarm is working on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		log(fmt.Sprintf("===<the swarm is mining on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
