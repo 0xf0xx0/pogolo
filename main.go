@@ -446,7 +446,7 @@ func backendRoutine() {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 		currTemplate = CreateJobTemplate(template)
-		log(fmt.Sprintf("===<the swarm is mining on job {blue}0x%s{/blue}!>===\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		log(fmt.Sprintf("==//==<the swarm is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
 		select {
