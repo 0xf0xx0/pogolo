@@ -70,6 +70,7 @@ var (
 	longpollid        string
 	activeChainParams *chaincfg.Params
 	defaultMiningAddr *btcutil.Address
+	// TODO: sync.Map
 	clients           map[stratum.ID]*StratumClient // map of active client ids to clients
 	currTemplateID    uint64
 	currTemplate      *JobTemplate
@@ -414,7 +415,7 @@ func backendRoutine() {
 				"{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==\ngopher: %s\nhash: %s\ndifficulty: %f",
 				worker,
 				submission.Block.Hash(),
-				/// TODO: pass the share info from the client
+				/// TODO: use pased share info
 				CalcDifficulty(submission.Block.MsgBlock().Header),
 			))
 

@@ -39,7 +39,7 @@ type StratumClient struct {
 
 // used for hashrate calc
 type timeSlot struct {
-	time    time.Time
+	time.Time
 	accDiff uint64 // accumulated difficulty, used for hashrate calc
 }
 
@@ -72,7 +72,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			))
 			/// the client may have suggested a difficulty before
 			/// fully initialized
-			/// if they haven't, alert them to our default diff here
+			/// if they haven't, we alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
 				if strings.Contains(client.UserAgent, "cpuminer") {
 					client.setDifficulty(constants.DEFAULT_DIFFICULTY_LOW_POWER)
@@ -285,24 +285,24 @@ func (client *StratumClient) adjustDiffRoutine() {
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 	/// tighten it to +-1s
-	if absDifference < 3 {
+	if absDifference < 2 {
 		return
 	}
-	/// cap the adjustment at +-2^9
-	delta := min(math.Pow(2, absDifference), 512)
+	/// cap the adjustment at +-256
+	delta := min(math.Pow(2, absDifference), 256)
 	if difference < 0 {
 		delta = -delta / 2 /// we want to be more conservative when adjusting downwards
 	}
 
 	newDiff := max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
-	client.log("adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
+	/// MAYBE: display diff in hex?
+	client.log("adjusting share target by {blue}%+g{/blue} to %x ({blue}%g)", delta, newDiff, newDiff)
 	if err := client.setDifficulty(newDiff); err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			/// client died and we didnt notice?
 			client.Stop()
 			return
 		}
-		client.error("failed to set new diff %s", err)
 	}
 }
 
@@ -391,7 +391,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 			client.log("{green}new best session diff!")
 		}
 		client.stats.sharesAccepted++
-		/// MAYBE: save en2?
+
 		/// update with the target diff for a more accurate estimation
 		client.stats.update(client.TargetDifficulty)
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
@@ -511,13 +511,13 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 		/// rolling avg
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
-		submission := uint64(now.Sub(stats.lastSubmission).Milliseconds())
+		delta := uint64(now.Sub(stats.lastSubmission).Milliseconds())
 		/// start the avg calc with the furst delta, not 0
 		if stats.avgSubmissionDelta == 0 {
-			stats.avgSubmissionDelta = submission
+			stats.avgSubmissionDelta = delta
 		} else {
 			stats.avgSubmissionDelta =
-				((stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + submission) / constants.SUBMISSION_DELTA_WINDOW
+				((stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + delta) / constants.SUBMISSION_DELTA_WINDOW
 		}
 	}
 
@@ -539,17 +539,17 @@ func (stats *ClientStats) HashrateH() float64 {
 // live hashrate in MH/s
 func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
 	/// calc copied from public-pool
-	timeSlot := time.Unix((shareTime.Unix()/constants.HASHRATE_WINDOW)*constants.HASHRATE_WINDOW, 0)
+	windowStart := time.Unix((shareTime.Unix()/constants.HASHRATE_WINDOW)*constants.HASHRATE_WINDOW, 0)
 	/// first call, make the current slot (and set the last as the init time)
-	if stats.currTimeSlot.time.Unix() <= 0 {
-		stats.currTimeSlot.time = timeSlot
-		stats.lastTimeSlot.time = stats.startTime
+	if stats.currTimeSlot.Unix() <= 0 {
+		stats.currTimeSlot.Time = windowStart
+		stats.lastTimeSlot.Time = stats.startTime
 		/// if we're in the next chunk of time, snapshot the curr* and move over
-	} else if stats.currTimeSlot.time.Unix() != timeSlot.Unix() {
+	} else if stats.currTimeSlot.Unix() != windowStart.Unix() {
 		stats.lastTimeSlot = stats.currTimeSlot
 
 		stats.currTimeSlot.accDiff = uint64(currTargetDiff)
-		stats.currTimeSlot.time = timeSlot
+		stats.currTimeSlot.Time = windowStart
 		/// otherwise just update stats
 	} else {
 		/// we wanna use the target difficulty for a stable number
@@ -557,7 +557,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 		if stats.currTimeSlot.accDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-			time := float64(shareTime.Sub(stats.lastTimeSlot.time).Seconds())
+			time := float64(shareTime.Sub(stats.lastTimeSlot.Time).Seconds())
 			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
 		}
