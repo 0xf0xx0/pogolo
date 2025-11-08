@@ -100,7 +100,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 		panic(err)
 	}
 	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
-		logError("pool tag too long, resetting to default")
+		logError("pool tag too long (>100), resetting to default")
 		coinbaseScript = coinbaseScript.Reset().
 			AddInt64(height).
 			AddData([]byte(constants.DEFAULT_COINBASE_TAG)).
