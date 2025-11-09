@@ -124,6 +124,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 }
 
 // like public-pools copyAndUpdateBlock without the copy
+// TODO: move to StratumClient?
 func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
 	/// because we copied the block from the template when making the job, we can just reuse it
 	msgBlock := job.Block.MsgBlock()

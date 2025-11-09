@@ -364,8 +364,8 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// submission was high enough
 	updatedBlock, err := client.CurrentJob.UpdateBlock(client, share, client.CurrentJob.NotifyParams)
 	if err != nil {
-		client.error("internal error: %s", err)
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
+		client.error(err.Error())
+		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 		return
 	}
 
