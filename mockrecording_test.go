@@ -188,6 +188,6 @@ func getAddr() btcutil.Address {
 func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
 	job := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	tx := FillCoinbaseTx(addr, btcutil.NewBlock(job.MsgBlock), job.Subsidy, MOCK_CHAIN)
+	tx := FillCoinbaseTx(addr, btcutil.NewBlock(&job.MsgBlock), job.Subsidy, MOCK_CHAIN)
 	return tx
 }

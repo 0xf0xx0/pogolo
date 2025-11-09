@@ -428,7 +428,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 
 	job := MiningJob{
 		NetworkDiff:  template.NetworkDiff,
-		Block:        block,
+		Block:        *block,
 		Version:      block.MsgBlock().Header.Version,
 		MerkleBranch: template.MerkleBranch,
 		NotifyParams: stratum.NotifyParams{

@@ -22,7 +22,7 @@ import (
 
 type JobTemplate struct {
 	ID           string
-	MsgBlock     *wire.MsgBlock
+	MsgBlock     wire.MsgBlock
 	Bits         []byte
 	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
@@ -32,7 +32,7 @@ type JobTemplate struct {
 type MiningJob struct {
 	stratum.NotifyParams
 	MerkleBranch []*chainhash.Hash
-	Block        *btcutil.Block
+	Block        btcutil.Block
 	Version      int32
 	NetworkDiff  float64
 }
@@ -91,7 +91,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 		msgTxns[idx] = tx.MsgTx()
 	}
 
-	block := &wire.MsgBlock{
+	block := wire.MsgBlock{
 		Header: wire.BlockHeader{
 			Version:    template.Version,
 			Bits:       uint32(headerBits),
@@ -100,6 +100,11 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 			MerkleRoot: *merkleRoot,
 		},
 		Transactions: msgTxns,
+	}
+
+	/// FIXME: prolly exit cause config needs to be changed
+	if block.SerializeSize() > blockchain.MaxBlockWeight {
+		logError("block too heavy, please reduce blockmaxweight")
 	}
 
 	/// bitties on the yitties
@@ -120,6 +125,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 // like public-pools copyAndUpdateBlock without the copy
 func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
 	/// because we copied the block from the template when making the job, we can just reuse it
+	/// FIXME: figure out why removing the copy causes a memory leak
 	msgBlock := job.Block.MsgBlock()
 
 	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
