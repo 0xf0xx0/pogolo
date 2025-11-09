@@ -126,7 +126,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 // like public-pools copyAndUpdateBlock without the copy
 func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
 	/// because we copied the block from the template when making the job, we can just reuse it
-	/// FIXME: figure out why removing the copy causes a memory leak
 	msgBlock := job.Block.MsgBlock()
 
 	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
