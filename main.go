@@ -419,7 +419,6 @@ func backendRoutine() {
 				"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f\nnonce: %x\nextranonce: %s %x",
 				client.Name(),
 				submission.Block.Hash(),
-				/// TODO: use pased share info
 				CalcDifficulty(submission.Block.MsgBlock().Header),
 				submission.Share.Nonce,
 				client.ID,
