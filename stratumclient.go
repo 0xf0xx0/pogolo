@@ -108,7 +108,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		//client.log("{blackbright}> %#q", line)
 
 		/// we dont need the trailing newline
-		line = bytes.TrimRight(line, "\n\r ")
+		line = bytes.Trim(line, "\n\r ")
 
 		/// process the message
 		m, err := DecodeStratumMessage(line)
@@ -122,6 +122,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			{
 				if !stratumInited {
 					client.logError("submit before subscribe")
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_SUBBED))
 					return
 				}
 				s := stratum.Share{}
