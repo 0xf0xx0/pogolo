@@ -32,7 +32,7 @@ type StratumClient struct {
 	conn           net.Conn
 	statusChan     chan string // messages to server
 	templateChan   chan *JobTemplate
-	submissionChan chan<- BlockSubmission
+	submissionChan chan<- blockSubmission
 	CurrentJob     MiningJob // TODO: store the previous temporarily when switching?
 	stats          *ClientStats
 }
@@ -43,9 +43,9 @@ type timeSlot struct {
 	accDiff uint64 // accumulated difficulty, used for hashrate calc
 }
 
-type BlockSubmission struct {
+type blockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
-	Block    *btcutil.Block
+	Block    btcutil.Block
 	Share    stratum.Share
 }
 
@@ -373,9 +373,9 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	if shareDiff >= client.TargetDifficulty {
 		if shareDiff >= client.CurrentJob.NetworkDiff {
 			/// !!! block! dont say ANYTHING until after submitted
-			submission := BlockSubmission{
+			submission := blockSubmission{
 				ClientID: client.ID,
-				Block:    btcutil.NewBlock(updatedBlock),
+				Block:    *btcutil.NewBlock(updatedBlock),
 				Share:    share,
 			}
 
@@ -449,7 +449,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 }
 
 // chatter
-func (client *StratumClient) submitBlock(block BlockSubmission) {
+func (client *StratumClient) submitBlock(block blockSubmission) {
 	client.submissionChan <- block
 }
 func (client *StratumClient) writeRes(res stratum.Response) error {
@@ -563,7 +563,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 }
 
 // clients are given an id, a job, and a channel to submit blocks on
-func CreateClient(conn net.Conn, submissionChannel chan<- BlockSubmission) StratumClient {
+func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
 	client := StratumClient{
 		ID:             ClientIDHash(conn.RemoteAddr().String()),
 		stats:          &ClientStats{},

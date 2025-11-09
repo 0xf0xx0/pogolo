@@ -72,7 +72,7 @@ var (
 	clients           = &clientMap{} // map of active client ids to clients
 	currTemplateID    uint64
 	currTemplate      *JobTemplate
-	submissionChan    chan BlockSubmission // global cause it gets passed around :\
+	submissionChan    chan blockSubmission // global cause it gets passed around :\
 	triggerGBT        chan struct{}        // ditto cause of websocket
 	serverStartTime   time.Time
 )
@@ -251,7 +251,7 @@ func startup() error {
 	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
-	submissionChan = make(chan BlockSubmission, 3) /// buffered just in case, it doesnt hurt
+	submissionChan = make(chan blockSubmission, 3) /// buffered just in case, it doesnt hurt
 
 	initAPI()
 
@@ -408,7 +408,7 @@ func backendRoutine() {
 				logError("{yellow}failed to receive block submission")
 				continue
 			}
-			err := backend.SubmitBlock(submission.Block, nil)
+			err := backend.SubmitBlock(&submission.Block, nil)
 			if err != nil {
 				logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 				continue

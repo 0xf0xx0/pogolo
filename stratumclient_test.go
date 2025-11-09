@@ -166,8 +166,8 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *StratumClient, chan BlockSubmission) {
-	submissionChan := make(chan BlockSubmission)
+func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
+	submissionChan := make(chan blockSubmission)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
 	client := CreateClient(rpipe, submissionChan)
