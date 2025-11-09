@@ -100,7 +100,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		case io.EOF:
 			return
 		default:
-			client.error("%s", err)
+			client.logError("%s", err)
 			return
 		}
 		client.conn.SetDeadline(time.Now().Add(time.Minute * 3))
@@ -113,7 +113,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		/// process the message
 		m, err := DecodeStratumMessage(line)
 		if err != nil {
-			client.error("stratum decode error: %s", err)
+			client.logError("stratum decode error: %s", err)
 			return
 		}
 
@@ -121,13 +121,14 @@ func (client *StratumClient) Run(noCleanup bool) {
 		case stratum.MiningSubmit:
 			{
 				if !stratumInited {
-					client.error("submit before subscribe")
+					client.logError("submit before subscribe")
 					return
 				}
 				s := stratum.Share{}
-				err := s.Read(m)
-				if err != nil {
-					panic(err)
+				if err := s.Read(m); err != nil {
+					client.logError("error processing %s: %s", m.Method, err)
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					break
 				}
 				client.validateShareSubmission(s, m)
 			}
@@ -135,12 +136,17 @@ func (client *StratumClient) Run(noCleanup bool) {
 			{
 				params := stratum.ConfigureParams{}
 				params.Read(m)
+				if err := params.Read(m); err != nil {
+					client.logError("error processing %s: %s", m.Method, err)
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					break
+				}
 				res := stratum.ConfigureResult{}
 				if slices.Contains(params.Supported, "version-rolling") {
 					if rawMask, ok := params.Parameters["version-rolling.mask"]; ok {
 						mask, err := strconv.ParseUint(rawMask.(string), 16, 32)
 						if err != nil {
-							client.error("couldnt parse version rolling mask %v", rawMask)
+							client.logError("couldnt parse version rolling mask %v", rawMask)
 							client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 							return
 						}
@@ -155,7 +161,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 						}
 					} else {
 						/// *uhhhhhhhhhhhhhhhh*
-						client.error("couldnt read version rolling mask? shouldnt happen i *think*")
+						client.logError("couldnt read version rolling mask? shouldnt happen i *think*")
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 						return
 					}
@@ -169,15 +175,20 @@ func (client *StratumClient) Run(noCleanup bool) {
 				}
 				params := stratum.AuthorizeParams{}
 				params.Read(m)
+				if err := params.Read(m); err != nil {
+					client.logError("error processing %s: %s", m.Method, err)
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					break
+				}
 				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
-					client.error("invalid password")
+					client.logError("invalid password")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNAUTHORIZED))
 					return
 				}
 				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
 				if err != nil {
 					if defaultMiningAddr == nil {
-						client.error("failed decoding address: %s", err)
+						client.logError("failed decoding address: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 						return
 					}
@@ -198,15 +209,20 @@ func (client *StratumClient) Run(noCleanup bool) {
 				if isSubscribed {
 					break
 				}
-				subParams := stratum.SubscribeParams{}
-				subParams.Read(m)
-				client.UserAgent = parseUserAgent(subParams.UserAgent)
+				params := stratum.SubscribeParams{}
+				params.Read(m)
+				if err := params.Read(m); err != nil {
+					client.logError("error processing %s: %s", m.Method, err)
+					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					break
+				}
+				client.UserAgent = parseUserAgent(params.UserAgent)
 				if client.UserAgent == "luckyminer" {
 					/// unsupported
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 					return
 				}
-				params := stratum.SubscribeResult{
+				responseParams := stratum.SubscribeResult{
 					Subscriptions: []stratum.Subscription{
 						{
 							Method:    stratum.MiningNotify,
@@ -216,7 +232,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					ExtraNonce1:     client.ID,
 					ExtraNonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
 				}
-				client.writeRes(stratum.SubscribeResponse(m.MessageID, params))
+				client.writeRes(stratum.SubscribeResponse(m.MessageID, responseParams))
 				isSubscribed = true
 			}
 		case stratum.MiningSuggestDifficulty:
@@ -229,7 +245,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 
 				params := stratum.SuggestDifficultyParams{}
 				if err := params.Read(m); err != nil {
-					client.error("couldnt read mining.suggest_difficulty: %s", err)
+					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
 				}
@@ -240,11 +256,11 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.log("suggested difficulty {blue}%g", suggestedDiff)
 
 					if err := client.setDifficulty(suggestedDiff); err != nil {
-						client.error("failed to adjust difficulty: %s", err)
+						client.logError("failed to adjust difficulty: %s", err)
 						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
 					}
 				} else {
-					client.error("rejected suggested difficulty")
+					client.logError("rejected suggested difficulty")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
 			}
@@ -255,7 +271,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		default:
 			{
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
-				client.error("unknown stratum message: %+v", m)
+				client.logError("unknown stratum message: %+v", m)
 			}
 		}
 	}
@@ -315,7 +331,7 @@ func (client *StratumClient) readJobChanRoutine() {
 		client.CurrentJob = client.createJob(template)
 		err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
 		if err != nil {
-			client.error("error sending job: %s", err)
+			client.logError("error sending job: %s", err)
 		}
 	}
 }
@@ -354,7 +370,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
 	if share.JobID != client.CurrentJob.NotifyParams.JobID {
 		client.stats.sharesRejected++
-		client.error("share rejected: unknown job")
+		client.logError("share rejected: unknown job")
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
 		return
 	}
@@ -364,7 +380,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// submission was high enough
 	updatedBlock, err := client.CurrentJob.UpdateBlock(client, share, client.CurrentJob.NotifyParams)
 	if err != nil {
-		client.error(err.Error())
+		client.logError(err.Error())
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 		return
 	}
@@ -398,7 +414,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	} else {
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_LOW_DIFF))
 		client.stats.sharesRejected++
-		client.error("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
+		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 	}
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
 		client.adjustDiffRoutine()
@@ -455,7 +471,7 @@ func (client *StratumClient) submitBlock(block blockSubmission) {
 func (client *StratumClient) writeRes(res stratum.Response) error {
 	bytes, err := res.Marshal()
 	if err != nil {
-		client.error("failed to marshal response: %s", err)
+		client.logError("failed to marshal response: %s", err)
 		return err
 	}
 
@@ -464,7 +480,7 @@ func (client *StratumClient) writeRes(res stratum.Response) error {
 func (client *StratumClient) writeNotif(n stratum.Notification) error {
 	bytes, err := n.Marshal()
 	if err != nil {
-		client.error("failed to marshal notification: %s", err)
+		client.logError("failed to marshal notification: %s", err)
 		return err
 	}
 
@@ -485,7 +501,7 @@ func (client *StratumClient) log(s string, a ...any) {
 	/// MAYBE: move prefix to StratumClient?
 	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
 }
-func (client *StratumClient) error(s string, a ...any) {
+func (client *StratumClient) logError(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	logError("[{green}" + client.Name() + "{/green}] " + s)
 }
