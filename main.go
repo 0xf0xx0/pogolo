@@ -252,6 +252,7 @@ func startup() error {
 
 	conns := make(chan net.Conn)
 	submissionChan = make(chan blockSubmission, 3) /// buffered just in case, it doesnt hurt
+	clients.Init()
 
 	initAPI()
 
@@ -413,13 +414,16 @@ func backendRoutine() {
 				logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 				continue
 			}
-			worker := clients.Get(submission.ClientID).Name()
+			client := clients.Get(submission.ClientID)
 			log(fmt.Sprintf(
-				"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f",
-				worker,
+				"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f\nnonce: %x\nextranonce: %s %x",
+				client.Name(),
 				submission.Block.Hash(),
 				/// TODO: use pased share info
 				CalcDifficulty(submission.Block.MsgBlock().Header),
+				submission.Share.Nonce,
+				client.ID,
+				submission.Share.ExtraNonce2,
 			))
 
 			triggerGBT <- struct{}{}

@@ -30,6 +30,9 @@ type clientMap struct {
 	mapparoonie map[stratum.ID]*StratumClient
 }
 
+func (m *clientMap) Init() {
+	m.mapparoonie = make(map[stratum.ID]*StratumClient, 5)
+}
 func (m *clientMap) Add(client *StratumClient) {
 	m.lock.Lock()
 	m.mapparoonie[client.ID] = client
@@ -48,9 +51,9 @@ func (m *clientMap) Get(id stratum.ID) *StratumClient {
 }
 func (m *clientMap) All() []*StratumClient {
 	m.lock.RLock()
-	ret := make([]*StratumClient, len(m.mapparoonie))
-	for i, client := range m.mapparoonie {
-		ret[i] = client
+	ret := make([]*StratumClient, 0, len(m.mapparoonie))
+	for _, client := range m.mapparoonie {
+		ret = append(ret, client)
 	}
 	m.lock.RUnlock()
 	return ret
