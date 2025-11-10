@@ -23,7 +23,7 @@ type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port"`
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported (takes precedence over rpcauth)"`
 	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)"`
-	Websocket    bool   `toml:"websocket" comment:"whether to use the btcd websocket interface"`
+	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is true"`
 }
 type Pogolo struct {
@@ -32,7 +32,7 @@ type Pogolo struct {
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
 	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
-	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
+	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)"`
 	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.01"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
