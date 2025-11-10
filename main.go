@@ -59,7 +59,7 @@ import (
 // things
 const (
 	NAME    = "pogolo"
-	VERSION = "0.0.9"
+	VERSION = "0.0.10"
 )
 
 // global state
