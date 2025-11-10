@@ -8,10 +8,10 @@ go 1.24.4
 
 require (
 	github.com/0xf0xx0/oigiki v1.0.2
-	github.com/0xf0xx0/stratum v0.0.7-0.20251031163348-14cea9964b72
+	github.com/0xf0xx0/stratum v0.0.7-0.20251109222652-f7195c66a5b8
 	github.com/btcsuite/btcd v0.25.0
-	github.com/btcsuite/btcd/btcutil v1.1.7-0.20250925015248-b7d070601def
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20250925015248-b7d070601def
+	github.com/btcsuite/btcd/btcutil v1.1.7-0.20251106010755-9ff0780da683
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20251106010755-9ff0780da683
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/urfave/cli/v3 v3.6.0
 	github.com/zeebo/xxh3 v1.0.2
