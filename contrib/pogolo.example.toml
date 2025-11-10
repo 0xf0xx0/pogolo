@@ -1,20 +1,20 @@
 [backend]
 # RPC host:port
 host = '[::1]:8332'
-# RPC cookie path, relative is supported
+# RPC cookie path, relative is supported (takes precedence over rpcauth)
 # cookie = '~/.bitcoin/.cookie'
-# RPC user:pass
+# RPC user:pass (ignored if cookie is set)
 # rpcauth = 'bitty:axxy'
 # whether to use the btcd websocket interface
-websocket = false
+# websocket = false
 # how quickly to poll for block updates, in milliseconds
 # ignored if websocket is true
 poll_interval = 500
 
 [pogolo]
-# takes precedence over ip, will listen on all interface ips
-interface = 'lo'
-# ipv4, v6, or domain (domain will only resolve the first ip)
+# will listen on all interface ips (takes precedence over ip)
+interface = 'wlan0'
+# ipv4, v6, or domain (domain will only resolve the first ip) (ignored if interface is set)
 # ip = '[::1]'
 # use 0 to pick a random port
 port = 5661
@@ -22,7 +22,7 @@ port = 5661
 http_port = 5662
 # optional, required for clients if set
 # password = ''
-# will be replaced by default tag if too long (see coinbase scriptsig limit)
+# will be replaced by default tag if too long (about 86 chars)
 tag = '/pogolo - decentralize or die/'
 # default on-chain address to mine to if not provided by client
 # pool_address = ''
@@ -32,7 +32,7 @@ default_difficulty = 1024.0
 job_interval = 60
 # how often we want shares on average, in seconds
 target_share_interval = 5
-# extranonce2 size, usually shouldnt be touched
+# extranonce2 size in bytes, usually shouldnt be touched
 # extranonce2_size = 4
 # ignore the client-suggested difficulty
 # ignore_suggested_difficulty = false
