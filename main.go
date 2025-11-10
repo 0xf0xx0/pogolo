@@ -225,13 +225,13 @@ Version:
 			}
 
 			/// decode the default mining address
-			if conf.Pogolo.ChainAddress != "" {
-				addr, err := btcutil.DecodeAddress(conf.Pogolo.ChainAddress, activeChainParams)
+			if conf.Pogolo.PoolAddress != "" {
+				addr, err := btcutil.DecodeAddress(conf.Pogolo.PoolAddress, activeChainParams)
 				if err != nil {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
 				defaultMiningAddr = &addr
-				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.Pogolo.ChainAddress))
+				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.Pogolo.PoolAddress))
 			}
 
 			/// start

@@ -33,7 +33,7 @@ type Pogolo struct {
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
 	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (see coinbase scriptsig limit)"`
-	ChainAddress        string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
+	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.01"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
