@@ -48,8 +48,7 @@ var DEFAULT_CONFIG = Config{
 		PollInterval: 500,
 	},
 	Pogolo: Pogolo{
-		Interface:           "lo",
-		IP:                  "[::1]",
+		Interface:           "wlan0",
 		Port:                5661,
 		HTTPPort:            5662,
 		Tag:                 constants.DEFAULT_COINBASE_TAG,
