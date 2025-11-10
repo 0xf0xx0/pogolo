@@ -25,8 +25,8 @@ import (
 
 // basically typed sync.Map
 type clientMap struct {
-	// TODO: better name
 	lock        sync.RWMutex
+	// TODO: better name
 	mapparoonie map[stratum.ID]*StratumClient
 }
 

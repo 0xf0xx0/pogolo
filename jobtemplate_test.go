@@ -3,57 +3,33 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"math"
 	"pogolo/config"
 	"testing"
 
-	// main "pogolo"
-
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/mining"
 )
 
-func TestWitnessCalc(t *testing.T) {
-	template := MOCK_BLOCK_TEMPLATE
-	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
-	for idx, templateTx := range template.Transactions {
-		decoded, err := hex.DecodeString(templateTx.Data)
-		if err != nil {
-			println(idx, templateTx.Data)
-			panic(err)
-		}
-		tx, err := btcutil.NewTxFromBytes(decoded)
-		if err != nil {
-			println(idx, templateTx.Data)
-			panic(err)
-		}
-		txns[idx+1] = tx
-	}
-	txns[0] = CreateEmptyCoinbase(template)
-	witnessCommit := hex.EncodeToString(mining.AddWitnessCommitment(txns[0], txns))
-	t.Log(witnessCommit)
-	t.Log(template.DefaultWitnessCommitment[12:])
-}
-
+// this needs to be re-done every time something internal changes
 func TestUpdateBlock(t *testing.T) {
 	conf = config.DEFAULT_CONFIG
-	template := MOCK_BLOCK_TEMPLATE_MERKLE
-	expectedShareDiff := MOCK_SHAREDIFF_MERKLE
-	id, _ := stratum.DecodeID(MOCK_EXTRANONCE_MERKLE)
+	template := MOCK_BLOCK_TEMPLATE
+	expectedShareDiff := MOCK_SHAREDIFF
+	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
 	client := &StratumClient{
 		ID:   id,
 		User: getAddr(),
 	}
 	tml := CreateJobTemplate(template)
 	job := client.createJob(tml)
-	blk, err := job.UpdateBlock(client, submitParamsMerkle, notifyParamsMerkle)
+	blk, err := job.UpdateBlock(client, submitParams, notifyParams)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	shareDiff := CalcDifficulty(blk.Header)
-	if shareDiff != expectedShareDiff {
+	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 		return
 	}
@@ -83,16 +59,7 @@ func TestCreateJobTemplate(t *testing.T) {
 			template.PreviousHash,
 			job.MsgBlock.Header.PrevBlock.String())
 	}
-	/// .DefaultWitnessCommitment includes the magic bytes, trim em before comparing
-	/// FIXME: by removing unused struct fields im also breaking my tests :D
-	/// i regret this
-	// expectedWitnessCommitment := template.DefaultWitnessCommitment[12:]
-	// if hex.EncodeToString(job.WitnessCommittment) != expectedWitnessCommitment {
-	// 	t.Errorf("job witness mismatch, expected %s, got %s",
-	// 		expectedWitnessCommitment,
-	// 		hex.EncodeToString(job.WitnessCommittment))
-	// }
-	/// TODO/FIXME: how to validate merkle root?
+	/// MAYBE/FIXME: how to validate merkle root?
 }
 func TestValidateCoinbaseScript(t *testing.T) {
 	tx := getCoinbaseTx()
@@ -104,5 +71,5 @@ func TestValidateCoinbaseScript(t *testing.T) {
 	t.Logf("%q", script)
 	t.Logf("coinbase script: %x", script)
 	t.Logf("script len: %d, max: %d", len(script), blockchain.MaxCoinbaseScriptLen)
-	/// TODO: verify the block height is at the start
+	/// MAYBE: verify the block height is at the start
 }

@@ -30,6 +30,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -437,6 +438,8 @@ func backendRoutine() {
 			Mode:         "template",
 			LongPollID:   longpollid,
 		})
+		j,_:=json.Marshal(template)
+		log(string(j))
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
