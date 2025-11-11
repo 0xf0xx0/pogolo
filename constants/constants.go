@@ -1,6 +1,8 @@
 package constants
 
 import (
+	"math/big"
+
 	"github.com/0xf0xx0/stratum"
 )
 
@@ -25,7 +27,6 @@ const (
 
 // errors can be anything, so i chose http-ish codes :3
 var (
-
 	// server errors
 
 	// internal server error
@@ -47,3 +48,10 @@ var (
 	// for data we understand but couldnt process
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}
 )
+
+// used for diff calc
+var TrueDiff1 = func() *big.Float {
+	td1 := big.Int{}
+	td1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
+	return new(big.Float).SetInt(&td1)
+}()

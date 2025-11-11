@@ -25,7 +25,7 @@ import (
 
 // basically typed sync.Map
 type clientMap struct {
-	lock        sync.RWMutex
+	lock sync.RWMutex
 	// TODO: better name
 	mapparoonie map[stratum.ID]*StratumClient
 }
@@ -137,6 +137,7 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 	coinbaseMsgTx := coinbase.MsgTx()
 	/// HACK: mining.AddWitnessCommitment appends, empty txout
 	coinbaseMsgTx.TxOut = coinbaseMsgTx.TxOut[:0]
+	/// NOTE: witness gets added furst, just cause its *unique*
 	/// AND I AM ITS SOLE WITNESS
 	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	/// we gotta add the subsidy too
@@ -147,18 +148,11 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 	return coinbase
 }
 
-// / MAYBE: move to constants?
-var trueDiff1 = func() *big.Float {
-	td1 := big.Int{}
-	td1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
-	return new(big.Float).SetInt(&td1)
-}()
-
 // port of public-pools calculateDifficulty
 func CalcDifficulty(header wire.BlockHeader) float64 {
 	hashResult := header.BlockHash()
 	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hashResult))
-	diff, _ := s64.Quo(trueDiff1, s64).Float64()
+	diff, _ := s64.Quo(constants.TrueDiff1, s64).Float64()
 	return diff
 }
 
