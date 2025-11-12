@@ -430,6 +430,8 @@ func backendRoutine() {
 	}()
 
 	/// main gbt loop
+	/// FIXME: stalls shutdown on certain errors?
+	/// FIXME: gbt can die and cause a hang?
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
@@ -439,6 +441,9 @@ func backendRoutine() {
 		})
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
+			if strings.Contains(err.Error(), "shutdown") {
+				return
+			}
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue
 		}

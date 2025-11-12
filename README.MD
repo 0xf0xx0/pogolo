@@ -72,7 +72,8 @@ the onchain address is also optional if the pool has a default configured.
 
 - document code for future viewers
     - link stratum and mining docs  
-      waiting for bip 41
+      waiting for bip 41  
+      https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
 - logs with personality
     - hide cursor, use full term height?
     - styled around standard 80x24

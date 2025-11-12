@@ -26,7 +26,7 @@ type StratumClient struct {
 	Password            string
 	UserAgent           string
 	TargetDifficulty    float64
-	SuggestedDifficulty float64
+	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
 	VersionRollingMask  uint32
 	// internal
 	conn           net.Conn
@@ -239,7 +239,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 		case stratum.MiningSuggestDifficulty:
 			{
 				/// only accept a suggested difficulty if we haven't got one before
-				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty != 0 {
+				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 					break
 				}
@@ -250,16 +250,11 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
 				}
-				suggestedDiff := params.Difficulty.(float64)
+				suggestedDiff := math.Abs(params.Difficulty.(float64))
 				if suggestedDiff != client.TargetDifficulty && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
 					client.log("suggested difficulty {blue}%g", suggestedDiff)
-
-					if err := client.setDifficulty(suggestedDiff); err != nil {
-						client.logError("failed to adjust difficulty: %s", err)
-						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_INTERNAL))
-					}
 				} else {
 					client.logError("rejected suggested difficulty")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
@@ -310,15 +305,10 @@ func (client *StratumClient) adjustDiffRoutine() {
 		delta = -delta / 2 /// we want to be more conservative when adjusting downwards
 	}
 
+	/// FIXME: this assumes the adjustments will happen less often than jobs, is that a problem?
 	newDiff := max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
-	client.log("adjusting share target by {blue}%+g{/blue} to {blue}%g", delta, newDiff)
-	if err := client.setDifficulty(newDiff); err != nil {
-		if errors.Is(err, net.ErrClosed) {
-			/// client died and we didnt notice?
-			client.Stop()
-			return
-		}
-	}
+	client.SuggestedDifficulty = newDiff
+	client.log("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
 
 // reads job channel
@@ -330,6 +320,18 @@ func (client *StratumClient) readJobChanRoutine() {
 			return
 		}
 		client.CurrentJob = client.createJob(template)
+		/// adjusted by vardiff
+		/// stratum spec applied diff changes to next job, so announce changes before announcing job
+		if client.SuggestedDifficulty > 0 && client.SuggestedDifficulty != client.TargetDifficulty {
+			if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					/// client died and we didnt notice?
+					client.Stop()
+					return
+				}
+			}
+			client.log("adjusting share target to {blue}%g", client.SuggestedDifficulty)
+		}
 		err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
 		if err != nil {
 			client.logError("error sending job: %s", err)
