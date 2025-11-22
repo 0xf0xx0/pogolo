@@ -178,6 +178,8 @@ Version:
 			var err error
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 				/// we do not care
+				/// FIXME: this makes gbt fail and cause a hang randomly?
+				/// FIXME: stalls shutdown on certain errors?
 				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 					/// ok we kinda care
 					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
@@ -312,6 +314,7 @@ func startup() error {
 				}
 			case conn := <-conns:
 				{
+					/// no need for a pool, pogolo will likely never handle enough clients for it to matter
 					go clientHandler(conn)
 				}
 			}
@@ -324,9 +327,11 @@ func startup() error {
 	log("\n{yellow}stopping")
 	close(shutdown)
 	if conf.Backend.Websocket {
+		log("closing websocket")
 		backend.Shutdown()
 		backend.WaitForShutdown()
 	}
+	log("waiting for routines")
 	wg.Wait()
 	return nil
 }
@@ -430,8 +435,6 @@ func backendRoutine() {
 	}()
 
 	/// main gbt loop
-	/// FIXME: stalls shutdown on certain errors?
-	/// FIXME: gbt can die and cause a hang?
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
@@ -441,7 +444,9 @@ func backendRoutine() {
 		})
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
-			if strings.Contains(err.Error(), "shutdown") {
+			/// FIXME: this doesnt trigger :\
+			if err.Error() == "the client has been shutdown" {
+				cli.Exit("rpc shutdown fail? emergency exit", constants.EXIT_MISC)
 				return
 			}
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))

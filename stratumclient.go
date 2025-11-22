@@ -250,11 +250,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
 				}
-				suggestedDiff := math.Abs(params.Difficulty.(float64))
+				suggestedDiff := math.Abs(params.Difficulty)
 				if suggestedDiff != client.TargetDifficulty && suggestedDiff > constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
 					client.log("suggested difficulty {blue}%g", suggestedDiff)
+					client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 				} else {
 					client.logError("rejected suggested difficulty")
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
@@ -286,7 +287,7 @@ func (client *StratumClient) Stop() {
 }
 
 // aims for the target_share_interval
-// and adjusts every `constants.SUBMISSION_DELTA_WINDOW`
+// and attempts to queue an adjustment every `constants.SUBMISSION_DELTA_WINDOW`
 func (client *StratumClient) adjustDiffRoutine() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
@@ -419,6 +420,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.stats.sharesRejected++
 		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 	}
+
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
 		client.adjustDiffRoutine()
 	}
