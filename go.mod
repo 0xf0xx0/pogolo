@@ -7,13 +7,13 @@ go 1.24.4
 //replace github.com/0xf0xx0/oigiki => ../oigiki
 
 require (
-	github.com/0xf0xx0/oigiki v1.0.2
-	github.com/0xf0xx0/stratum v0.0.7-0.20251109222652-f7195c66a5b8
+	github.com/0xf0xx0/oigiki v1.0.3
+	github.com/0xf0xx0/stratum v0.0.7-0.20251122170201-7209f57a2325
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20251106010755-9ff0780da683
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20251106010755-9ff0780da683
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/urfave/cli/v3 v3.6.0
+	github.com/urfave/cli/v3 v3.6.1
 	github.com/zeebo/xxh3 v1.0.2
 )
 
@@ -28,6 +28,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 )
