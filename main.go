@@ -339,14 +339,16 @@ func startup() error {
 // handles individual conns, spawned as a goroutine
 // TODO: refactor?
 func clientHandler(conn net.Conn) {
-	defer conn.Close()
+	/// don't need to close the conn here, handled by client.Stop()
 
 	client := CreateClient(conn, submissionChan)
 	channel := client.MsgChannel()
 
 	/// remove ourselves from the client map on disconnect
 	defer func() {
-		clients.Delete(client.ID)
+		if client.ID != 0 {
+			clients.Delete(client.ID)
+		}
 	}()
 
 	go client.Run(false)
