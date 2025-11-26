@@ -172,8 +172,8 @@ func MerkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	/// optimization: reuse array to store the combined hashes
 	/// instead of creating a new one every time
 	temp := make([]byte, 0, 64)
-	for _, h := range branches[1:] {
-		newroot := chainhash.DoubleHashH(append(append(temp, root[:]...), h[:]...))
+	for _, branch := range branches[1:] {
+		newroot := chainhash.DoubleHashH(append(append(temp, root[:]...), branch[:]...))
 		root = &newroot
 		temp = temp[:0]
 	}
