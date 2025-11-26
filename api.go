@@ -13,14 +13,15 @@ const API_PFX = "/api"
 const API_VER = 1
 
 type detailedWorkerInfo struct {
+	Nickname         string  `json:"nickname"`
+	UserAgent        string  `json:"userAgent"`
+	ExtraNonce1      string  `json:"extranonce1"`
 	Uptime           uint64  `json:"uptime"`
 	Hashrate         float64 `json:"hashrate"`
 	AcceptedShares   uint64  `json:"sharesAccepted"`
 	RejectedShares   uint64  `json:"sharesRejected"`
 	TargetDifficulty float64 `json:"targetDifficulty"`
 	BestDifficulty   float64 `json:"bestDifficulty"`
-	UserAgent        string  `json:"userAgent"`
-	ExtraNonce1      string  `json:"extranonce1"`
 }
 
 // only the neccesary details
@@ -84,6 +85,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	}
 
 	info := detailedWorkerInfo{
+		Nickname:         worker.Nickname,
 		UserAgent:        worker.UserAgent,
 		ExtraNonce1:      worker.ID.String(),
 		Hashrate:         worker.stats.HashrateH(),
