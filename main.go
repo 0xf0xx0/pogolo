@@ -401,6 +401,9 @@ func backendRoutine() {
 				if count == currTemplate.Height {
 					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
 					triggerGBT <- struct{}{}
+					/// double-sleep to reduce chances of a double-trigger
+					/// (it takes a bit for a fresh template to be generated)
+					time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 				}
 				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			}
