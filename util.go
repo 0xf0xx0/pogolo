@@ -169,10 +169,13 @@ func CalcNetworkDifficulty(nBits uint32) float64 {
 
 func MerkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	root := branches[0]
-
+	/// optimization: reuse array to store the combined hashes
+	/// instead of creating a new one every time
+	temp := make([]byte, 0, 64)
 	for _, h := range branches[1:] {
-		newroot := chainhash.DoubleHashH(append(root[:], h[:]...))
+		newroot := chainhash.DoubleHashH(append(append(temp, root[:]...), h[:]...))
 		root = &newroot
+		temp = temp[:0]
 	}
 	return root
 }

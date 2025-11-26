@@ -134,8 +134,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	}
 
 	/// mutate the coinbase script with the client id and extranonce2
-	coinbaseTx := btcutil.NewTx(msgBlock.Transactions[0])
-	coinbaseMsgTx := coinbaseTx.MsgTx()
+	coinbaseMsgTx := msgBlock.Transactions[0]
 	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
 	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
 		len(sigscript)-(constants.EXTRANONCE_SIZE+int(conf.Pogolo.ExtraNonce2Size)),
@@ -149,6 +148,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	/// coinbase was changed, thus recalc the root
+	coinbaseTx := btcutil.NewTx(coinbaseMsgTx)
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
 	branches[0] = coinbaseTx.Hash()
 	branches = append(branches, job.MerkleBranch...)

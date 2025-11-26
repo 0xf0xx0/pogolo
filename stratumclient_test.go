@@ -75,7 +75,6 @@ func TestSubscribe(t *testing.T) {
 func TestSuggestDifficulty(t *testing.T) {
 	lpipe, client, _ := initClient()
 	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
-	suggestDifficultyReq.MessageID = 0
 	client.Stop()
 	validateRes(suggestDifficultyReq, res, t)
 }
