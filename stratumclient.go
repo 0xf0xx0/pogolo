@@ -546,7 +546,7 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 
 // getters
 func (stats *ClientStats) Uptime() uint64 {
-	return uint64(time.Since(stats.startTime).Milliseconds())
+	return uint64(time.Since(stats.startTime).Seconds())
 }
 func (stats *ClientStats) HashrateMH() float64 {
 	return stats.hashrate / 1e6

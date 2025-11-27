@@ -65,7 +65,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		hashrateSum += client.stats.HashrateH()
 	}
 	marshalAndWrite(res, getInfoRes{
-		Uptime:        uint64(time.Since(serverStartTime).Milliseconds()),
+		Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 		Workers:       workerStats,
 		Tag:           conf.Pogolo.Tag,
 		TotalHashrate: hashrateSum,
