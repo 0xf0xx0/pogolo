@@ -11,35 +11,6 @@ import (
 	"github.com/btcsuite/btcd/blockchain"
 )
 
-// this needs to be re-done every time something internal changes
-func TestUpdateBlock(t *testing.T) {
-	conf = config.DEFAULT_CONFIG
-	template := MOCK_BLOCK_TEMPLATE
-	expectedShareDiff := MOCK_SHAREDIFF
-	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
-	client := &StratumClient{
-		ID:   id,
-		User: getAddr(),
-	}
-	tml := CreateJobTemplate(template)
-	job := client.createJob(tml)
-	blk, err := job.UpdateBlock(client, submitParams, notifyParams)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	shareDiff := CalcDifficulty(blk.Header)
-	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
-		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
-		return
-	}
-	serializedHeader := bytes.NewBuffer([]byte{})
-	blk.Header.Serialize(serializedHeader)
-	t.Logf("sharediff: %g", shareDiff)
-	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
-	t.Logf("hash: %s", blk.BlockHash())
-}
-
 func TestCreateJobTemplate(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
 	job := CreateJobTemplate(template)
@@ -72,4 +43,33 @@ func TestValidateCoinbaseScript(t *testing.T) {
 	t.Logf("coinbase script: %x", script)
 	t.Logf("script len: %d, max: %d", len(script), blockchain.MaxCoinbaseScriptLen)
 	/// MAYBE: verify the block height is at the start
+}
+
+// this needs to be re-done every time something internal changes
+func TestUpdateBlock(t *testing.T) {
+	conf = config.DEFAULT_CONFIG
+	template := MOCK_BLOCK_TEMPLATE
+	expectedShareDiff := MOCK_SHAREDIFF
+	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
+	client := &StratumClient{
+		ID:   id,
+		User: getAddr(),
+	}
+	tml := CreateJobTemplate(template)
+	job := client.createJob(tml)
+	blk, err := job.UpdateBlock(client, submitParams, notifyParams)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	shareDiff := CalcDifficulty(blk.Header)
+	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
+		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
+		return
+	}
+	serializedHeader := bytes.NewBuffer([]byte{})
+	blk.Header.Serialize(serializedHeader)
+	t.Logf("sharediff: %g", shareDiff)
+	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
+	t.Logf("hash: %s", blk.BlockHash())
 }

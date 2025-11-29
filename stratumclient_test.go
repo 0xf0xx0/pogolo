@@ -12,9 +12,7 @@ import (
 	"github.com/0xf0xx0/stratum"
 )
 
-func TestMain(t *testing.T) {
-
-}
+func TestMain(t *testing.T) {}
 
 func TestConfigure(t *testing.T) {
 	lpipe, client, _ := initClient()
@@ -77,6 +75,9 @@ func TestSuggestDifficulty(t *testing.T) {
 	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
 	client.Stop()
 	validateRes(suggestDifficultyReq, res, t)
+	if client.SuggestedDifficulty != suggestDiffParams.Difficulty {
+		t.Error("failed to store suggested diff")
+	}
 }
 
 func TestInitSequence(t *testing.T) {
@@ -93,43 +94,6 @@ func TestInitSequence(t *testing.T) {
 
 	fmt.Printf("%+v\n", client)
 }
-
-// FIXME: borked
-/*
-func TestFullBlock(t *testing.T) {
-	lpipe, client, _ := initClient()
-	sendReqAndWaitForRes(t, authorizeReq, lpipe)
-	sendReqAndWaitForRes(t, configureReq, lpipe)
-	/// workaround for the init difficulty routine
-	/// setDifficulty sends a stratum.Notification but thats not being read? it stalls
-	/// FIXME?
-	client.TargetDifficulty = 0
-	sendReqAndWaitForRes(t, subscribeReq, lpipe)
-	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
-
-	template := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	job := client.createJob(template)
-	t.Logf("%+v", job.NotifyParams)
-	t.Logf("%+v", notifyParams)
-
-	job.NotifyParams = notifyParams
-	client.CurrentJob = job
-
-	// FIXME: stalls :c
-	sendReqAndWaitForRes(t, submitReqMerkle, lpipe)
-
-	/// TODO: invalid hash
-	finalCoinbaseTx, err := SerializeTx(client.CurrentJob.Block.MsgBlock().Transactions[0], true)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("final coinbase: %x", finalCoinbaseTx)
-	t.Logf("block hash: %s", client.CurrentJob.Block.Hash())
-	t.Logf("difficulty: %f", CalcDifficulty(client.CurrentJob.Block.MsgBlock().Header))
-
-}
-*/
-//
 
 // util
 
