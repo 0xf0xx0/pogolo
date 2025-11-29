@@ -119,8 +119,8 @@ Version:
 			}
 			os.Exit(constants.EXIT_MISC)
 		},
-		Action: func(_ context.Context, ctx *cli.Command) error {
-			if profileDir := ctx.String("profile"); profileDir != "" {
+		Action: func(rootCtx context.Context, cmd *cli.Command) error {
+			if profileDir := cmd.String("profile"); profileDir != "" {
 				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
 				if err != nil {
@@ -134,14 +134,14 @@ Version:
 				defer pprof.WriteHeapProfile(memProfFile)
 				defer pprof.StopCPUProfile()
 			}
-			if ctx.String("writedefaultconf") != "" {
-				config.WriteDefaultConfig(ctx.String("writedefaultconf"))
+			if cmd.String("writedefaultconf") != "" {
+				config.WriteDefaultConfig(cmd.String("writedefaultconf"))
 				return nil
 			}
 
 			/// set defaults
 			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
-			if passedConfig := ctx.String("conf"); passedConfig != "" && passedConfig != "none" {
+			if passedConfig := cmd.String("conf"); passedConfig != "" && passedConfig != "none" {
 				/// overwrite with user conf
 				if err := config.LoadConfig(passedConfig, &conf); err != nil {
 					/// dont like that i have to do these but oki
@@ -237,9 +237,9 @@ Version:
 			}
 
 			/// start
-			log(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", ctx.Name, ctx.Version, ctx.Usage))
+			log(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, cmd.Version, cmd.Usage))
 			log(fmt.Sprintf("mining on {green}%s", activeChainParams.Name))
-			return startup()
+			return startup(rootCtx)
 		},
 	}
 
@@ -247,10 +247,10 @@ Version:
 	app.Run(context.Background(), os.Args)
 }
 
-func startup() error {
+func startup(rootCtx context.Context) error {
+	ctx, cancel := context.WithCancel(rootCtx)
 	wg := sync.WaitGroup{}
 	sigs := make(chan os.Signal, 1)
-	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
 	clients.Init()
@@ -259,7 +259,7 @@ func startup() error {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	go backendRoutine()
+	go backendRoutine(ctx)
 
 	/// start listening on configured interface or ip
 	if conf.Pogolo.Interface != "" {
@@ -268,7 +268,7 @@ func startup() error {
 			return cli.Exit(fmt.Sprintf("error getting interface: %s", err), constants.EXIT_NET)
 		}
 		/// FIXME
-		// if inter.Flags&(net.FlagUp&net.FlagRunning) == 0 {
+		// if inter.Flags&(net.FlagUp|net.FlagRunning) == 0 {
 		// 	return cli.Exit("the chosen interface isnt up and/or running!", constants.EXIT_NET)
 		// }
 		addrs, err := inter.Addrs()
@@ -290,7 +290,7 @@ func startup() error {
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
 			}
-			go listenerRoutine(shutdown, conns, listener, net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort))))
+			go listenerRoutine(conns, listener, net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort))), ctx)
 		}
 	} else {
 		/// TODO: use net.LookupHost for domains?
@@ -298,7 +298,7 @@ func startup() error {
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
 		}
-		go listenerRoutine(shutdown, conns, listener, net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort))))
+		go listenerRoutine(conns, listener, net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort))), ctx)
 	}
 
 	/// connections
@@ -307,14 +307,14 @@ func startup() error {
 		wg.Add(1)
 		for {
 			select {
-			case <-shutdown:
+			case <-ctx.Done():
 				{
 					return
 				}
 			case conn := <-conns:
 				{
 					/// no need for a pool, pogolo will likely never handle enough clients for it to matter
-					go clientHandler(conn)
+					go clientHandler(conn, ctx)
 				}
 			}
 		}
@@ -324,7 +324,7 @@ func startup() error {
 	// wait for exit
 	<-sigs
 	log("\n{yellow}stopping")
-	close(shutdown)
+	cancel()
 	if conf.Backend.Websocket {
 		log("closing websocket")
 		backend.Shutdown()
@@ -337,7 +337,7 @@ func startup() error {
 
 // handles individual conns, spawned as a goroutine
 // TODO: refactor?
-func clientHandler(conn net.Conn) {
+func clientHandler(conn net.Conn, ctx context.Context) {
 	/// don't need to close the conn here, handled by client.Stop()
 
 	client := CreateClient(conn, submissionChan)
@@ -374,7 +374,7 @@ func clientHandler(conn net.Conn) {
 }
 
 // handles templates, block notifications, and block submissions
-func backendRoutine() {
+func backendRoutine(ctx context.Context) {
 	/// block notifications
 	/// TODO: do we need anything special for btcd/knots/etc?
 	if conf.Backend.Websocket {
@@ -409,28 +409,34 @@ func backendRoutine() {
 	go func() {
 		for {
 			/// furst come furst serve
-			submission, ok := <-submissionChan
-			if !ok {
-				logError("{yellow}failed to receive block submission")
-				continue
-			}
-			err := backend.SubmitBlock(&submission.Block, nil)
-			if err != nil {
-				logError(fmt.Sprintf("error from backend while submitting block: %s", err))
-				continue
-			}
-			client := clients.Get(submission.ClientID)
-			log(fmt.Sprintf(
-				"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f\nnonce: %x\nextranonce: %s %x",
-				client.Name(),
-				submission.Block.Hash(),
-				CalcDifficulty(submission.Block.MsgBlock().Header),
-				submission.Share.Nonce,
-				client.ID,
-				submission.Share.ExtraNonce2,
-			))
+			select {
+			case <-ctx.Done():
+				{
+					return
+				}
+			case submission := <-submissionChan:
+				{
+					err := backend.SubmitBlock(&submission.Block, nil)
+					if err != nil {
+						logError(fmt.Sprintf("error from backend while submitting block: %s", err))
+						continue
+					}
+					client := clients.Get(submission.ClientID)
+					log(fmt.Sprintf(
+						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f\nnonce: %x\nextranonce: %s %x",
+						client.Name(),
+						submission.Block.Hash(),
+						CalcDifficulty(submission.Block.MsgBlock().Header),
+						submission.Share.Nonce,
+						client.ID,
+						submission.Share.ExtraNonce2,
+					))
 
-			triggerGBT <- struct{}{}
+					/// one day pogolo will win a block, reload, and win a second back to back
+					/// im manifesting it now
+					triggerGBT <- struct{}{}
+				}
+			}
 		}
 	}()
 
@@ -466,6 +472,10 @@ func backendRoutine() {
 		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
 		/// shortcircuit
 		case <-triggerGBT:
+		case <-ctx.Done():
+			{
+				return
+			}
 		}
 	}
 }
@@ -482,7 +492,7 @@ func waitForTemplate() {
 }
 
 // listens on one ip
-func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.Listener, httpAddr string) {
+func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
 	defer listener.Close()
 	log(fmt.Sprintf("stratum listening on {green}%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
@@ -491,7 +501,7 @@ func listenerRoutine(shutdown chan struct{}, conns chan net.Conn, listener net.L
 		conn, err := listener.Accept()
 		if err != nil {
 			select {
-			case <-shutdown:
+			case <-ctx.Done():
 				{
 					return
 				}
