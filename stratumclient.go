@@ -599,7 +599,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 func parseUserAgent(ua string) string {
 	ua = strings.ToLower(ua)
 
-	if strings.Contains(strings.ToLower(ua), "axe"){
+	if strings.Contains(strings.ToLower(ua), "axe") {
 		split := strings.Split(ua, "/")
 		if len(split) != 3 {
 			/// confusion

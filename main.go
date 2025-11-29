@@ -72,8 +72,8 @@ var (
 	clients           = &clientMap{} // map of active client ids to clients
 	currTemplateID    uint64
 	currTemplate      *JobTemplate
-	submissionChan    chan blockSubmission // global cause it gets passed around :\
-	triggerGBT        chan struct{}        // ditto cause of websocket
+	submissionChan    = make(chan blockSubmission, 3) // global cause it gets passed around :\
+	triggerGBT        = make(chan struct{})           // ditto cause of websocket
 	serverStartTime   time.Time
 )
 
@@ -253,7 +253,6 @@ func startup() error {
 	shutdown := make(chan struct{})
 
 	conns := make(chan net.Conn)
-	submissionChan = make(chan blockSubmission, 3) /// buffered just in case, it doesnt hurt
 	clients.Init()
 
 	initAPI()
@@ -376,8 +375,6 @@ func clientHandler(conn net.Conn) {
 
 // handles templates, block notifications, and block submissions
 func backendRoutine() {
-	triggerGBT = make(chan struct{})
-
 	/// block notifications
 	/// TODO: do we need anything special for btcd/knots/etc?
 	if conf.Backend.Websocket {
