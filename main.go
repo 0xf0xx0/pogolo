@@ -23,6 +23,7 @@ options:
 
 	--conf path              config file path (default: "$XDG_CONFIG_HOME/.config/pogolo/pogolo.toml")
 	--writedefaultconf path  write default config to path and exit
+	--profile dir            write cpu and memory profiles to dir
 	--help, -h               show help
 	--version, -v            print the version
 */
