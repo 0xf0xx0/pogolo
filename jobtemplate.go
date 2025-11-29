@@ -103,7 +103,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	}
 
 	if block.SerializeSize() > blockchain.MaxBlockWeight {
-		logError("block too heavy, please reduce blockmaxweight")
+		logError("block too heavy, please reduce blockmaxweight in your node config")
 		/// FIXME: break everything for now
 		return nil
 	}
