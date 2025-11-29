@@ -60,8 +60,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
-	reader := bufio.NewReader(client.conn)
-	for {
+	reader := bufio.NewScanner(client.conn)
+	for reader.Scan() {
 		/// we only send work after authed and subbed (and set a flag so we dont do this again)
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
@@ -91,24 +91,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 		}
 
 		/// messages are newline separated (either lf or crlf)
-		line, err := reader.ReadBytes(byte('\n'))
+		line := bytes.TrimSpace(reader.Bytes())
 
-		switch err {
-		case nil:
-		case io.ErrClosedPipe:
-			fallthrough
-		case io.EOF:
-			return
-		default:
-			client.logError("%s", err)
-			return
-		}
-		client.conn.SetDeadline(time.Now().Add(time.Minute * 3))
+		/// deadline is 5x target share interval
+		client.conn.SetDeadline(time.Now().Add(5*time.Second*time.Duration(conf.Pogolo.TargetShareInterval)))
 		/// TODO: add stratum log option
 		//client.log("{blackbright}> %#q", line)
-
-		/// we dont need the trailing newline
-		line = bytes.Trim(line, "\n\r ")
 
 		/// process the message
 		m, err := DecodeStratumMessage(line)
@@ -271,6 +259,14 @@ func (client *StratumClient) Run(noCleanup bool) {
 				client.logError("unknown stratum message: %+v", m)
 			}
 		}
+	}
+	err := reader.Err()
+	switch err {
+	case nil:
+	case io.ErrClosedPipe:
+	case io.EOF:
+	default:
+		client.logError("%s", err)
 	}
 }
 func (client *StratumClient) Stop() {
