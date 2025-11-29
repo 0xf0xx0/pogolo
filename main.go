@@ -267,10 +267,10 @@ func startup(rootCtx context.Context) error {
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface: %s", err), constants.EXIT_NET)
 		}
-		/// FIXME
-		// if inter.Flags&(net.FlagUp|net.FlagRunning) == 0 {
-		// 	return cli.Exit("the chosen interface isnt up and/or running!", constants.EXIT_NET)
-		// }
+		/// error if interface is down
+		if inter.Flags&(net.FlagUp|net.FlagRunning) == 0 {
+			return cli.Exit("the chosen interface isnt up and running!", constants.EXIT_NET)
+		}
 		addrs, err := inter.Addrs()
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface addrs: %s", err), constants.EXIT_NET)
