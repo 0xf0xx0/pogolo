@@ -495,7 +495,7 @@ func waitForTemplate() {
 // listens on one ip
 func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
 	defer listener.Close()
-	log(fmt.Sprintf("stratum listening on {green}%s", listener.Addr()))
+	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
 	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
 	for {
