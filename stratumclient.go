@@ -529,7 +529,7 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 			stats.avgSubmissionDelta = delta
 		} else {
 			// avg = smoothing*delta + (1-smoothing)*avg
-			smoothing := 0.3
+			smoothing := 0.05
 			stats.avgSubmissionDelta =
 				smoothing*delta + (1-smoothing)*stats.avgSubmissionDelta
 		}
