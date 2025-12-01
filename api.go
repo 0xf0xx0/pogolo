@@ -71,7 +71,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 		Workers:       workerStats,
 		Tag:           conf.Pogolo.Tag,
-		TotalHashrate: hashrateSum,
+		TotalHashrate: hashrateSum / 1e6,
 		BestDiff:      bestDiff,
 		TotalWorkers:  uint64(len(allClients)),
 		BlockHeight:   uint64(currTemplate.Height),
