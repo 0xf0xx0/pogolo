@@ -289,7 +289,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 		return
 	}
 	/// negative = running slow, positive = running fast
-	difference := float64(conf.Pogolo.TargetShareInterval) - float64(client.stats.avgSubmissionDelta/1000)
+	difference := float64(conf.Pogolo.TargetShareInterval) - client.stats.avgSubmissionDelta/1000
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 	/// tighten it to +-1s
@@ -406,7 +406,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.stats.update(client.TargetDifficulty)
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n\t{blackbright}%s, avg submit delta: %ds",
 			DiffFormat(shareDiff), DiffFormat(client.TargetDifficulty), DiffFormat(client.stats.bestDiff),
-			FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
+			FormatHashrate(client.stats.HashrateMH()), uint64(client.stats.avgSubmissionDelta/1000))
 	} else {
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_LOW_DIFF))
 		client.stats.sharesRejected++
@@ -509,7 +509,7 @@ type ClientStats struct {
 	currTimeSlot timeSlot
 	startTime, // time the client subscribed
 	lastSubmission time.Time // used for calcing delta between `mining.submit`s
-	avgSubmissionDelta uint64 // in ms
+	avgSubmissionDelta float64 // in ms
 	sharesAccepted,
 	sharesRejected uint64
 	bestDiff, // session
@@ -519,21 +519,23 @@ type ClientStats struct {
 func (stats *ClientStats) update(currTargetDiff float64) {
 	now := time.Now()
 	if stats.lastSubmission.Unix() > 0 {
-		/// rolling avg
+		/// exopnential moving average
 		/// wikipedia my beloved
-		/// https://en.wikipedia.org/wiki/Moving_average#Cumulative_average
-		delta := uint64(now.Sub(stats.lastSubmission).Milliseconds())
+		/// https://en.wikipedia.org/wiki/Exponential_smoothing
+		delta := float64(now.Sub(stats.lastSubmission).Milliseconds())
 		/// start the avg calc with the furst delta, not 0
 		if stats.avgSubmissionDelta == 0 {
 			stats.avgSubmissionDelta = delta
 		} else {
+			// avg = smoothing*delta + (1-smoothing)*avg
+			smoothing := 0.3
 			stats.avgSubmissionDelta =
-				((stats.avgSubmissionDelta * (constants.SUBMISSION_DELTA_WINDOW - 1)) + delta) / constants.SUBMISSION_DELTA_WINDOW
+				smoothing*delta + (1-smoothing)*stats.avgSubmissionDelta
 		}
 	}
 
-	stats.lastSubmission = now
 	stats.calcHashrate(now, currTargetDiff)
+	stats.lastSubmission = now
 }
 
 // getters
@@ -547,7 +549,7 @@ func (stats *ClientStats) HashrateH() float64 {
 	return stats.hashrate
 }
 
-// live hashrate in MH/s
+// live hashrate in H/s
 func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
 	/// calc copied from public-pool
 	windowStart := time.Unix((shareTime.Unix()/constants.HASHRATE_WINDOW)*constants.HASHRATE_WINDOW, 0)
