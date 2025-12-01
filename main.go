@@ -381,15 +381,14 @@ func backendRoutine(ctx context.Context) {
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 		}
 		for {
-			count, err := backend.GetBlockCount()
-			if err != nil {
+			if count, err := backend.GetBlockCount(); err == nil {
+				if count == currTemplate.Height {
+					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
+
+					triggerGBT <- struct{}{}
+				}
+			} else {
 				logError(err.Error())
-			}
-
-			if count == currTemplate.Height {
-				log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
-
-				triggerGBT <- struct{}{}
 			}
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 		}
