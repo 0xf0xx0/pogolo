@@ -85,7 +85,7 @@ func ClientIDHash(addr string) stratum.ID {
 	return stratum.ID(uint32(xxh3.HashString(addr)))
 }
 
-// placeholder tx, filled by MiningJob
+// placeholder tx, filled by clients
 func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
@@ -95,6 +95,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
+		/// MAYBE: merge tag and extranonce? would save exactly 1 byte
 		AddData([]byte(conf.Pogolo.Tag)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
@@ -137,7 +138,6 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 	/// HACK: mining.AddWitnessCommitment appends, empty txout
 	coinbaseMsgTx.TxOut = coinbaseMsgTx.TxOut[:0]
 	/// NOTE: witness gets added furst, just cause its *unique*
-	/// AND I AM ITS SOLE WITNESS
 	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	/// we gotta add the subsidy too
 	coinbaseMsgTx.AddTxOut(&wire.TxOut{
