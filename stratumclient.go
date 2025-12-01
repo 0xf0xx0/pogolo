@@ -571,6 +571,8 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 			time := shareTime.Sub(stats.lastTimeSlot.Time).Seconds()
 			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
+			/// FIX: ...i dont know why but this is consistently off by half...?
+			stats.hashrate *= 2
 		}
 	}
 }
