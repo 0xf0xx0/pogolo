@@ -30,10 +30,10 @@ type StratumClient struct {
 	VersionRollingMask  uint32
 	// internal
 	conn           net.Conn
-	statusChan     chan string // messages to server
+	readyChan      chan struct{} // TODO: find a way to replace; only for adding to clientMap
 	templateChan   chan *JobTemplate
 	submissionChan chan<- blockSubmission
-	CurrentJob     MiningJob // TODO: store the previous temporarily when switching?
+	CurrentJob     MiningJob
 	stats          *ClientStats
 }
 
@@ -53,7 +53,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	if !noCleanup {
 		defer client.Stop()
 	}
-	go client.readJobChanRoutine()
+	go client.readTemplateChanRoutine()
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
@@ -87,14 +87,14 @@ func (client *StratumClient) Run(noCleanup bool) {
 				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
 			}
 			client.stats.startTime = time.Now()
-			client.writeChan("ready")
+			client.writeStatus()
 		}
 
 		/// messages are newline separated (either lf or crlf)
 		line := bytes.TrimSpace(reader.Bytes())
 
 		/// deadline is 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(10*time.Second*time.Duration(conf.Pogolo.TargetShareInterval)))
+		client.conn.SetDeadline(time.Now().Add(10 * time.Second * time.Duration(conf.Pogolo.TargetShareInterval)))
 		/// TODO: add stratum log option
 		//client.log("{blackbright}> %#q", line)
 
@@ -174,7 +174,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNAUTHORIZED))
 					return
 				}
-				decoded, err := btcutil.DecodeAddress(params.Username, activeChainParams)
+				decoded, err := btcutil.DecodeAddress(params.Username, backendChainParams)
 				if err != nil {
 					if defaultMiningAddr == nil {
 						client.logError("failed decoding address: %s", err)
@@ -270,19 +270,19 @@ func (client *StratumClient) Run(noCleanup bool) {
 	}
 }
 func (client *StratumClient) Stop() {
-	if client.statusChan == nil {
+	if client.readyChan == nil {
 		return
 	}
-	close(client.statusChan)
+	close(client.readyChan)
 	close(client.templateChan)
 	/// nil because receive-side closure
-	client.statusChan = nil
+	client.readyChan = nil
 	client.templateChan = nil
 	client.conn.Close()
 	log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
 }
 
-// aims for the target_share_interval
+// aims for the .TargetShareInterval
 // and attempts to queue an adjustment every `constants.SUBMISSION_DELTA_WINDOW`
 func (client *StratumClient) adjustDiffRoutine() {
 	if client.stats.avgSubmissionDelta == 0 {
@@ -308,8 +308,7 @@ func (client *StratumClient) adjustDiffRoutine() {
 	client.log("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
 
-// reads job channel
-func (client *StratumClient) readJobChanRoutine() {
+func (client *StratumClient) readTemplateChanRoutine() {
 	for {
 		template, ok := <-client.templateChan
 		if !ok {
@@ -318,7 +317,7 @@ func (client *StratumClient) readJobChanRoutine() {
 		}
 		client.CurrentJob = client.createJob(template)
 		/// adjusted by vardiff
-		/// stratum spec applied diff changes to next job, so announce changes before announcing job
+		/// stratum spec applies diff changes to next job, so announce changes before announcing job
 		if client.SuggestedDifficulty > 0 && client.SuggestedDifficulty != client.TargetDifficulty {
 			if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
 				if errors.Is(err, net.ErrClosed) {
@@ -336,17 +335,11 @@ func (client *StratumClient) readJobChanRoutine() {
 	}
 }
 
-// template channel
-func (client *StratumClient) Channel() chan<- *JobTemplate {
+func (client *StratumClient) TemplateChannel() chan<- *JobTemplate {
 	return client.templateChan
 }
-
-// status channel
-func (client *StratumClient) MsgChannel() <-chan string {
-	return client.statusChan
-}
-func (client *StratumClient) Addr() net.Addr {
-	return client.conn.RemoteAddr()
+func (client *StratumClient) ReadyChannel() <-chan struct{} {
+	return client.readyChan
 }
 
 // returns the nickname if set and falls back to the id
@@ -356,6 +349,10 @@ func (client *StratumClient) Name() string {
 	}
 	return client.ID.String()
 }
+func (client *StratumClient) Addr() net.Addr {
+	return client.conn.RemoteAddr()
+}
+
 func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.TargetDifficulty {
 		return nil
@@ -366,7 +363,6 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	client.TargetDifficulty = newDiff
 	return nil
 }
-
 func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
 	if share.JobID != client.CurrentJob.NotifyParams.JobID {
 		client.stats.sharesRejected++
@@ -430,7 +426,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		merkleBranches[i] = branch[:]
 	}
 
-	coinbaseTx := FillCoinbaseTx(client.User, block, template.Subsidy, activeChainParams)
+	coinbaseTx := FillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
 	if err != nil {
@@ -491,8 +487,8 @@ func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
 	return err
 }
-func (client *StratumClient) writeChan(msg string) {
-	client.statusChan <- msg
+func (client *StratumClient) writeStatus() {
+	client.readyChan <- struct{}{}
 }
 
 // logging
@@ -572,7 +568,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 		if stats.currTimeSlot.accDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-			time := float64(shareTime.Sub(stats.lastTimeSlot.Time).Seconds())
+			time := shareTime.Sub(stats.lastTimeSlot.Time).Seconds()
 			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
 		}
@@ -585,7 +581,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 		ID:             ClientIDHash(conn.RemoteAddr().String()),
 		stats:          &ClientStats{},
 		conn:           conn,
-		statusChan:     make(chan string),
+		readyChan:      make(chan struct{}),
 		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,
 	}

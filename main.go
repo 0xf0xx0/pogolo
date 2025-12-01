@@ -57,40 +57,41 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// things
+// name and version
 const (
 	NAME    = "pogolo"
 	VERSION = "0.0.10"
 )
 
+const commandHelpTemplate = `Name:
+   {bold}{blue}{{.Name}} - {{.Usage}}{/}
+
+Usage:
+   {green}pogolo {blue}[options]{/}
+
+Options:{blue}
+   {{range .VisibleFlags}}{{.String}}
+   {{end}}{/}
+Version:
+   {green}{{.Version}}
+`
+
 // global state
 var (
-	conf              config.Config
-	backend           *rpcclient.Client
-	longpollid        string
-	activeChainParams *chaincfg.Params
-	defaultMiningAddr *btcutil.Address
-	clients           = &clientMap{} // map of active client ids to clients
-	currTemplateID    uint64
-	currTemplate      *JobTemplate
-	submissionChan    = make(chan blockSubmission, 3) // global cause it gets passed around :\
-	triggerGBT        = make(chan struct{})           // ditto cause of websocket
-	serverStartTime   time.Time
+	conf               config.Config
+	backend            *rpcclient.Client
+	backendChainParams *chaincfg.Params
+	defaultMiningAddr  *btcutil.Address
+	clients            = &clientMap{} // map of active client ids to clients
+	currTemplateID     uint64
+	currTemplate       *JobTemplate
+	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
+	triggerGBT         = make(chan struct{})           // ditto cause of websocket
+	serverStartTime    time.Time
 )
 
 func main() {
-	cli.RootCommandHelpTemplate = oigiki.ProcessTags(`Name:
-    {bold}{blue}{{.Name}} - {{.Usage}}{/}
-
-Usage:
-    {green}pogolo {blue}[options]{/}
-
-Options:{blue}
-    {{range .VisibleFlags}}{{.String}}
-    {{end}}{/}
-Version:
-    {green}{{.Version}}
-`)
+	cli.RootCommandHelpTemplate = oigiki.ProcessTags(commandHelpTemplate)
 	app := &cli.Command{
 		Name:                   NAME,
 		Version:                VERSION,
@@ -203,23 +204,23 @@ Version:
 				fallthrough
 			case "main":
 				{
-					activeChainParams = &chaincfg.MainNetParams
+					backendChainParams = &chaincfg.MainNetParams
 				}
 			case "test":
 				{
-					activeChainParams = &chaincfg.TestNet3Params
+					backendChainParams = &chaincfg.TestNet3Params
 				}
 			case "testnet4":
 				{
-					activeChainParams = &chaincfg.TestNet4Params
+					backendChainParams = &chaincfg.TestNet4Params
 				}
 			case "regtest":
 				{
-					activeChainParams = &chaincfg.RegressionNetParams
+					backendChainParams = &chaincfg.RegressionNetParams
 				}
 			case "signet":
 				{
-					activeChainParams = &chaincfg.SigNetParams
+					backendChainParams = &chaincfg.SigNetParams
 				}
 			default:
 				{
@@ -229,7 +230,7 @@ Version:
 
 			/// decode the default mining address
 			if conf.Pogolo.PoolAddress != "" {
-				addr, err := btcutil.DecodeAddress(conf.Pogolo.PoolAddress, activeChainParams)
+				addr, err := btcutil.DecodeAddress(conf.Pogolo.PoolAddress, backendChainParams)
 				if err != nil {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
@@ -239,7 +240,7 @@ Version:
 
 			/// start
 			log(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, cmd.Version, cmd.Usage))
-			log(fmt.Sprintf("mining on {green}%s", activeChainParams.Name))
+			log(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
 			return startup(rootCtx)
 		},
 	}
@@ -250,16 +251,15 @@ Version:
 
 func startup(rootCtx context.Context) error {
 	ctx, cancel := context.WithCancel(rootCtx)
+
+	/// cancelled on exit
 	wg := sync.WaitGroup{}
 	sigs := make(chan os.Signal, 1)
-
 	conns := make(chan net.Conn)
-	clients.Init()
-
-	initAPI()
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
+	clients.Init()
+	initAPI()
 	go backendRoutine(ctx)
 
 	/// start listening on configured interface or ip
@@ -342,7 +342,7 @@ func clientHandler(conn net.Conn, ctx context.Context) {
 	/// don't need to close the conn here, handled by client.Stop()
 
 	client := CreateClient(conn, submissionChan)
-	channel := client.MsgChannel()
+	channel := client.ReadyChannel()
 
 	/// remove ourselves from the client map on disconnect
 	defer func() {
@@ -354,28 +354,24 @@ func clientHandler(conn net.Conn, ctx context.Context) {
 	go client.Run(false)
 
 	for {
-		msg, ok := <-channel
+		_, ok := <-channel
 		if !ok {
 			return
 		}
 
-		switch msg {
-		case "ready":
-			{
-				/// i dont think the order matters, but lets send the current template
-				/// before adding to the client map, just in case notifyClients gets
-				/// called in between (and rapid-fires jobs)
-				if currTemplate != nil {
-					client.Channel() <- currTemplate
-				}
-				clients.Add(&client)
-			}
+		/// i dont think the order matters, but lets send the current template
+		/// before adding to the client map, just in case notifyClients gets
+		/// called in between (and rapid-fires jobs)
+		if currTemplate != nil {
+			client.TemplateChannel() <- currTemplate
 		}
+		clients.Add(&client)
 	}
 }
 
 // handles templates, block notifications, and block submissions
 func backendRoutine(ctx context.Context) {
+	longpollid := ""
 	getBlockCountPoll := func() {
 		/// wait for the initial template
 		for {
@@ -429,7 +425,7 @@ func backendRoutine(ctx context.Context) {
 						logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 						continue
 					}
-					client := clients.Get(submission.ClientID)
+					client, _ := clients.Get(submission.ClientID)
 					log(fmt.Sprintf(
 						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\ngopher: %s\nhash: %s\ndifficulty: %f\nnonce: %x\nextranonce: %s %x",
 						client.Name(),
@@ -516,6 +512,6 @@ func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string
 
 func notifyClients(j *JobTemplate) {
 	for _, client := range clients.All() {
-		client.Channel() <- j
+		client.TemplateChannel() <- j
 	}
 }

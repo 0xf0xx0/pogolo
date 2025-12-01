@@ -22,7 +22,6 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/zeebo/xxh3"
 )
-
 // basically typed sync.Map
 type clientMap struct {
 	lock sync.RWMutex
@@ -43,11 +42,11 @@ func (m *clientMap) Delete(id stratum.ID) {
 	delete(m.mapparoonie, id)
 	m.lock.Unlock()
 }
-func (m *clientMap) Get(id stratum.ID) *StratumClient {
+func (m *clientMap) Get(id stratum.ID) (*StratumClient, bool) {
 	m.lock.RLock()
-	ret := m.mapparoonie[id]
+	ret, ok := m.mapparoonie[id]
 	m.lock.RUnlock()
-	return ret
+	return ret, ok
 }
 func (m *clientMap) All() []*StratumClient {
 	m.lock.RLock()
@@ -91,8 +90,8 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
 	height := template.Height
-	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
+	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
@@ -159,12 +158,13 @@ func CalcDifficulty(header wire.BlockHeader) float64 {
 // port of public-pools calculateNetworkDifficulty
 // TODO: use blockchain.CompactToBig() instead?
 func CalcNetworkDifficulty(nBits uint32) float64 {
+	maxTarget := math.Pow(2, 208) * 65535
+	/// unpack the target from the compact nBits
 	mantissa := float64(nBits & 0x007fffff)
 	exponent := float64((nBits >> 24) & 0xff)
 	target := mantissa * math.Pow(256, float64(exponent-3))
-	maxTarget := math.Pow(2, 208) * 65535
-	difficulty := maxTarget / target
-	return difficulty
+
+	return maxTarget / target
 }
 
 func MerkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {

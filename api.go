@@ -17,25 +17,26 @@ type detailedWorkerInfo struct {
 	UserAgent        string  `json:"userAgent"`
 	ExtraNonce1      string  `json:"extranonce1"`
 	Uptime           uint64  `json:"uptime"`
-	Hashrate         float64 `json:"hashrate"`
 	AcceptedShares   uint64  `json:"sharesAccepted"`
 	RejectedShares   uint64  `json:"sharesRejected"`
+	Hashrate         float64 `json:"hashrate"`
 	TargetDifficulty float64 `json:"targetDifficulty"`
 	BestDifficulty   float64 `json:"bestDifficulty"`
 }
 
 // only the neccesary details
-type workerInfo struct {
+type miniWorkerInfo struct {
 	UserAgent   string `json:"userAgent"`
 	ExtraNonce1 string `json:"extranonce1"`
 }
 type getInfoRes struct {
-	Uptime        uint64       `json:"uptime"`
-	Tag           string       `json:"tag"`
-	BlockHeight   uint64       `json:"blockHeight"`
-	TotalHashrate float64      `json:"totalHashrate"`
-	TotalWorkers  uint64       `json:"totalGophers"`
-	Workers       []workerInfo `json:"gophers"`
+	Uptime        uint64           `json:"uptime"`
+	BlockHeight   uint64           `json:"blockHeight"`
+	TotalWorkers  uint64           `json:"totalGophers"`
+	TotalHashrate float64          `json:"totalHashrate"`
+	BestDiff      float64          `json:"bestDifficulty"`
+	Tag           string           `json:"tag"`
+	Workers       []miniWorkerInfo `json:"gophers"`
 }
 
 func initAPI() {
@@ -55,13 +56,15 @@ func initAPI() {
 
 func getInfo(res http.ResponseWriter, req *http.Request) {
 	allClients := clients.All()
-	workerStats := make([]workerInfo, 0, len(allClients))
+	workerStats := make([]miniWorkerInfo, 0, len(allClients))
 	hashrateSum := float64(0)
+	bestDiff := float64(0)
 	for _, client := range allClients {
-		workerStats = append(workerStats, workerInfo{
+		workerStats = append(workerStats, miniWorkerInfo{
 			UserAgent:   client.UserAgent,
 			ExtraNonce1: client.ID.String(),
 		})
+		bestDiff = max(bestDiff, client.stats.bestDiff)
 		hashrateSum += client.stats.HashrateH()
 	}
 	marshalAndWrite(res, getInfoRes{
@@ -69,6 +72,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		Workers:       workerStats,
 		Tag:           conf.Pogolo.Tag,
 		TotalHashrate: hashrateSum,
+		BestDiff:      bestDiff,
 		TotalWorkers:  uint64(len(allClients)),
 		BlockHeight:   uint64(currTemplate.Height),
 	})

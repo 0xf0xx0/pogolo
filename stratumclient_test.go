@@ -141,7 +141,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	go client.Run(true)
 	go func() {
 		/// client.Stop() will block until read, so read and discard
-		<-client.MsgChannel()
+		<-client.ReadyChannel()
 	}()
 	return lpipe, &client, submissionChan
 }
