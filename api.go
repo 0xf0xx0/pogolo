@@ -92,7 +92,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 		Nickname:         worker.Nickname,
 		UserAgent:        worker.UserAgent,
 		ExtraNonce1:      worker.ID.String(),
-		Hashrate:         worker.stats.HashrateH(),
+		Hashrate:         worker.stats.HashrateMH(),
 		TargetDifficulty: worker.TargetDifficulty,
 		BestDifficulty:   worker.stats.bestDiff,
 		AcceptedShares:   worker.stats.sharesAccepted,
