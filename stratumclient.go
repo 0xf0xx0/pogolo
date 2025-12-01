@@ -414,7 +414,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 	}
 
-	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.SUBMISSION_DELTA_WINDOW == 0 {
+	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.DIFF_ADJUST_PERIOD == 0 {
 		client.adjustDiffRoutine()
 	}
 }

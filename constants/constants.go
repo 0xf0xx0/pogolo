@@ -13,7 +13,7 @@ const (
 	DEFAULT_DIFFICULTY_LOW_POWER = 0.16       // for cpu miners
 	DEFAULT_COINBASE_TAG         = "/pogolo - decentralize or die/"
 	MIN_DIFFICULTY               = 0.01       // hard min
-	SUBMISSION_DELTA_WINDOW      = 32         // rolling avg window, also the diff adjust period
+	DIFF_ADJUST_PERIOD           = 32         // in shares
 	HASHRATE_WINDOW              = int64(600) // 10 min windows
 )
 
