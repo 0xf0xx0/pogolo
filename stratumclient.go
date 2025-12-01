@@ -93,8 +93,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 		/// messages are newline separated (either lf or crlf)
 		line := bytes.TrimSpace(reader.Bytes())
 
-		/// deadline is 5x target share interval
-		client.conn.SetDeadline(time.Now().Add(5*time.Second*time.Duration(conf.Pogolo.TargetShareInterval)))
+		/// deadline is 10x target share interval
+		client.conn.SetDeadline(time.Now().Add(10*time.Second*time.Duration(conf.Pogolo.TargetShareInterval)))
 		/// TODO: add stratum log option
 		//client.log("{blackbright}> %#q", line)
 
