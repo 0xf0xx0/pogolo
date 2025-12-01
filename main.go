@@ -376,34 +376,41 @@ func clientHandler(conn net.Conn, ctx context.Context) {
 
 // handles templates, block notifications, and block submissions
 func backendRoutine(ctx context.Context) {
+	getBlockCountPoll := func() {
+		/// wait for the initial template
+		for {
+			if currTemplate != nil {
+				break
+			}
+			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
+		}
+		for {
+			count, err := backend.GetBlockCount()
+			if err != nil {
+				logError(err.Error())
+			}
+
+			if count == currTemplate.Height {
+				log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
+
+				triggerGBT <- struct{}{}
+			}
+			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
+		}
+	}
+
 	/// block notifications
 	/// TODO: do we need anything special for btcd/knots/etc?
 	if conf.Backend.Websocket {
-		/// TODO: fallback to polling if err
 		/// wait for new blocks to come in
 		if err := backend.NotifyBlocks(); err != nil {
-			cli.Exit(fmt.Sprintf("error subscribing to block notifs: %s", err), constants.EXIT_BACKEND)
-			return
+			logError(fmt.Sprintf("error subscribing to block notifs: %s", err))
+			logError("{yellow}falling back to polling")
+			go getBlockCountPoll()
 		}
 	} else {
 		/// poll getblockcount
-		go func() {
-			/// needs to start after the gbt loop
-			waitForTemplate()
-			for {
-				count, err := backend.GetBlockCount()
-				if err != nil {
-					logError(err.Error())
-				}
-				/// we're mining on this height
-				if count == currTemplate.Height {
-					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
-					/// FIXME: sometimes this double-triggers 3:< wait for the template to update before continuing
-					triggerGBT <- struct{}{}
-				}
-				time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
-			}
-		}()
+		go getBlockCountPoll()
 	}
 
 	/// block submissions
@@ -465,6 +472,7 @@ func backendRoutine(ctx context.Context) {
 
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
+
 		currTemplate = CreateJobTemplate(template)
 		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
@@ -478,17 +486,6 @@ func backendRoutine(ctx context.Context) {
 				return
 			}
 		}
-	}
-}
-
-// util func, for delaying components that rely on the template like
-// the chain update routine
-func waitForTemplate() {
-	for {
-		if currTemplate != nil {
-			break
-		}
-		time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 	}
 }
 
