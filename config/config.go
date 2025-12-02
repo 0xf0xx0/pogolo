@@ -34,7 +34,7 @@ type Pogolo struct {
 	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
 	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)\ncustomize it! add your swarm stats, like\n'/pogolo - gamma x1 - decentralize or die/'"`
 	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
-	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.01"`
+	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 1"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`

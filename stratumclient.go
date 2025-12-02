@@ -75,7 +75,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			/// if they haven't, we alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
 				if strings.Contains(client.UserAgent, "cpuminer") {
-					client.setDifficulty(constants.DEFAULT_DIFFICULTY_LOW_POWER)
+					client.setDifficulty(constants.MIN_DIFFICULTY)
 				} else {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}

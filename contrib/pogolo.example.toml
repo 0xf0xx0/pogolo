@@ -28,7 +28,7 @@ http_port = 5662
 tag = '/pogolo - decentralize or die/'
 # default on-chain address to mine to if not provided by client
 # pool_address = ''
-# minimum 0.01
+# minimum 1
 default_difficulty = 1024.0
 # how often to send new work to clients, in seconds
 job_interval = 60
