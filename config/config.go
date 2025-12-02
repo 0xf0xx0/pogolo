@@ -16,8 +16,8 @@ var (
 )
 
 type Config struct {
-	Backend Backend `toml:"backend"`
-	Pogolo  Pogolo  `toml:"pogolo"`
+	Backend `toml:"backend"`
+	Pogolo  `toml:"pogolo"`
 }
 type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port"`
