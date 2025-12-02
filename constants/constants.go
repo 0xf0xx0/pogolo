@@ -15,7 +15,7 @@ const (
 	DIFF_ADJUST_PERIOD   = 32         // in shares
 	HASHRATE_WINDOW      = int64(600) // 10 min windows
 )
-
+// exit codes
 const (
 	EXIT_NONE = iota
 	EXIT_MISC
