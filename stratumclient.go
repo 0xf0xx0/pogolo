@@ -61,6 +61,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 	reader := bufio.NewScanner(client.conn)
+
+	/// processing loop
 	for reader.Scan() {
 		/// we only send work after authed and subbed (and set a flag so we dont do this again)
 		if isAuthed && isSubscribed && !stratumInited {
@@ -74,7 +76,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 			/// fully initialized
 			/// if they haven't, we alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
-				if strings.Contains(client.UserAgent, "cpuminer") {
+				if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
 					client.setDifficulty(constants.MIN_DIFFICULTY)
 				} else {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
@@ -260,8 +262,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 		}
 	}
-	err := reader.Err()
-	switch err {
+
+	switch err := reader.Err(); err {
 	case nil:
 	case io.ErrClosedPipe:
 	case io.EOF:
@@ -596,7 +598,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 func parseUserAgent(ua string) string {
 	ua = strings.ToLower(ua)
 
-	if strings.Contains(strings.ToLower(ua), "axe") {
+	if strings.Contains(ua, "axe") {
 		split := strings.Split(ua, "/")
 		if len(split) != 3 {
 			/// confusion
@@ -604,6 +606,9 @@ func parseUserAgent(ua string) string {
 		}
 		/// format is *axe/<chip>/<fw_version>, drop the version
 		return strings.Join(split[:2], "/")
+	} else if strings.Contains(ua, "nerdminer") {
+		/// https://github.com/BitMaker-hub/NerdMiner_v2/blob/a26865f7cdd9ac1a81c5b0a7c355e23cf4a1d568/src/stratum.cpp#L59
+		return "nerdminer"
 	} else if strings.Contains(ua, "luckyminer") {
 		return "luckyminer"
 	}
