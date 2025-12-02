@@ -43,7 +43,6 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -250,10 +249,16 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
-	ctx, cancel := context.WithCancel(rootCtx)
-
+	if conf.Backend.Websocket {
+		defer func() {
+			log("closing websocket")
+			backend.Shutdown()
+			backend.WaitForShutdown()
+		}()
+	}
 	/// cancelled on exit
-	wg := sync.WaitGroup{}
+	ctx, cancel := context.WithCancel(rootCtx)
+	defer cancel()
 	sigs := make(chan os.Signal, 1)
 	conns := make(chan net.Conn)
 
@@ -304,8 +309,6 @@ func startup(rootCtx context.Context) error {
 
 	/// connections
 	go func() {
-		defer wg.Done()
-		wg.Add(1)
 		for {
 			select {
 			case <-ctx.Done():
@@ -325,14 +328,6 @@ func startup(rootCtx context.Context) error {
 	// wait for exit
 	<-sigs
 	log("\n{yellow}stopping")
-	cancel()
-	if conf.Backend.Websocket {
-		log("closing websocket")
-		backend.Shutdown()
-		backend.WaitForShutdown()
-	}
-	log("waiting for routines")
-	wg.Wait()
 	return nil
 }
 
