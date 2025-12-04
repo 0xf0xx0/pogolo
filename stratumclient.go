@@ -20,21 +20,20 @@ import (
 
 // aka gopher
 type StratumClient struct {
-	ID                  stratum.ID
+	CurrentJob          MiningJob
+	conn                net.Conn
 	User                btcutil.Address
-	Nickname            string
 	Password            string
+	Nickname            string
 	UserAgent           string
 	TargetDifficulty    float64
-	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
+	SuggestedDifficulty float64       // overloaded, initially set by client (optional) then used by diff adjust
+	templateChan        chan *JobTemplate
+	submissionChan      chan<- blockSubmission
+	readyChan           chan struct{} // TODO: find a way to replace; only for adding to clientMap
+	stats               *ClientStats
+	ID                  stratum.ID
 	VersionRollingMask  uint32
-	// internal
-	conn           net.Conn
-	readyChan      chan struct{} // TODO: find a way to replace; only for adding to clientMap
-	templateChan   chan *JobTemplate
-	submissionChan chan<- blockSubmission
-	CurrentJob     MiningJob
-	stats          *ClientStats
 }
 
 // used for hashrate calc

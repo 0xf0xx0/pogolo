@@ -21,20 +21,20 @@ import (
 /// public-pool my beloved
 
 type JobTemplate struct {
-	ID           string
 	MsgBlock     wire.MsgBlock
 	Bits         []byte
 	MerkleBranch []*chainhash.Hash
+	ID           string
 	NetworkDiff  float64
 	Subsidy      int64
 	Height       int64
 }
 type MiningJob struct {
 	stratum.NotifyParams
-	MerkleBranch []*chainhash.Hash
 	Block        btcutil.Block
-	Version      int32
+	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
+	Version      int32
 }
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
