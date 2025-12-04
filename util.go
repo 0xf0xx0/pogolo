@@ -149,11 +149,11 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 }
 
 // port of public-pools calculateDifficulty
-func CalcDifficulty(header wire.BlockHeader) float64 {
+func CalcDifficulty(header wire.BlockHeader) (float64, chainhash.Hash) {
 	hashResult := header.BlockHash()
 	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hashResult))
 	diff, _ := s64.Quo(constants.TrueDiff1, s64).Float64()
-	return diff
+	return diff, hashResult
 }
 
 // port of public-pools nearestPowerOfTwo
