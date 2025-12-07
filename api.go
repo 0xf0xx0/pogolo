@@ -43,7 +43,7 @@ func initAPI() {
 	/// TODO: wip
 	pfx := fmt.Sprintf("GET %s/v%d", API_PFX, API_VER)
 	http.HandleFunc(pfx+"/info", getInfo)
-	http.HandleFunc(pfx+"/gopher/{extranonce1}", getWorkerInfo)
+	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
 
 	/// default handlers
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
@@ -80,7 +80,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 
 // Takes a name (id or worker name) and returns a snapshot of the matching client, if any
 func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
-	name := req.PathValue("extranonce1")
+	name := req.PathValue("idOrNickname")
 	worker := getClientFromNameOrID(name)
 	if worker == nil {
 		logError(fmt.Sprintf("failed to find client %s", name))
