@@ -240,7 +240,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 					break
 				}
 				suggestedDiff := math.Abs(params.Difficulty)
-				if suggestedDiff != client.TargetDifficulty && suggestedDiff > constants.MIN_DIFFICULTY {
+				if suggestedDiff >= constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
 					client.log("suggested difficulty {blue}%g", suggestedDiff)
@@ -577,7 +577,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
 			/// FIX: ...i dont know why but this is consistently off by half...?
-			stats.hashrate *= 2
+			// stats.hashrate *= 2
 		}
 	}
 }
