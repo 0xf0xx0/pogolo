@@ -43,6 +43,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -84,8 +85,9 @@ var (
 	clients            = &clientMap{} // map of active client ids to clients
 	currTemplateID     uint64
 	currTemplate       *JobTemplate
+	currTemplateLock   sync.RWMutex
 	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
-	triggerGBT         = make(chan struct{})           // ditto cause of websocket
+	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
 	serverStartTime    time.Time
 )
 
@@ -370,18 +372,23 @@ func backendRoutine(ctx context.Context) {
 	getBlockCountPoll := func() {
 		/// wait for the initial template
 		for {
+			currTemplateLock.RLock()
 			if currTemplate != nil {
+				currTemplateLock.RUnlock()
 				break
 			}
+			currTemplateLock.RUnlock()
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 		}
 		for {
 			if count, err := backend.GetBlockCount(); err == nil {
+				currTemplateLock.RLock()
 				if count == currTemplate.Height {
 					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
 
 					triggerGBT <- struct{}{}
 				}
+				currTemplateLock.RUnlock()
 			} else {
 				logError(err.Error())
 			}
@@ -445,6 +452,7 @@ func backendRoutine(ctx context.Context) {
 			Rules:        []string{"segwit"}, /// required by gbt
 			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 			Mode:         "template",
+			/// FIXME: longpoll times out
 			// LongPollID:   longpollid,
 		})
 		if err != nil {
@@ -465,7 +473,9 @@ func backendRoutine(ctx context.Context) {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 
+		currTemplateLock.Lock()
 		currTemplate = CreateJobTemplate(template)
+		currTemplateLock.Unlock()
 		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients(currTemplate) /// this might take a while
