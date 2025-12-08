@@ -13,7 +13,7 @@ start it, point your miners to it, and watch the logs roll by
 - api (see api.go, swagger spec eventually in 1.0.0)
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
-- longpolling (i think)
+- ~~longpolling (i think)~~ borked
 - 15-17ms latency (share received -> response sent)
 
 ## supported BIPs
