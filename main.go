@@ -445,7 +445,7 @@ func backendRoutine(ctx context.Context) {
 			Rules:        []string{"segwit"}, /// required by gbt
 			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 			Mode:         "template",
-			LongPollID:   longpollid,
+			// LongPollID:   longpollid,
 		})
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
@@ -460,6 +460,7 @@ func backendRoutine(ctx context.Context) {
 
 		/// save longpoll id
 		longpollid = template.LongPollID
+		longpollid = longpollid
 
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}

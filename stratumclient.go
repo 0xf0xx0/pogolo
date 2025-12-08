@@ -27,7 +27,7 @@ type StratumClient struct {
 	Nickname            string
 	UserAgent           string
 	TargetDifficulty    float64
-	SuggestedDifficulty float64       // overloaded, initially set by client (optional) then used by diff adjust
+	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
 	readyChan           chan struct{} // TODO: find a way to replace; only for adding to clientMap
