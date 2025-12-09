@@ -73,7 +73,7 @@ Options:{blue}
    {{range .VisibleFlags}}{{.String}}
    {{end}}{/}
 Version:
-   {green}{{.Version}}
+   {green}v{{.Version}}
 `
 
 // global state
@@ -89,6 +89,7 @@ var (
 	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
 	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
 	serverStartTime    time.Time
+	totalSharesPerSec  = float64(0)
 )
 
 func main() {
@@ -170,6 +171,14 @@ func main() {
 					/// fs error
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.EXIT_CONFIG)
 				}
+			}
+
+			/// ignore vardiff and diff suggestions when benching
+			if conf.Benchmarking {
+				conf.DisableVarDiff = true
+				conf.IgnoreSuggDiff = true
+				log("{bold}{yellow}==<<!>=<<!>=<<!>>=<benchmarking>=<<!>=<<!>=<<!>>==")
+				log("{yellow}connect with cpuminer to start")
 			}
 
 			/// init backend
@@ -342,6 +351,9 @@ func startup(rootCtx context.Context) error {
 	// wait for exit
 	<-sigs
 	log("\n{yellow}stopping")
+	if conf.Benchmarking {
+		log(fmt.Sprintf("total shares/s: %f", totalSharesPerSec))
+	}
 	return nil
 }
 

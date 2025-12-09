@@ -14,7 +14,7 @@ start it, point your miners to it, and watch the logs roll by
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
 - ~~longpolling (i think)~~ borked
-- 15-17ms latency (share received -> response sent)
+- 15-17ms share processing latency, 4.3-5.2k shares/sec
 
 ## supported BIPs
 - 34
@@ -68,6 +68,11 @@ password: [required if set in pogolo.toml]
 suggested diff: [optional]
 ```
 the onchain address is also optional if the pool has a default configured.
+
+## benchmarking
+to reproduce shares/s result:
+1. set `benchmark = true` in your config
+2. connect with cpuminer (preferably from a different machine) and watch the shares fly
 
 ## TODO
 

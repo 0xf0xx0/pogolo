@@ -76,7 +76,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 			/// if they haven't, we alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
 				if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
-					client.setDifficulty(constants.MIN_DIFFICULTY)
+					if conf.Benchmarking {
+						client.setDifficulty(0.000001) /// lowest diff before cpuminer deadlocks
+					} else {
+						/// use the hardcoded min
+						client.setDifficulty(constants.MIN_DIFFICULTY)
+					}
 				} else {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
@@ -281,6 +286,11 @@ func (client *StratumClient) Stop() {
 	client.templateChan = nil
 	client.conn.Close()
 	log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
+	if conf.Benchmarking {
+		sharesPS := float64(client.stats.sharesAccepted)/float64(client.stats.Uptime())
+		totalSharesPerSec += sharesPS
+		log(fmt.Sprintf("shares/s: %f", sharesPS))
+	}
 }
 
 // aims for the .TargetShareInterval
@@ -385,7 +395,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 
 	shareDiff, shareHash := CalcDifficulty(updatedBlock.Header)
 	if shareDiff >= client.TargetDifficulty {
-		if shareDiff >= client.CurrentJob.NetworkDiff {
+		if !conf.Benchmarking && shareDiff >= client.CurrentJob.NetworkDiff {
 			/// !!! block! dont say ANYTHING until after submitted
 			submission := blockSubmission{
 				ClientID: client.ID,
