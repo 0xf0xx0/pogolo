@@ -14,7 +14,7 @@ start it, point your miners to it, and watch the logs roll by
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
 - ~~longpolling (i think)~~ borked
-- 15-17ms share processing latency, 4.3-5.2k shares/sec
+- 15-17ms share processing latency, up to 4.3-5.2k shares/sec
 
 ## supported BIPs
 - 34
