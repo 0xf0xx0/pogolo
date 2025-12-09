@@ -98,7 +98,7 @@ func main() {
 		Version:                VERSION,
 		Usage:                  "Decentralize or die",
 		UseShortOptionHandling: true,
-		EnableShellCompletion:  true,
+		// EnableShellCompletion:  true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "conf",
@@ -122,6 +122,18 @@ func main() {
 			}
 			os.Exit(constants.EXIT_MISC)
 		},
+		/// XXX: https://github.com/urfave/cli/issues/1993
+		// ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+		// 	if cmd.NArg() > 0 {
+		// 		return
+		// 	}
+		// 	flags := cmd.Root().VisibleFlags()
+		// 	for _, flag := range flags {
+		// 		if !flag.IsSet() {
+		// 			fmt.Fprintf(cmd.Root().Writer, "--"+flag.Names()[0]+"\n")
+		// 		}
+		// 	}
+		// },
 		Action: func(rootCtx context.Context, cmd *cli.Command) error {
 			if profileDir := cmd.String("profile"); profileDir != "" {
 				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
