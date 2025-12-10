@@ -40,7 +40,7 @@ type Pogolo struct {
 	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
 	IgnoreSuggDiff      bool    `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool    `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
-	Benchmarking        bool    `toml:"benchmark,hidden" comment:"benchmark pogolo"`
+	Benchmarking        bool    `toml:"benchmark,commented" comment:"benchmark pogolo"`
 }
 
 var DEFAULT_CONFIG = Config{
