@@ -1,6 +1,8 @@
 [backend]
 # RPC host:port
 host = '[::1]:8332'
+# ZMQ hashblock address tcp://host:port
+# zmq_hashblock = ''
 # RPC cookie path, relative is supported (takes precedence over rpcauth)
 # cookie = '~/.bitcoin/.cookie'
 # RPC user:pass (ignored if cookie is set)
@@ -40,3 +42,5 @@ target_share_interval = 5
 # ignore_suggested_difficulty = false
 # disable automatic difficulty adjustment
 # disable_vardiff = false
+# benchmark pogolo
+benchmark = false

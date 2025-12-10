@@ -53,6 +53,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/go-zeromq/zmq4"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
@@ -429,6 +430,9 @@ func backendRoutine(ctx context.Context) {
 			logError("{yellow}falling back to polling")
 			go getBlockCountPoll()
 		}
+	} else if conf.Backend.ZMQHashBlock != "" {
+		// If configured subscribe to hash block messages
+		go zmqHashBlockSubscribe(ctx)
 	} else {
 		/// poll getblockcount
 		go getBlockCountPoll()
@@ -543,5 +547,34 @@ func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string
 func notifyClients(j *JobTemplate) {
 	for _, client := range clients.All() {
 		client.TemplateChannel() <- j
+	}
+}
+
+func zmqHashBlockSubscribe(ctx context.Context) {
+
+	subblock := zmq4.NewSub(context.Background())
+	defer subblock.Close()
+	subblock.Dial(conf.Backend.ZMQHashBlock)
+	subblock.SetOption(zmq4.OptionSubscribe, "hashblock")
+	log(fmt.Sprintf("ZMQ connected to {green}%s", conf.Backend.ZMQHashBlock))
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		msg, err := subblock.Recv()
+		if err != nil {
+			logError(fmt.Sprintf("Error receiving zmq message: %v", err))
+			continue
+		}
+
+		triggerGBT <- struct{}{}
+
+		// Maybe decode block hash
+		if len(msg.Frames) > 1 {
+			log(fmt.Sprintf("Notified of new block by ZMQ %v", msg.Frames[1]))
+		}
 	}
 }

@@ -21,6 +21,7 @@ type Config struct {
 }
 type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port"`
+	ZMQHashBlock string `toml:"zmq_hashblock,commented" comment:"ZMQ hashblock address tcp://host:port"`
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported (takes precedence over rpcauth)"`
 	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)"`
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
