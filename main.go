@@ -273,6 +273,13 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
+	/// cancelled on exit
+	ctx, cancel := context.WithCancel(rootCtx)
+	defer cancel()
+
+	go loggerRoutine(ctx)
+	defer flushLog()
+
 	if conf.Backend.Websocket {
 		defer func() {
 			log("closing websocket")
@@ -280,16 +287,16 @@ func startup(rootCtx context.Context) error {
 			backend.WaitForShutdown()
 		}()
 	}
-	/// cancelled on exit
-	ctx, cancel := context.WithCancel(rootCtx)
-	defer cancel()
+
 	sigs := make(chan os.Signal, 1)
 	conns := make(chan net.Conn)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	/// init
 	clients.Init()
 	initAPI()
-	go loggerRoutine(ctx)
+
 	go backendRoutine(ctx)
 
 	/// start listening on configured interface or ip
@@ -545,16 +552,25 @@ func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string
 func loggerRoutine(ctx context.Context) {
 	for {
 		select {
-			case msg := <-loggingChan: {
+		case msg := <-loggingChan:
+			{
 				if msg.Stderr {
 					println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
 				} else {
 					fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
 				}
 			}
-			case <-ctx.Done(): {
-				return
-			}
+		}
+	}
+}
+func flushLog() {
+	remLogs := len(loggingChan)
+	for i := 0; i < remLogs; i++ {
+		msg := <- loggingChan
+		if msg.Stderr {
+			println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
+		} else {
+			fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
 		}
 	}
 }
