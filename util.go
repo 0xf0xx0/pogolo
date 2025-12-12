@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"math/big"
 	"pogolo/constants"
@@ -10,7 +9,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/0xf0xx0/oigiki"
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
@@ -306,9 +304,14 @@ func FormatHashrate(value float64) string {
 	return strconv.FormatFloat(value, 'g', 5, 64) + " " + unit + "H/s"
 }
 
+type logMsg struct {
+	Stderr bool
+	Msg    string
+}
+
 func log(s string) {
-	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan")))
+	loggingChan <- logMsg{Msg: s}
 }
 func logError(s string) {
-	println(oigiki.ProcessTags(oigiki.TagString(s, "red")))
+	loggingChan <- logMsg{Msg: s, Stderr: true}
 }

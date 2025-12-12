@@ -88,6 +88,7 @@ var (
 	currTemplateLock   sync.RWMutex
 	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
 	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
+	loggingChan        = make(chan logMsg, 256)
 	serverStartTime    time.Time
 	totalSharesPerSec  = float64(0)
 )
@@ -288,6 +289,7 @@ func startup(rootCtx context.Context) error {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	clients.Init()
 	initAPI()
+	go loggerRoutine(ctx)
 	go backendRoutine(ctx)
 
 	/// start listening on configured interface or ip
@@ -537,6 +539,23 @@ func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string
 			}
 		}
 		conns <- conn
+	}
+}
+
+func loggerRoutine(ctx context.Context) {
+	for {
+		select {
+			case msg := <-loggingChan: {
+				if msg.Stderr {
+					println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
+				} else {
+					fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
+				}
+			}
+			case <-ctx.Done(): {
+				return
+			}
+		}
 	}
 }
 
