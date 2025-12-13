@@ -279,9 +279,7 @@ func startup(rootCtx context.Context) error {
 	ctx, cancel := context.WithCancel(rootCtx)
 	defer cancel()
 
-	wg.Go(func() {
-		loggerRoutine(ctx)
-	})
+	wg.Go(func() { loggerRoutine(ctx) })
 
 	if conf.Backend.Websocket {
 		defer func() {
@@ -300,9 +298,7 @@ func startup(rootCtx context.Context) error {
 	clients.Init()
 	initAPI()
 
-	wg.Go(func() {
-		backendRoutine(ctx)
-	})
+	wg.Go(func() { backendRoutine(ctx) })
 
 	/// start listening on configured interface or ip
 	if conf.Pogolo.Interface != "" {
@@ -335,10 +331,8 @@ func startup(rootCtx context.Context) error {
 				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
 			}
 			httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-			wg.Go(func() {
-				listenerRoutine(conns, listener, httpAddr, ctx)
-			})
 
+			wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
 		}
 	} else {
 		/// TODO: use net.LookupHost for domains?
@@ -347,9 +341,8 @@ func startup(rootCtx context.Context) error {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
 		}
 		httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-		wg.Go(func() {
-			listenerRoutine(conns, listener, httpAddr, ctx)
-		})
+
+		wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
 	}
 
 	/// connections
@@ -542,7 +535,7 @@ func backendRoutine(ctx context.Context) {
 // listens on one ip
 func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
 	defer listener.Close()
-	go func(){
+	go func() {
 		<-ctx.Done()
 		listener.Close()
 	}()
