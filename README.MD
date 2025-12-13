@@ -82,17 +82,12 @@ to reproduce shares/s result:
       waiting for bip 41  
       https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
 - logs with personality
-    - hide cursor, use full term height?
     - styled around standard 80x24
-    - tui?? idk i need a tui dev lol
-- completion
+- completion (urfave is bugged)
 - option to set bits for signalling support
 - option to ignore empty templates?
-- db interface for optional stats persistence?
-- special bitaxe functions like auto-restart on flatline and hashrate polling?
 - stratum keepalive?
 - zmq for block notifs?
-- btcd tls? yuck
 - when 1.0.0:
     - docker image
     - aur packages

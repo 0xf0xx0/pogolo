@@ -273,12 +273,15 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
-	/// cancelled on exit
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+
 	ctx, cancel := context.WithCancel(rootCtx)
 	defer cancel()
 
-	go loggerRoutine(ctx)
-	defer flushLog()
+	wg.Go(func() {
+		loggerRoutine(ctx)
+	})
 
 	if conf.Backend.Websocket {
 		defer func() {
@@ -297,7 +300,9 @@ func startup(rootCtx context.Context) error {
 	clients.Init()
 	initAPI()
 
-	go backendRoutine(ctx)
+	wg.Go(func() {
+		backendRoutine(ctx)
+	})
 
 	/// start listening on configured interface or ip
 	if conf.Pogolo.Interface != "" {
@@ -324,11 +329,14 @@ func startup(rootCtx context.Context) error {
 			if strings.HasPrefix(addr, "fe80::") {
 				addr += "%" + inter.Name
 			}
+			/// TODO: merge this into listenerRoutine while preserving error handling???
 			listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
 			}
-			go listenerRoutine(conns, listener, net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort))), ctx)
+			httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+			go listenerRoutine(conns, listener, httpAddr, ctx)
+
 		}
 	} else {
 		/// TODO: use net.LookupHost for domains?
@@ -336,11 +344,12 @@ func startup(rootCtx context.Context) error {
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
 		}
-		go listenerRoutine(conns, listener, net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort))), ctx)
+		httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+		go listenerRoutine(conns, listener, httpAddr, ctx)
 	}
 
 	/// connections
-	go func() {
+	wg.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -354,11 +363,13 @@ func startup(rootCtx context.Context) error {
 				}
 			}
 		}
-	}()
+	})
 
 	serverStartTime = time.Now()
+
 	// wait for exit
 	<-sigs
+
 	log("\n{yellow}stopping")
 	if conf.Benchmarking {
 		log(fmt.Sprintf("total shares/s: %f", totalSharesPerSec))
@@ -525,12 +536,21 @@ func backendRoutine(ctx context.Context) {
 }
 
 // listens on one ip
-func listenerRoutine(conns chan net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
+// cannot be waitgrouped
+func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
 	defer listener.Close()
 	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
 	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
 	for {
+		select {
+			case <-ctx.Done(): {
+				return
+			}
+			default :
+
+		}
+		/// TODO: prevents waitgrouping, find a workaround?
 		conn, err := listener.Accept()
 		if err != nil {
 			select {
@@ -560,17 +580,18 @@ func loggerRoutine(ctx context.Context) {
 					fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
 				}
 			}
-		}
-	}
-}
-func flushLog() {
-	remLogs := len(loggingChan)
-	for i := 0; i < remLogs; i++ {
-		msg := <- loggingChan
-		if msg.Stderr {
-			println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
-		} else {
-			fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
+		case <-ctx.Done():
+			{
+				for len(loggingChan) > 0 {
+					msg := <-loggingChan
+					if msg.Stderr {
+						println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
+					} else {
+						fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
+					}
+				}
+				return
+			}
 		}
 	}
 }
