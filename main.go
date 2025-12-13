@@ -335,7 +335,9 @@ func startup(rootCtx context.Context) error {
 				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
 			}
 			httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-			go listenerRoutine(conns, listener, httpAddr, ctx)
+			wg.Go(func() {
+				listenerRoutine(conns, listener, httpAddr, ctx)
+			})
 
 		}
 	} else {
@@ -345,7 +347,9 @@ func startup(rootCtx context.Context) error {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
 		}
 		httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-		go listenerRoutine(conns, listener, httpAddr, ctx)
+		wg.Go(func() {
+			listenerRoutine(conns, listener, httpAddr, ctx)
+		})
 	}
 
 	/// connections
@@ -536,20 +540,18 @@ func backendRoutine(ctx context.Context) {
 }
 
 // listens on one ip
-// cannot be waitgrouped
 func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
 	defer listener.Close()
+	go func(){
+		<-ctx.Done()
+		listener.Close()
+	}()
+
 	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
 	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
-	for {
-		select {
-			case <-ctx.Done(): {
-				return
-			}
-			default :
 
-		}
+	for {
 		/// TODO: prevents waitgrouping, find a workaround?
 		conn, err := listener.Accept()
 		if err != nil {
