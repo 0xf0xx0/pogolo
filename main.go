@@ -281,6 +281,7 @@ func startup(rootCtx context.Context) error {
 
 	wg.Go(func() { loggerRoutine(ctx) })
 
+	/// ws shutdown handler
 	if conf.Backend.Websocket {
 		defer func() {
 			log("closing websocket")
@@ -412,28 +413,46 @@ func backendRoutine(ctx context.Context) {
 	longpollid := ""
 	getBlockCountPoll := func() {
 		/// wait for the initial template
+	busywait:
 		for {
-			currTemplateLock.RLock()
-			if currTemplate != nil {
-				currTemplateLock.RUnlock()
-				break
-			}
-			currTemplateLock.RUnlock()
-			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
-		}
-		for {
-			if count, err := backend.GetBlockCount(); err == nil {
-				currTemplateLock.RLock()
-				if count == currTemplate.Height {
-					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
-
-					triggerGBT <- struct{}{}
+			select {
+			case <-ctx.Done():
+				{
+					return
 				}
-				currTemplateLock.RUnlock()
-			} else {
-				logError(err.Error())
+			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
+				{
+					currTemplateLock.RLock()
+					if currTemplate != nil {
+						currTemplateLock.RUnlock()
+						break busywait
+					}
+					currTemplateLock.RUnlock()
+				}
 			}
-			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				{
+					return
+				}
+			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
+				{
+					if count, err := backend.GetBlockCount(); err == nil {
+						currTemplateLock.RLock()
+						if count == currTemplate.Height {
+							log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
+
+							triggerGBT <- struct{}{}
+						}
+						currTemplateLock.RUnlock()
+					} else {
+						logError(err.Error())
+					}
+				}
+			}
 		}
 	}
 
@@ -498,11 +517,6 @@ func backendRoutine(ctx context.Context) {
 		})
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
-			/// FIXME: this doesnt trigger :\
-			if err.Error() == "the client has been shutdown" {
-				cli.Exit("rpc shutdown fail? emergency exit", constants.EXIT_MISC)
-				return
-			}
 			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
 			continue
 		}
