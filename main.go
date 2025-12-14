@@ -361,7 +361,7 @@ func startup(rootCtx context.Context) error {
 	}
 
 	/// connections
-	wg.Go(func() { connectionRoutine(ctx, conns) })
+	wg.Go(func() { connectionRoutine(conns, ctx) })
 
 	serverStartTime = time.Now()
 
@@ -375,7 +375,7 @@ func startup(rootCtx context.Context) error {
 	return nil
 }
 
-// listens on one ip
+// listens on one ip and sends connections down `conns`
 func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
 	defer listener.Close()
 	go func() {
@@ -407,7 +407,7 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 }
 
 // handles clients
-func connectionRoutine(ctx context.Context, conns <-chan net.Conn) {
+func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
