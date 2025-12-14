@@ -88,7 +88,6 @@ var (
 	currTemplateLock   sync.RWMutex
 	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
 	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
-	loggingChan        = make(chan logMsg, 256)
 	serverStartTime    time.Time
 	totalSharesPerSec  = float64(0)
 )
@@ -283,8 +282,6 @@ func startup(rootCtx context.Context) error {
 
 	ctx, cancel := context.WithCancel(rootCtx)
 	defer cancel()
-
-	wg.Go(func() { loggerRoutine(ctx) })
 
 	/// ws shutdown handler
 	if conf.Backend.Websocket {
@@ -560,35 +557,6 @@ func backendRoutine(ctx context.Context) {
 				return
 			}
 		}
-	}
-}
-
-// TODO: do all log processing (printf, etc) here
-// FIXME: separate from startup() so it can catch *all* logs, or just return to each routine logging for itself
-func loggerRoutine(ctx context.Context) {
-	for {
-		select {
-		case msg := <-loggingChan:
-			{
-				processLogMsg(msg)
-			}
-		case <-ctx.Done():
-			{
-				for len(loggingChan) > 0 {
-					processLogMsg(<-loggingChan)
-				}
-				return
-			}
-		}
-	}
-}
-
-// deduping code
-func processLogMsg(msg logMsg) {
-	if msg.Stderr {
-		println(oigiki.ProcessTags(oigiki.TagString(*msg.Msg, "red")))
-	} else {
-		fmt.Println(oigiki.ProcessTags(oigiki.TagString(*msg.Msg, "cyan")))
 	}
 }
 
