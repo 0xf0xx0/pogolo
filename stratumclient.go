@@ -30,7 +30,6 @@ type StratumClient struct {
 	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
-	readyChan           chan struct{} // TODO: find a way to replace; only for adding to clientMap
 	stats               *ClientStats
 	ID                  stratum.ID
 	VersionRollingMask  uint32
@@ -52,6 +51,12 @@ func (client *StratumClient) Run(noCleanup bool) {
 	if !noCleanup {
 		defer client.Stop()
 	}
+	/// remove ourselves from the client map on disconnect
+	defer func() {
+		if client.ID != 0 {
+			clients.Delete(client.ID)
+		}
+	}()
 	go client.readTemplateChanRoutine()
 	stratumInited := false
 	isAuthed := false
@@ -66,13 +71,20 @@ func (client *StratumClient) Run(noCleanup bool) {
 		/// we only send work after authed and subbed (and set a flag so we dont do this again)
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
+
 			log(fmt.Sprintf(
 				/// dig, cause gophers, get it?
 				"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
 				client.Name(), client.ID, client.Addr(),
 			))
-			/// the client may have suggested a difficulty before
-			/// fully initialized
+
+			if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+				client.log("{yellow}mining to pool address")
+			}
+			if client.VersionRollingMask > 0 {
+				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
+			}
+			/// the client may have suggested a difficulty before fully initialized
 			/// if they haven't, we alert them to our default diff here
 			if client.SuggestedDifficulty == 0 {
 				if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
@@ -86,14 +98,15 @@ func (client *StratumClient) Run(noCleanup bool) {
 					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 				}
 			}
-			if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
-				client.log("{yellow}mining to pool address")
+
+			/// i dont think the order matters, but lets send the current template
+			/// before adding to the client map, just in case notifyClients gets
+			/// called in between (and rapid-fires jobs)
+			if currTemplate != nil {
+				client.TemplateChannel() <- currTemplate
 			}
-			if client.VersionRollingMask > 0 {
-				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
-			}
+			clients.Add(client)
 			client.stats.startTime = time.Now()
-			client.writeStatus()
 		}
 
 		/// messages are newline separated (either lf or crlf)
@@ -276,18 +289,16 @@ func (client *StratumClient) Run(noCleanup bool) {
 	}
 }
 func (client *StratumClient) Stop() {
-	if client.readyChan == nil {
+	if client.templateChan == nil {
 		return
 	}
-	close(client.readyChan)
 	close(client.templateChan)
 	/// nil because receive-side closure
-	client.readyChan = nil
 	client.templateChan = nil
 	client.conn.Close()
 	log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
 	if conf.Benchmarking {
-		sharesPS := float64(client.stats.sharesAccepted)/float64(client.stats.Uptime())
+		sharesPS := float64(client.stats.sharesAccepted) / float64(client.stats.Uptime())
 		totalSharesPerSec += sharesPS
 		log(fmt.Sprintf("shares/s: %f", sharesPS))
 	}
@@ -349,9 +360,6 @@ func (client *StratumClient) readTemplateChanRoutine() {
 
 func (client *StratumClient) TemplateChannel() chan<- *JobTemplate {
 	return client.templateChan
-}
-func (client *StratumClient) ReadyChannel() <-chan struct{} {
-	return client.readyChan
 }
 
 // returns the nickname if set and falls back to the id
@@ -501,9 +509,6 @@ func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
 	return err
 }
-func (client *StratumClient) writeStatus() {
-	client.readyChan <- struct{}{}
-}
 
 // logging
 // maybe: pick random color for client?
@@ -587,8 +592,6 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 			time := shareTime.Sub(stats.lastTimeSlot.Time).Seconds()
 			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
-			/// FIX: ...i dont know why but this is consistently off by half...?
-			// stats.hashrate *= 2
 		}
 	}
 }
@@ -599,7 +602,6 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 		ID:             ClientIDHash(conn.RemoteAddr().String()),
 		stats:          &ClientStats{},
 		conn:           conn,
-		readyChan:      make(chan struct{}),
 		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,
 	}

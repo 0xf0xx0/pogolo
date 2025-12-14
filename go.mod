@@ -1,6 +1,6 @@
 module pogolo
 
-go 1.24.4
+go 1.25
 
 //replace github.com/0xf0xx0/stratum => ../stratum
 

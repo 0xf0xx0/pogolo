@@ -139,9 +139,5 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	client := CreateClient(rpipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(true)
-	go func() {
-		/// client.Stop() will block until read, so read and discard
-		<-client.ReadyChannel()
-	}()
 	return lpipe, &client, submissionChan
 }

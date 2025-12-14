@@ -43,7 +43,6 @@ var (
 	ERROR_UNAUTHORIZED = stratum.Error{Code: 403, Message: "Unauthorized"}
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "Not accepted"}
-	/// TODO: "stale"?
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "Unknown job"}
 	ERROR_LOW_DIFF     = stratum.Error{Code: 413, Message: "Difficulty too low"}
 	// for data we understand but couldnt process

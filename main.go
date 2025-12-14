@@ -376,41 +376,16 @@ func startup(rootCtx context.Context) error {
 }
 
 // handles individual conns, spawned as a goroutine
-// TODO: refactor?
 func clientHandler(conn net.Conn, ctx context.Context) {
 	/// don't need to close the conn here, handled by client.Stop()
-
 	client := CreateClient(conn, submissionChan)
-	channel := client.ReadyChannel()
-
-	/// remove ourselves from the client map on disconnect
-	defer func() {
-		if client.ID != 0 {
-			clients.Delete(client.ID)
-		}
-	}()
-
 	go client.Run(false)
-
-	for {
-		_, ok := <-channel
-		if !ok {
-			return
-		}
-
-		/// i dont think the order matters, but lets send the current template
-		/// before adding to the client map, just in case notifyClients gets
-		/// called in between (and rapid-fires jobs)
-		if currTemplate != nil {
-			client.TemplateChannel() <- currTemplate
-		}
-		clients.Add(&client)
-	}
 }
 
 // handles templates, block notifications, and block submissions
+// FIXME: add longpolling to rpcclient
 func backendRoutine(ctx context.Context) {
-	longpollid := ""
+	// longpollid := ""
 	getBlockCountPoll := func() {
 		/// wait for the initial template
 	busywait:
@@ -457,7 +432,6 @@ func backendRoutine(ctx context.Context) {
 	}
 
 	/// block notifications
-	/// TODO: do we need anything special for btcd/knots/etc?
 	if conf.Backend.Websocket {
 		/// wait for new blocks to come in
 		if err := backend.NotifyBlocks(); err != nil {
@@ -510,9 +484,8 @@ func backendRoutine(ctx context.Context) {
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
-			Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
+			Capabilities: []string{"proposal", "coinbasevalue",/* "longpoll" */},
 			Mode:         "template",
-			/// FIXME: longpoll times out
 			// LongPollID:   longpollid,
 		})
 		if err != nil {
@@ -522,8 +495,7 @@ func backendRoutine(ctx context.Context) {
 		}
 
 		/// save longpoll id
-		longpollid = template.LongPollID
-		longpollid = longpollid
+		// longpollid = template.LongPollID
 
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
@@ -559,7 +531,6 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
 
 	for {
-		/// TODO: prevents waitgrouping, find a workaround?
 		conn, err := listener.Accept()
 		if err != nil {
 			select {

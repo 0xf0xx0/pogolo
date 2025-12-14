@@ -24,7 +24,6 @@ import (
 // basically typed sync.Map
 type clientMap struct {
 	lock sync.RWMutex
-	// TODO: better name
 	mapparoonie map[stratum.ID]*StratumClient
 }
 
@@ -152,29 +151,6 @@ func CalcDifficulty(header wire.BlockHeader) (float64, chainhash.Hash) {
 	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hashResult))
 	diff, _ := s64.Quo(constants.TrueDiff1, s64).Float64()
 	return diff, hashResult
-}
-
-// port of public-pools nearestPowerOfTwo
-// TODO: use? jumping from 512 to 1024 to 2048 is bleh tho
-func nearestPowerOfTwo(val float64) float64 {
-	if val == 0 {
-		return val
-	}
-	if val < constants.MIN_DIFFICULTY {
-		return constants.MIN_DIFFICULTY
-	}
-	valBits := math.Float64bits(val) /// ...??? weh
-	/// https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2 but 64 bit and down
-	x := valBits | (valBits >> 1)
-	x = x | (x >> 2)
-	x = x | (x >> 4)
-	x = x | (x >> 8)
-	x = x | (x >> 16)
-	x = x | (x >> 32)
-	/// round down
-	res := math.Float64frombits(x - (x >> 1))
-	// skip the recursion, we dont allow fractional diffs
-	return max(res, constants.MIN_DIFFICULTY)
 }
 
 // port of public-pools calculateNetworkDifficulty
