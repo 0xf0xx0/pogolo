@@ -13,6 +13,7 @@ const API_PFX = "/api"
 const API_VER = 1
 
 type detailedWorkerInfo struct {
+	Address          string  `json:"address"`
 	Nickname         string  `json:"nickname"`
 	UserAgent        string  `json:"userAgent"`
 	ExtraNonce1      string  `json:"extranonce1"`
@@ -89,6 +90,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	}
 
 	info := detailedWorkerInfo{
+		Address:          worker.User.EncodeAddress(),
 		Nickname:         worker.Nickname,
 		UserAgent:        worker.UserAgent,
 		ExtraNonce1:      worker.ID.String(),
