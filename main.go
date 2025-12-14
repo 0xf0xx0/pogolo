@@ -103,17 +103,19 @@ func main() {
 		// EnableShellCompletion:  true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "conf",
-				Usage: "config file `path`",
-				Value: filepath.Join(config.ROOT, "pogolo.toml"),
+				Name:    "conf",
+				Aliases: []string{"c", "config"},
+				Usage:   "config file `path`",
+				Value:   filepath.Join(config.ROOT, "pogolo.toml"),
 			},
 			&cli.StringFlag{
 				Name:  "writedefaultconf",
 				Usage: "write default config to `path` and exit",
 			},
 			&cli.StringFlag{
-				Name:  "profile",
-				Usage: "write cpu and memory profiles to `dir`",
+				Name:    "prof",
+				Aliases: []string{"profile"},
+				Usage:   "write cpu and memory profiles to `dir`",
 			},
 		},
 		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
@@ -333,6 +335,7 @@ func startup(rootCtx context.Context) error {
 			})
 		}
 	} else {
+		/// is domain, lookup and listen on addrs
 		if net.ParseIP(conf.Pogolo.IP) == nil {
 			addrs, err := net.LookupHost(conf.Pogolo.IP)
 			if err != nil {
@@ -350,13 +353,13 @@ func startup(rootCtx context.Context) error {
 			}
 		} else {
 
-		listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.Port))))
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
-		}
-		httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+			listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.Port))))
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
+			}
+			httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 
-		wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
+			wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
 		}
 	}
 
@@ -561,6 +564,7 @@ func backendRoutine(ctx context.Context) {
 }
 
 // TODO: do all log processing (printf, etc) here
+// FIXME: separate from startup() so it can catch *all* logs, or just return to each routine logging for itself
 func loggerRoutine(ctx context.Context) {
 	for {
 		select {

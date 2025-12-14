@@ -312,17 +312,17 @@ func (client *StratumClient) adjustDiffRoutine() {
 	}
 	/// negative = running slow, positive = running fast
 	/// floor it to avoid floating point madness
-	difference := math.Floor(float64(conf.Pogolo.TargetShareInterval) - client.stats.avgSubmissionDelta/1000)
+	difference := math.Round(float64(conf.Pogolo.TargetShareInterval) - client.stats.avgSubmissionDelta/1000)
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 	/// tighten it to +-1s
-	if absDifference < 2 {
+	if absDifference < 1 {
 		return
 	}
 	/// cap the adjustment at +-256
-	delta := min(math.Pow(2, absDifference), 256)
+	delta := min(math.Pow(2, absDifference*2), 256)
 	if difference < 0 {
-		delta = -delta / 2 /// we want to be more conservative when adjusting downwards
+		delta = -(delta / 2) /// we want to be more conservative when adjusting downwards
 	}
 
 	/// FIXME: this assumes the adjustments will happen less often than jobs, is that a problem?
