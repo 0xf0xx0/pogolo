@@ -28,13 +28,13 @@ type Backend struct {
 }
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
-	IP                  string  `toml:"ip,commented" comment:"ipv4, v6, or domain (domain will only resolve the first ip) (ignored if interface is set)"`
+	IP                  string  `toml:"ip,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)"`
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
-	Password            string  `toml:"password,commented" comment:"optional, required for clients if set"`
+	Password            string  `toml:"password,commented" comment:"optional, required from clients if set"`
 	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)\ncustomize it! add your swarm stats, like\n'/pogolo - gamma x1 - decentralize or die/'"`
 	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
-	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 1"`
+	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.16"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 	ExtraNonce2Size     uint8   `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`

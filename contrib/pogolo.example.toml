@@ -14,13 +14,13 @@ poll_interval = 500
 [pogolo]
 # will listen on all interface ips (takes precedence over ip)
 interface = 'wlan0'
-# ipv4, v6, or domain (domain will only resolve the first ip) (ignored if interface is set)
+# ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)
 # ip = '[::1]'
 # use 0 to pick a random port
 port = 5661
 # port for the api
 http_port = 5662
-# optional, required for clients if set
+# optional, required from clients if set
 # password = ''
 # will be replaced by default tag if too long (about 86 chars)
 # customize it! add your swarm stats, like
@@ -28,7 +28,7 @@ http_port = 5662
 tag = '/pogolo - decentralize or die/'
 # default on-chain address to mine to if not provided by client
 # pool_address = ''
-# minimum 1
+# minimum 0.16
 default_difficulty = 1024.0
 # how often to send new work to clients, in seconds
 job_interval = 60
