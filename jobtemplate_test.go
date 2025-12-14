@@ -45,7 +45,7 @@ func TestValidateCoinbaseScript(t *testing.T) {
 	/// MAYBE: verify the block height is at the start
 }
 
-// this needs to be re-done every time something internal changes
+// this needs to be re-done every time something about the block structure changes
 func TestUpdateBlock(t *testing.T) {
 	conf = config.DEFAULT_CONFIG
 	template := MOCK_BLOCK_TEMPLATE
