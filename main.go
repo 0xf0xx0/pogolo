@@ -273,6 +273,9 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
@@ -290,10 +293,7 @@ func startup(rootCtx context.Context) error {
 		}()
 	}
 
-	sigs := make(chan os.Signal, 1)
 	conns := make(chan net.Conn)
-
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	/// init
 	clients.Init()
@@ -319,24 +319,37 @@ func startup(rootCtx context.Context) error {
 			return cli.Exit("the chosen interface has no addresses!", constants.EXIT_NET)
 		}
 		for _, addr := range addrs {
-			/// trim bitmask or whatever its called
 			addr := strings.Split(addr.String(), "/")[0]
-
-			/// listen on the link-local too, if its there
 			if strings.HasPrefix(addr, "fe80::") {
 				addr += "%" + inter.Name
 			}
-			/// TODO: merge this into listenerRoutine while preserving error handling???
 			listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
 			}
 			httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-
-			wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
+			wg.Go(func() {
+				listenerRoutine(conns, listener, httpAddr, ctx)
+			})
 		}
 	} else {
-		/// TODO: use net.LookupHost for domains?
+		if net.ParseIP(conf.Pogolo.IP) == nil {
+			addrs, err := net.LookupHost(conf.Pogolo.IP)
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("error looking up host %q: %s", conf.Pogolo.IP, err), constants.EXIT_NET)
+			}
+			for _, addr := range addrs {
+				listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
+				if err != nil {
+					return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
+				}
+				httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+				wg.Go(func() {
+					listenerRoutine(conns, listener, httpAddr, ctx)
+				})
+			}
+		} else {
+
 		listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.Port))))
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
@@ -344,24 +357,11 @@ func startup(rootCtx context.Context) error {
 		httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 
 		wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
+		}
 	}
 
 	/// connections
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				{
-					return
-				}
-			case conn := <-conns:
-				{
-					/// no need for a pool, pogolo will likely never handle enough clients for it to matter
-					go clientHandler(conn, ctx)
-				}
-			}
-		}
-	})
+	wg.Go(func() { connectionRoutine(ctx, conns) })
 
 	serverStartTime = time.Now()
 
@@ -375,11 +375,53 @@ func startup(rootCtx context.Context) error {
 	return nil
 }
 
-// handles individual conns, spawned as a goroutine
-func clientHandler(conn net.Conn, ctx context.Context) {
-	/// don't need to close the conn here, handled by client.Stop()
-	client := CreateClient(conn, submissionChan)
-	go client.Run(false)
+// listens on one ip
+func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
+	defer listener.Close()
+	go func() {
+		<-ctx.Done()
+		listener.Close()
+	}()
+
+	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
+	go http.ListenAndServe(httpAddr, nil)
+	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			select {
+			case <-ctx.Done():
+				{
+					return
+				}
+			default:
+				{
+					println(err.Error())
+					continue
+				}
+			}
+		}
+		conns <- conn
+	}
+}
+
+// handles clients
+func connectionRoutine(ctx context.Context, conns <-chan net.Conn) {
+	for {
+		select {
+		case <-ctx.Done():
+			{
+				return
+			}
+		case conn := <-conns:
+			{
+				/// no need for a pool, pogolo will likely never handle enough clients for it to matter
+				client := CreateClient(conn, submissionChan)
+				go client.Run(false)
+			}
+		}
+	}
 }
 
 // handles templates, block notifications, and block submissions
@@ -484,7 +526,7 @@ func backendRoutine(ctx context.Context) {
 	for {
 		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
 			Rules:        []string{"segwit"}, /// required by gbt
-			Capabilities: []string{"proposal", "coinbasevalue",/* "longpoll" */},
+			Capabilities: []string{"proposal", "coinbasevalue" /* "longpoll" */},
 			Mode:         "template",
 			// LongPollID:   longpollid,
 		})
@@ -518,61 +560,31 @@ func backendRoutine(ctx context.Context) {
 	}
 }
 
-// listens on one ip
-func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr string, ctx context.Context) {
-	defer listener.Close()
-	go func() {
-		<-ctx.Done()
-		listener.Close()
-	}()
-
-	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
-	go http.ListenAndServe(httpAddr, nil)
-	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				{
-					return
-				}
-			default:
-				{
-					println(err.Error())
-					continue
-				}
-			}
-		}
-		conns <- conn
-	}
-}
-
+// TODO: do all log processing (printf, etc) here
 func loggerRoutine(ctx context.Context) {
 	for {
 		select {
 		case msg := <-loggingChan:
 			{
-				if msg.Stderr {
-					println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
-				} else {
-					fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
-				}
+				processLogMsg(msg)
 			}
 		case <-ctx.Done():
 			{
 				for len(loggingChan) > 0 {
-					msg := <-loggingChan
-					if msg.Stderr {
-						println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
-					} else {
-						fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
-					}
+					processLogMsg(<-loggingChan)
 				}
 				return
 			}
 		}
+	}
+}
+
+// deduping code
+func processLogMsg(msg logMsg) {
+	if msg.Stderr {
+		println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
+	} else {
+		fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
 	}
 }
 
