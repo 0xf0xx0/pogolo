@@ -582,9 +582,9 @@ func loggerRoutine(ctx context.Context) {
 // deduping code
 func processLogMsg(msg logMsg) {
 	if msg.Stderr {
-		println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "red")))
+		println(oigiki.ProcessTags(oigiki.TagString(*msg.Msg, "red")))
 	} else {
-		fmt.Println(oigiki.ProcessTags(oigiki.TagString(msg.Msg, "cyan")))
+		fmt.Println(oigiki.ProcessTags(oigiki.TagString(*msg.Msg, "cyan")))
 	}
 }
 

@@ -282,12 +282,12 @@ func FormatHashrate(value float64) string {
 
 type logMsg struct {
 	Stderr bool
-	Msg    string
+	Msg    *string
 }
 
 func log(s string) {
-	loggingChan <- logMsg{Msg: s}
+	loggingChan <- logMsg{Msg: &s}
 }
 func logError(s string) {
-	loggingChan <- logMsg{Msg: s, Stderr: true}
+	loggingChan <- logMsg{Msg: &s, Stderr: true}
 }
