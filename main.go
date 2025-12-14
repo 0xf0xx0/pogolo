@@ -385,7 +385,7 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 
 	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
-	log(fmt.Sprintf("api listening on {green}%s", httpAddr))
+	log(fmt.Sprintf("api listening on http://{green}%s", httpAddr))
 
 	for {
 		conn, err := listener.Accept()
