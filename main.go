@@ -38,7 +38,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pogolo/config"
 	"pogolo/constants"
 	"runtime/pprof"
 	"strconv"
@@ -78,7 +77,7 @@ Version:
 
 // global state
 var (
-	conf               config.Config
+	conf               Config
 	backend            *rpcclient.Client
 	backendChainParams *chaincfg.Params
 	defaultMiningAddr  *btcutil.Address
@@ -105,7 +104,7 @@ func main() {
 				Name:    "conf",
 				Aliases: []string{"c", "config"},
 				Usage:   "config file `path`",
-				Value:   filepath.Join(config.ROOT, "pogolo.toml"),
+				Value:   filepath.Join(CONFIG_ROOT, "pogolo.toml"),
 			},
 			&cli.StringFlag{
 				Name:  "writedefaultconf",
@@ -153,15 +152,15 @@ func main() {
 				defer pprof.StopCPUProfile()
 			}
 			if cmd.String("writedefaultconf") != "" {
-				config.WriteDefaultConfig(cmd.String("writedefaultconf"))
+				WriteDefaultConfig(cmd.String("writedefaultconf"))
 				return nil
 			}
 
 			/// set defaults
-			config.DeepCopyConfig(&conf, &config.DEFAULT_CONFIG)
+			DeepCopyConfig(&conf, &DEFAULT_CONFIG)
 			if passedConfig := cmd.String("conf"); passedConfig != "" && passedConfig != "none" {
 				/// overwrite with user conf
-				if err := config.LoadConfig(passedConfig, &conf); err != nil {
+				if err := LoadConfig(passedConfig, &conf); err != nil {
 					/// dont like that i have to do these but oki
 					decodeErr := &toml.DecodeError{}
 					strictErr := &toml.StrictMissingError{}

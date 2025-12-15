@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ROOT = getConfigDir()
+	CONFIG_ROOT = getConfigDir()
 )
 
 type Config struct {
@@ -87,7 +87,6 @@ func getConfigDir() string {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		println(fmt.Sprintf("error getting config dir: %s", err))
-		return ""
 	}
 	return filepath.Join(userConfigDir, "./pogolo")
 }

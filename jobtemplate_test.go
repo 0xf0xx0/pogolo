@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math"
-	"pogolo/config"
 	"testing"
 
 	"github.com/0xf0xx0/stratum"
@@ -47,7 +46,7 @@ func TestValidateCoinbaseScript(t *testing.T) {
 
 // this needs to be re-done every time something about the block structure changes
 func TestUpdateBlock(t *testing.T) {
-	conf = config.DEFAULT_CONFIG
+	conf = DEFAULT_CONFIG
 	template := MOCK_BLOCK_TEMPLATE
 	expectedShareDiff := MOCK_SHAREDIFF
 	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
