@@ -1,0 +1,39 @@
+[Unit]
+Description=pogolo - decentralize or die
+After=network-online.target
+StartLimitIntervalSec=30
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/local/bin/pogolo --conf /etc/pogolo/pogolo.toml
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=15s
+
+# /etc/pogolo
+ConfigurationDirectory=pogolo
+ConfigurationDirectoryMode=0755
+
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+NoNewPrivileges=true
+LockPersonality=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectProc=invisible
+ProcSubset=pid
+PrivateMounts=true
+PrivateUsers=true
+RemoveIPC=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
