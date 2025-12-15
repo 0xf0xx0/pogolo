@@ -87,7 +87,7 @@ func getConfigDir() string {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		println(fmt.Sprintf("error getting config dir: %s", err))
-		os.Exit(1)
+		return ""
 	}
 	return filepath.Join(userConfigDir, "./pogolo")
 }
