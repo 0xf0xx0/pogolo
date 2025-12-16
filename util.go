@@ -127,6 +127,8 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 }
 
 // thank you btcd devs for doin all this boilerplate work
+//
+// fill the coinbase with the client-specific data
 func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {

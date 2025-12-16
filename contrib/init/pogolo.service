@@ -6,9 +6,9 @@ StartLimitBurst=5
 
 [Service]
 ExecStart=/usr/local/bin/pogolo --conf /etc/pogolo/pogolo.toml
-TimeoutStopSec=10
+TimeoutStopSec=5
 Restart=on-failure
-RestartSec=15s
+RestartSec=15
 
 # /etc/pogolo
 ConfigurationDirectory=pogolo
