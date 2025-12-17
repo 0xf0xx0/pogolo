@@ -99,6 +99,25 @@ func main() {
 		Usage:                  "Decentralize or die",
 		UseShortOptionHandling: true,
 		// EnableShellCompletion:  true,
+		MutuallyExclusiveFlags: []cli.MutuallyExclusiveFlags{
+			{
+				Flags: [][]cli.Flag{
+					{
+						&cli.BoolFlag{
+							Name:  "color",
+							Usage: "force color output",
+						},
+					},
+					{
+						&cli.BoolFlag{
+							Name:    "nocolor",
+							Aliases: []string{"stdout"},
+							Usage:   "disable color output",
+						},
+					},
+				},
+			},
+		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "conf",
@@ -172,6 +191,12 @@ func main() {
 					/// fs error
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.EXIT_CONFIG)
 				}
+			}
+
+			if cmd.Bool("color") {
+				oigiki.NoColor = false
+			} else if cmd.Bool("nocolor") {
+				oigiki.NoColor = true
 			}
 
 			/// ignore vardiff and diff suggestions when benching
