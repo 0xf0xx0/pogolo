@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"pogolo/constants"
@@ -37,28 +38,42 @@ type MiningJob struct {
 	Version      int32
 }
 
-func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
-
+func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {
+	/// set the block timestamp, clamping to min and max time
 	currTime := time.Now().Unix()
 	if template.MinTime > currTime {
 		currTime = template.MinTime
 	}
-	headerBits, _ := strconv.ParseUint(template.Bits, 16, 32)
-	prevBlockHash, _ := chainhash.NewHashFromStr(template.PreviousHash)
+	if template.MaxTime > template.MinTime && template.MaxTime < currTime {
+		currTime = template.MaxTime
+	}
 
-	txns := make([]*btcutil.Tx, len(template.Transactions)+1) /// add a slot for the coinbase
+	/// bitties on the yitties
+	bits, err := hex.DecodeString(template.Bits)
+	if err != nil {
+		return nil, err
+	}
+	/// represented as uint32 for wire.MsgHeader and diff calc
+	headerBits := binary.BigEndian.Uint32(bits)
+
+	prevBlockHash, err := chainhash.NewHashFromStr(template.PreviousHash)
+	if err != nil {
+		return nil, err
+	}
+	// add a slot for the coinbase
+	txns := make([]*btcutil.Tx, len(template.Transactions)+1)
 
 	/// decode the serialized txns into nice lil btcutil.Txs
 	for idx, templateTx := range template.Transactions {
 		decoded, err := hex.DecodeString(templateTx.Data)
 		if err != nil {
 			println(idx, templateTx.Data)
-			panic(err)
+			return nil, err
 		}
 		tx, err := btcutil.NewTxFromBytes(decoded)
 		if err != nil {
 			println(idx, templateTx.Data)
-			panic(err)
+			return nil, err
 		}
 		/// skip 0, thats the coinbase slot
 		txns[idx+1] = tx
@@ -70,6 +85,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	/// this merkle tree is for the header merkle root, created from the block txids
 	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)
 	merkleBranches := BuildMerkleProof(merkleTree, txns[0].Hash())
+	/// prune empty branches
 	merkleBranches = slices.DeleteFunc(merkleBranches, func(h *chainhash.Hash) bool {
 		return h == nil
 	})
@@ -82,6 +98,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	if len(merkleBranches) > 1 {
 		merkleBranch = merkleBranches[1:]
 	}
+
 	/// btcd does the witness merkle root for us :3
 	/// thisll be updated on share submission
 	mining.AddWitnessCommitment(txns[0], txns)
@@ -94,7 +111,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	block := wire.MsgBlock{
 		Header: wire.BlockHeader{
 			Version:    template.Version,
-			Bits:       uint32(headerBits),
+			Bits:       headerBits,
 			PrevBlock:  *prevBlockHash,
 			Timestamp:  time.Unix(currTime, 0),
 			MerkleRoot: *merkleRoot,
@@ -103,24 +120,21 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) *JobTemplate {
 	}
 
 	if block.SerializeSize() > blockchain.MaxBlockWeight {
-		logError("block too heavy, please reduce blockmaxweight in your node config")
-		/// FIXME: break everything for now
-		return nil
+		err := errors.New("block too heavy, please reduce blockmaxweight in your node config")
+		return nil, err
 	}
 
-	/// bitties on the yitties
-	bits, _ := hex.DecodeString(template.Bits)
 	currTemplateID++
 	job := &JobTemplate{
 		ID:           strconv.FormatUint(currTemplateID, 16),
 		MsgBlock:     block,
 		MerkleBranch: merkleBranch,
 		Bits:         bits,
-		NetworkDiff:  CalcNetworkDifficulty(uint32(headerBits)),
+		NetworkDiff:  CalcNetworkDifficulty(headerBits),
 		Subsidy:      *template.CoinbaseValue,
 		Height:       template.Height,
 	}
-	return job
+	return job, nil
 }
 
 // like public-pools copyAndUpdateBlock without the copy

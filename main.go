@@ -566,8 +566,14 @@ func backendRoutine(ctx context.Context) {
 		/// MAYBE: option to ignore empty templates?
 		// if len(template.Transactions) == 0 {}
 
+		jobTemplate, err := CreateJobTemplate(template)
+		if err != nil {
+			logError(fmt.Sprintf("error making job template: %s", err.Error()))
+			time.Sleep(time.Second * time.Duration(conf.Pogolo.JobInterval))
+			continue
+		}
 		currTemplateLock.Lock()
-		currTemplate = CreateJobTemplate(template)
+		currTemplate = jobTemplate
 		currTemplateLock.Unlock()
 		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob

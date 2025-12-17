@@ -12,8 +12,13 @@ import (
 
 func TestCreateJobTemplate(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
-	job := CreateJobTemplate(template)
+	job, err := CreateJobTemplate(template)
 
+	if err != nil {
+		t.Errorf("error making job: %s", err)
+		t.FailNow()
+		return
+	}
 	if job.Height != template.Height {
 		t.Errorf("job height mismatch: expected %d, got job: %d", template.Height, job.Height)
 	}
@@ -54,18 +59,21 @@ func TestUpdateBlock(t *testing.T) {
 		ID:   id,
 		User: getAddr(),
 	}
-	tml := CreateJobTemplate(template)
+
+	tml, _ := CreateJobTemplate(template)
 	job := client.createJob(tml)
 	blk, err := job.UpdateBlock(client, submitParams, notifyParams)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+
 	shareDiff, _:= CalcDifficulty(blk.Header)
 	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 		return
 	}
+
 	serializedHeader := bytes.NewBuffer([]byte{})
 	blk.Header.Serialize(serializedHeader)
 	t.Logf("sharediff: %g", shareDiff)
