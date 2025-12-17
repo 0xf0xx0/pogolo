@@ -85,7 +85,6 @@ to reproduce shares/s result:
     - styled around standard 80x24
 - completion (urfave is bugged)
 - option to ignore empty templates?
-- stratum keepalive?
 - zmq for block notifs?
 - when 1.0.0:
     - docker image
