@@ -84,7 +84,6 @@ to reproduce shares/s result:
 - logs with personality
     - styled around standard 80x24
 - completion (urfave is bugged)
-- option to set bits for signalling support
 - option to ignore empty templates?
 - stratum keepalive?
 - zmq for block notifs?

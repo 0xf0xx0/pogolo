@@ -114,8 +114,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 
 		/// deadline is 10x target share interval
 		client.conn.SetDeadline(time.Now().Add(10 * time.Second * time.Duration(conf.Pogolo.TargetShareInterval)))
-		/// TODO: add stratum log option
-		//client.log("{blackbright}> %#q", line)
+		/// MAYBE: add stratum log option
+		// client.log("{blackbright}> %s", line)
 
 		/// process the message
 		m, err := DecodeStratumMessage(line)
@@ -305,7 +305,6 @@ func (client *StratumClient) Stop() {
 }
 
 // aims for the .TargetShareInterval
-// and attempts to queue an adjustment every `constants.SUBMISSION_DELTA_WINDOW`
 func (client *StratumClient) adjustDiffRoutine() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
@@ -435,6 +434,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 	}
 
+	// attempt to queue a diff adjustment every `constants.SUBMISSION_DELTA_WINDOW`
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.DIFF_ADJUST_PERIOD == 0 {
 		client.adjustDiffRoutine()
 	}
@@ -507,6 +507,7 @@ func (client *StratumClient) writeNotif(n stratum.Notification) error {
 }
 func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
+	// client.log("{blackbright}< %s", b)
 	return err
 }
 
