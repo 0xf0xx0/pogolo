@@ -69,7 +69,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	/// processing loop
 	for reader.Scan() {
 		/// we only send work after authed and subbed (and set a flag so we dont do this again)
-		/// MAYBE/FIXME: auth as soon as the last message si received? this only "auths" on the *next* message
+		/// MAYBE/FIXME: auth as soon as the last message is received? this only "auths" on the *next* message
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
 
