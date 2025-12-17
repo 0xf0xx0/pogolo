@@ -424,7 +424,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 
 		/// update with the target diff for a more accurate estimation
 		client.stats.update(client.TargetDifficulty)
-		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%X{/blue} nonce: {green}%X{/green} extranonce: {blue}%s{green}%X{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
+		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%X{/blue} nonce: {green}%x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
 			DiffFormat(shareDiff), DiffFormat(client.TargetDifficulty), DiffFormat(client.stats.bestDiff),
 			shareHash,
 			updatedBlock.Header.Version, share.Nonce, client.ID, share.ExtraNonce2,
