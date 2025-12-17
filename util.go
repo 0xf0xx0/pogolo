@@ -25,7 +25,7 @@ import (
 
 // basically typed sync.Map
 type clientMap struct {
-	lock sync.RWMutex
+	lock        sync.RWMutex
 	mapparoonie map[stratum.ID]*StratumClient
 }
 
@@ -66,18 +66,17 @@ func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
 	return &m, nil
 }
 
-func SerializeTx(tx *wire.MsgTx, witness bool) ([]byte, error) {
+// we dont need to do error handling here, this is only used to serialize the coinbase
+//
+// TODO: we dont even use the witness arg...
+func SerializeTx(tx *wire.MsgTx, witness bool) []byte {
 	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
 	if witness {
-		if err := tx.Serialize(serializedTx); err != nil {
-			return nil, err
-		}
+		tx.Serialize(serializedTx)
 	} else {
-		if err := tx.SerializeNoWitness(serializedTx); err != nil {
-			return nil, err
-		}
+		tx.SerializeNoWitness(serializedTx)
 	}
-	return serializedTx.Bytes(), nil
+	return serializedTx.Bytes()
 }
 
 // hashes client ip address+port for no reason other than being different
@@ -86,7 +85,7 @@ func ClientIDHash(addr string) stratum.ID {
 }
 
 // placeholder tx, filled by clients
-func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
+func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx, error) {
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
 	height := template.Height
@@ -100,7 +99,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
 		logError("pool tag too long (>100), resetting to default")
@@ -110,7 +109,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 			AddData(padding)
 		encodedCoinbaseScript, err = coinbaseScript.Script()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -123,17 +122,15 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) *btcutil.Tx {
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
 
-	return tx
+	return tx,nil
 }
 
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
 func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
-	pkScript, err := txscript.PayToAddrScript(addr)
-	if err != nil {
-		panic(err)
-	}
+	/// address is validated on client connect, we can safely assume no errors will occur
+	pkScript, _ := txscript.PayToAddrScript(addr)
 
 	coinbase := block.Transactions()[0]
 	coinbaseMsgTx := coinbase.MsgTx()

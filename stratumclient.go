@@ -69,6 +69,7 @@ func (client *StratumClient) Run(noCleanup bool) {
 	/// processing loop
 	for reader.Scan() {
 		/// we only send work after authed and subbed (and set a flag so we dont do this again)
+		/// MAYBE/FIXME: auth as soon as the last message si received? this only "auths" on the *next* message
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
 
@@ -449,12 +450,12 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	coinbaseTx := FillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
+
 	/// serialized without the witness, we handle that on submission
-	serializedCoinbaseTx, err := SerializeTx(coinbaseTx.MsgTx(), false)
-	if err != nil {
-		panic(err)
-	}
+	serializedCoinbaseTx := SerializeTx(coinbaseTx.MsgTx(), false)
+
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
+	/// find the split point, right after the input
 	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
 	if partOneIndex < 0 {
 		panic("partOneIndex shoudnt be below 0")

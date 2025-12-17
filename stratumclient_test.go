@@ -14,6 +14,8 @@ import (
 
 func TestMain(t *testing.T) {}
 
+/// stratum chatter
+
 func TestConfigure(t *testing.T) {
 	lpipe, client, _ := initClient()
 	params := configureParams

@@ -80,7 +80,11 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	}
 
 	/// create temp coinbase
-	txns[0] = CreateEmptyCoinbase(template)
+	cb, err := CreateEmptyCoinbase(template)
+	if err != nil {
+		return nil, err
+	}
+	txns[0] = cb
 
 	/// this merkle tree is for the header merkle root, created from the block txids
 	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)

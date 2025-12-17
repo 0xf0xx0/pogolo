@@ -68,7 +68,7 @@ func TestUpdateBlock(t *testing.T) {
 		return
 	}
 
-	shareDiff, _:= CalcDifficulty(blk.Header)
+	shareDiff, _ := CalcDifficulty(blk.Header)
 	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 		return
