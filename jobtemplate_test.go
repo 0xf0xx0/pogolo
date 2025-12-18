@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
@@ -36,6 +37,25 @@ func TestCreateJobTemplate(t *testing.T) {
 	}
 	/// MAYBE/FIXME: how to validate merkle root?
 }
+
+func TestJobMinTime(t *testing.T) {
+	template := MOCK_BLOCK_TEMPLATE
+	template.MinTime = time.Now().Unix() + 6000
+	_,err := CreateJobTemplate(template)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+func TestJobmaxTime(t *testing.T) {
+	template := MOCK_BLOCK_TEMPLATE
+	template.MinTime = 0
+	template.MaxTime = 6000
+	_,err := CreateJobTemplate(template)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
 func TestValidateCoinbaseScript(t *testing.T) {
 	tx := getCoinbaseTx()
 	script := tx.MsgTx().TxIn[0].SignatureScript

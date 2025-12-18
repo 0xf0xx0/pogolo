@@ -47,16 +47,8 @@ type blockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
 }
 
-func (client *StratumClient) Run(noCleanup bool) {
-	if !noCleanup {
-		defer client.Stop()
-	}
-	/// remove ourselves from the client map on disconnect
-	defer func() {
-		if client.ID != 0 {
-			clients.Delete(client.ID)
-		}
-	}()
+func (client *StratumClient) Run() {
+	defer client.Stop()
 	go client.readTemplateChanRoutine()
 	stratumInited := false
 	isAuthed := false
@@ -275,8 +267,8 @@ func (client *StratumClient) Run(noCleanup bool) {
 			}
 		default:
 			{
-				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
-				client.logError("unknown stratum message: %+v", m)
+				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNSUPP_METHOD))
+				client.logError("unsupported stratum message: %+v", m)
 			}
 		}
 	}
@@ -296,8 +288,15 @@ func (client *StratumClient) Stop() {
 	close(client.templateChan)
 	/// nil because receive-side closure
 	client.templateChan = nil
+
+	/// remove ourselves from the client map
+	if client.ID != 0 {
+		clients.Delete(client.ID)
+		log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
+	}
+
 	client.conn.Close()
-	log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
+
 	if conf.Benchmarking {
 		sharesPS := float64(client.stats.sharesAccepted) / float64(client.stats.Uptime())
 		totalSharesPerSec += sharesPS
@@ -390,7 +389,6 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
 		return
 	}
-
 	/// we'll only verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough

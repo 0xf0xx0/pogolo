@@ -6,13 +6,17 @@ import (
 	"net"
 	"pogolo/constants"
 	"testing"
+	"time"
 
 	// main "pogolo"
 
 	"github.com/0xf0xx0/stratum"
 )
 
-func TestMain(t *testing.T) {}
+func TestMain(t *testing.T) {
+	clients.Init()
+	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
+}
 
 /// stratum chatter
 
@@ -82,6 +86,17 @@ func TestSuggestDifficulty(t *testing.T) {
 	}
 }
 
+func TestUnimplementedMethod(t *testing.T) {
+	lpipe, client, _ := initClient()
+	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.ClientGetVersion, []interface{}{}), lpipe)
+	client.Stop()
+	if res.Error.Code != constants.ERROR_UNSUPP_METHOD.Code {
+		t.Fatalf("expected code %d, got code %d",
+			constants.ERROR_UNK_METHOD.Code, res.Error.Code,
+		)
+	}
+}
+
 func TestInitSequence(t *testing.T) {
 	lpipe, client, _ := initClient()
 
@@ -93,6 +108,27 @@ func TestInitSequence(t *testing.T) {
 
 	res = sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	validateRes(subscribeReq, res, t)
+
+	// client.TemplateChannel() <- currTemplate
+
+	sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+
+	/// delay for job creation
+	time.Sleep(time.Second/2)
+	t.Logf("%+v\n", client)
+}
+
+// TODO: figure out how to test submit
+func TestSubmit(t *testing.T) {
+	lpipe, client, _ := initClient()
+	sendReqAndWaitForRes(t, authorizeReq, lpipe)
+	sendReqAndWaitForRes(t, configureReq, lpipe)
+	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+	sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+
+	/// delay for job creation
+	time.Sleep(time.Second/2)
+	sendReqAndWaitForRes(t, submitReq, lpipe)
 
 	fmt.Printf("%+v\n", client)
 }
@@ -135,11 +171,11 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 	}
 }
 func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
-	submissionChan := make(chan blockSubmission)
+	submissionChan := make(chan blockSubmission, 8)
 	lpipe, rpipe := net.Pipe()
 	lpipe.LocalAddr()
 	client := CreateClient(rpipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
-	go client.Run(true)
+	go client.Run()
 	return lpipe, &client, submissionChan
 }
