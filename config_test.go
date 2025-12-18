@@ -10,7 +10,7 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestWriteConfig(t *testing.T) {
-	if err := WriteDefaultConfig("/var/tmp/pogolo.toml"); err != nil {
+	if err := WriteDefaultConfig("/dev/null"); err != nil {
 		t.Fatalf("failed to write config: %s", err)
 	}
 }

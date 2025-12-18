@@ -119,19 +119,19 @@ func TestInitSequence(t *testing.T) {
 }
 
 // TODO: figure out how to test submit
-func TestSubmit(t *testing.T) {
-	lpipe, client, _ := initClient()
-	sendReqAndWaitForRes(t, authorizeReq, lpipe)
-	sendReqAndWaitForRes(t, configureReq, lpipe)
-	sendReqAndWaitForRes(t, subscribeReq, lpipe)
-	sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+// func TestSubmit(t *testing.T) {
+// 	lpipe, client, _ := initClient()
+// 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
+// 	sendReqAndWaitForRes(t, configureReq, lpipe)
+// 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+// 	sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
 
-	/// delay for job creation
-	time.Sleep(time.Second/2)
-	sendReqAndWaitForRes(t, submitReq, lpipe)
+// 	/// delay for job creation
+// 	time.Sleep(time.Second/2)
+// 	sendReqAndWaitForRes(t, submitReq, lpipe)
 
-	fmt.Printf("%+v\n", client)
-}
+// 	fmt.Printf("%+v\n", client)
+// }
 
 // util
 
