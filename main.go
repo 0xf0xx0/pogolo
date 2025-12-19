@@ -88,7 +88,9 @@ var (
 	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
 	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
 	serverStartTime    time.Time
-	totalSharesPerSec  = float64(0)
+	/// debug shit
+	totalSharesPerSec = float64(0)
+	disableLogs       = false /// used for testing
 )
 
 func main() {

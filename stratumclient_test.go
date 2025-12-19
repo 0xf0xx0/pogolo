@@ -6,16 +6,15 @@ import (
 	"net"
 	"pogolo/constants"
 	"testing"
-	"time"
-
-	// main "pogolo"
 
 	"github.com/0xf0xx0/stratum"
 )
 
 func TestMain(t *testing.T) {
 	clients.Init()
+	currTemplateID = 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
+	disableLogs = true
 }
 
 /// stratum chatter
@@ -25,7 +24,6 @@ func TestConfigure(t *testing.T) {
 	params := configureParams
 	req := configureReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
-	client.Stop()
 	validateRes(req, res, t)
 	t.Logf("ver rolling mask: %x, supported: %v", client.VersionRollingMask, params.Supported)
 	if client.VersionRollingMask == 0 {
@@ -38,7 +36,6 @@ func TestAuthorize(t *testing.T) {
 	params := authorizeParams
 	req := authorizeReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
-	client.Stop()
 	validateRes(req, res, t)
 	resp := stratum.BooleanResult{}
 	resp.Read(&res)
@@ -57,7 +54,6 @@ func TestSubscribe(t *testing.T) {
 
 	req := subscribeReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
-	client.Stop()
 	r := stratum.SubscribeResult{}
 	err := r.Read(&res)
 	if err != nil {
@@ -79,7 +75,6 @@ func TestSubscribe(t *testing.T) {
 func TestSuggestDifficulty(t *testing.T) {
 	lpipe, client, _ := initClient()
 	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
-	client.Stop()
 	validateRes(suggestDifficultyReq, res, t)
 	if client.SuggestedDifficulty != suggestDiffParams.Difficulty {
 		t.Error("failed to store suggested diff")
@@ -87,9 +82,8 @@ func TestSuggestDifficulty(t *testing.T) {
 }
 
 func TestUnimplementedMethod(t *testing.T) {
-	lpipe, client, _ := initClient()
+	lpipe, _, _ := initClient()
 	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.ClientGetVersion, []interface{}{}), lpipe)
-	client.Stop()
 	if res.Error.Code != constants.ERROR_UNSUPP_METHOD.Code {
 		t.Fatalf("expected code %d, got code %d",
 			constants.ERROR_UNK_METHOD.Code, res.Error.Code,
@@ -109,33 +103,79 @@ func TestInitSequence(t *testing.T) {
 	res = sendReqAndWaitForRes(t, subscribeReq, lpipe)
 	validateRes(subscribeReq, res, t)
 
-	// client.TemplateChannel() <- currTemplate
+	/// set diff
+	readPipe(t, lpipe)
+	/// notify
+	readPipe(t, lpipe)
 
-	sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
-
-	/// delay for job creation
-	time.Sleep(time.Second/2)
-	t.Logf("%+v\n", client)
+	if client.CurrentJob.PrevBlockHash == nil {
+		t.Fatal("job wasnt created, did init fail?")
+	}
+	client.Stop()
 }
 
-// TODO: figure out how to test submit
-// func TestSubmit(t *testing.T) {
-// 	lpipe, client, _ := initClient()
-// 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
-// 	sendReqAndWaitForRes(t, configureReq, lpipe)
-// 	sendReqAndWaitForRes(t, subscribeReq, lpipe)
-// 	sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+func TestSubmit(t *testing.T) {
+	lpipe := ezClientInit(t, true)
 
-// 	/// delay for job creation
-// 	time.Sleep(time.Second/2)
-// 	sendReqAndWaitForRes(t, submitReq, lpipe)
+	res := sendReqAndWaitForRes(t, submitReq, lpipe)
+	if res.Error != nil {
+		t.Fatalf("share submission failed! code: %s", res.Error)
+	}
+}
 
-// 	fmt.Printf("%+v\n", client)
-// }
+func TestSubmitDiffTooLow(t *testing.T) {
+	lpipe := ezClientInit(t, false)
+
+	res := sendReqAndWaitForRes(t, submitReq, lpipe)
+	if res.Error == nil {
+		t.Fatal("share submission succeeded??")
+	}
+}
+
+func TestSubmitUnkJob(t *testing.T) {
+	lpipe := ezClientInit(t, false)
+
+	share := submitParams
+	share.JobID = ""
+	req := stratum.Submit(9, share)
+	res := sendReqAndWaitForRes(t, req, lpipe)
+	if res.Error == nil {
+		t.Fatal("share submission succeeded??")
+	}
+	if res.Error != nil && res.Error.Code != constants.ERROR_UNK_JOB.Code {
+		t.Fatalf("share submission failed, but wrong error: %s", res.Error)
+	}
+}
+func TestSubmitBeforeSub(t *testing.T) {
+	lpipe, _, _ := initClient()
+
+	share := submitParams
+	share.JobID = ""
+	req := stratum.Submit(9, share)
+	res := sendReqAndWaitForRes(t, req, lpipe)
+	if res.Error == nil {
+		t.Fatal("share submission succeeded??")
+	}
+	if res.Error != nil && res.Error.Code != constants.ERROR_NOT_SUBBED.Code {
+		t.Fatalf("share submission failed, but wrong error: %s", res.Error)
+	}
+}
+
+// kinda pointless but eh
+func BenchmarkSubmit(b *testing.B) {
+	lpipe := ezClientInit(b, true)
+
+	for b.Loop() {
+		res := sendReqAndWaitForRes(b, submitReq, lpipe)
+		if res.Error != nil {
+			b.Fatalf("share submission failed! code: %s", res.Error)
+		}
+	}
+}
 
 // util
 
-func sendReqAndWaitForRes(t *testing.T, r stratum.Request, lpipe net.Conn) stratum.Response {
+func sendReqAndWaitForRes(t testing.TB, r stratum.Request, lpipe net.Conn) stratum.Response {
 	b, err := r.Marshal()
 	if err != nil {
 		t.Fatalf("error marshalling req: %s", err)
@@ -151,7 +191,7 @@ func sendReqAndWaitForRes(t *testing.T, r stratum.Request, lpipe net.Conn) strat
 	return res
 }
 
-func readPipe(t *testing.T, lpipe net.Conn) stratum.Response {
+func readPipe(t testing.TB, lpipe net.Conn) stratum.Response {
 	reader := bufio.NewReader(lpipe)
 	line, err := reader.ReadBytes('\n')
 	if err != nil {
@@ -172,10 +212,31 @@ func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
 }
 func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	submissionChan := make(chan blockSubmission, 8)
-	lpipe, rpipe := net.Pipe()
-	lpipe.LocalAddr()
-	client := CreateClient(rpipe, submissionChan)
+	clientPipe, poolPipe := net.Pipe()
+	client := CreateClient(poolPipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run()
-	return lpipe, &client, submissionChan
+	/// discard submissions
+	go func() {
+		for {
+			<-submissionChan
+		}
+	}()
+	return clientPipe, &client, submissionChan
+}
+func ezClientInit(t testing.TB, suggDiff bool) net.Conn {
+	lpipe, _, _ := initClient()
+	sendReqAndWaitForRes(t, authorizeReq, lpipe)
+	sendReqAndWaitForRes(t, configureReq, lpipe)
+	if suggDiff {
+		sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+	}
+	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+
+	/// set diff
+	readPipe(t, lpipe)
+	/// notify
+	readPipe(t, lpipe)
+
+	return lpipe
 }

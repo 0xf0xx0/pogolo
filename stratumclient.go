@@ -60,47 +60,6 @@ func (client *StratumClient) Run() {
 
 	/// processing loop
 	for reader.Scan() {
-		/// we only send work after authed and subbed (and set a flag so we dont do this again)
-		/// MAYBE/FIXME: auth as soon as the last message is received? this only "auths" on the *next* message
-		if isAuthed && isSubscribed && !stratumInited {
-			stratumInited = true
-
-			log(fmt.Sprintf(
-				/// dig, cause gophers, get it?
-				"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
-				client.Name(), client.ID, client.Addr(),
-			))
-
-			if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
-				client.log("{yellow}mining to pool address")
-			}
-			if client.VersionRollingMask > 0 {
-				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
-			}
-			/// the client may have suggested a difficulty before fully initialized
-			/// if they haven't, we alert them to our default diff here
-			if client.SuggestedDifficulty == 0 {
-				if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
-					if conf.Benchmarking {
-						client.setDifficulty(0.000001) /// lowest diff before cpuminer deadlocks
-					} else {
-						/// use the hardcoded min
-						client.setDifficulty(constants.MIN_DIFFICULTY)
-					}
-				} else {
-					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
-				}
-			}
-
-			/// i dont think the order matters, but lets send the current template
-			/// before adding to the client map, just in case notifyClients gets
-			/// called in between (and rapid-fires jobs)
-			if currTemplate != nil {
-				client.TemplateChannel() <- currTemplate
-			}
-			clients.Add(client)
-			client.stats.startTime = time.Now()
-		}
 
 		/// messages are newline separated (either lf or crlf)
 		line := bytes.TrimSpace(reader.Bytes())
@@ -270,6 +229,48 @@ func (client *StratumClient) Run() {
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNSUPP_METHOD))
 				client.logError("unsupported stratum message: %+v", m)
 			}
+		}
+
+		/// we only send work after authed and subbed (and set a flag so we dont do this again)
+		/// MAYBE/FIXME: auth as soon as the last message is received? this only "auths" on the *next* message
+		if isAuthed && isSubscribed && !stratumInited {
+			stratumInited = true
+
+			log(fmt.Sprintf(
+				/// dig, cause gophers, get it?
+				"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
+				client.Name(), client.ID, client.Addr(),
+			))
+
+			if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+				client.log("{yellow}mining to pool address")
+			}
+			if client.VersionRollingMask > 0 {
+				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
+			}
+			/// the client may have suggested a difficulty before fully initialized
+			/// if they haven't, we alert them to our default diff here
+			if client.SuggestedDifficulty == 0 {
+				if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
+					if conf.Benchmarking {
+						client.setDifficulty(0.000001) /// lowest diff before cpuminer deadlocks
+					} else {
+						/// use the hardcoded min
+						client.setDifficulty(constants.MIN_DIFFICULTY)
+					}
+				} else {
+					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
+				}
+			}
+
+			/// i dont think the order matters, but lets send the current template
+			/// before adding to the client map, just in case notifyClients gets
+			/// called in between (and rapid-fires jobs)
+			if currTemplate != nil {
+				client.TemplateChannel() <- currTemplate
+			}
+			clients.Add(client)
+			client.stats.startTime = time.Now()
 		}
 	}
 

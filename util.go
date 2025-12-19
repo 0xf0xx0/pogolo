@@ -282,8 +282,14 @@ func FormatHashrate(value float64) string {
 }
 
 func log(s string) {
+	if disableLogs {
+		return
+	}
 	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan")))
 }
 func logError(s string) {
+	if disableLogs {
+		return
+	}
 	println(oigiki.ProcessTags(oigiki.TagString(s, "red")))
 }
