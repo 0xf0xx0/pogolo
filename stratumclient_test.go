@@ -115,7 +115,7 @@ func TestInitSequence(t *testing.T) {
 }
 
 func TestSubmit(t *testing.T) {
-	lpipe := ezClientInit(t, true)
+	lpipe := ezInitClient(t, true)
 
 	res := sendReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error != nil {
@@ -124,7 +124,7 @@ func TestSubmit(t *testing.T) {
 }
 
 func TestSubmitDiffTooLow(t *testing.T) {
-	lpipe := ezClientInit(t, false)
+	lpipe := ezInitClient(t, false)
 
 	res := sendReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error == nil {
@@ -133,7 +133,7 @@ func TestSubmitDiffTooLow(t *testing.T) {
 }
 
 func TestSubmitUnkJob(t *testing.T) {
-	lpipe := ezClientInit(t, false)
+	lpipe := ezInitClient(t, false)
 
 	share := submitParams
 	share.JobID = ""
@@ -163,7 +163,7 @@ func TestSubmitBeforeSub(t *testing.T) {
 
 // kinda pointless but eh
 func BenchmarkSubmit(b *testing.B) {
-	lpipe := ezClientInit(b, true)
+	lpipe := ezInitClient(b, true)
 
 	for b.Loop() {
 		res := sendReqAndWaitForRes(b, submitReq, lpipe)
@@ -224,7 +224,8 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	}()
 	return clientPipe, &client, submissionChan
 }
-func ezClientInit(t testing.TB, suggDiff bool) net.Conn {
+// flip suggDiff to true to drop the diff to 0.16
+func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
 	lpipe, _, _ := initClient()
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendReqAndWaitForRes(t, configureReq, lpipe)
