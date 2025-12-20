@@ -62,9 +62,7 @@ const (
 	VERSION = "0.1.0"
 )
 
-const commandHelpTemplate = `Name:
-   {bold}{blue}{{.Name}} - {{.Usage}}{/}
-
+const commandHelpTemplate = `
 Usage:
    {green}pogolo {blue}[options]{/}
 
