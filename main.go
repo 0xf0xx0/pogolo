@@ -62,15 +62,16 @@ const (
 	VERSION = "0.1.0"
 )
 
-const commandHelpTemplate = `
-Usage:
-   {green}pogolo {blue}[options]{/}
+const commandHelpTemplate = `Usage:
+   {green}{{.Name}} {blue}[options]{/}
 
 Options:{blue}
    {{range .VisibleFlags}}{{.String}}
    {{end}}{/}
 Version:
-   {green}v{{.Version}}
+   {green}v{{.Version}}{/green}
+
+Home page: <https://github.com/0xf0xx0/{{.Name}}>
 `
 
 // global state
