@@ -175,7 +175,7 @@ func BenchmarkSubmit(b *testing.B) {
 
 // util
 
-func sendReqAndWaitForRes(t testing.TB, r stratum.Request, lpipe net.Conn) stratum.Response {
+func sendReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {
 	b, err := r.Marshal()
 	if err != nil {
 		t.Fatalf("error marshalling req: %s", err)
@@ -202,7 +202,7 @@ func readPipe(t testing.TB, lpipe net.Conn) stratum.Response {
 	res.Unmarshal(line)
 	return res
 }
-func validateRes(req stratum.Request, res stratum.Response, t *testing.T) {
+func validateRes(req *stratum.Request, res stratum.Response, t *testing.T) {
 	if req.MessageID != res.MessageID {
 		t.Errorf("Message ID mismatch: expected %q, got %q", req.MessageID, res.MessageID)
 	}

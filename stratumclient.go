@@ -95,7 +95,6 @@ func (client *StratumClient) Run() {
 		case stratum.MiningConfigure:
 			{
 				params := stratum.ConfigureParams{}
-				params.Read(m)
 				if err := params.Read(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
@@ -134,7 +133,6 @@ func (client *StratumClient) Run() {
 					break
 				}
 				params := stratum.AuthorizeParams{}
-				params.Read(m)
 				if err := params.Read(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
@@ -170,7 +168,6 @@ func (client *StratumClient) Run() {
 					break
 				}
 				params := stratum.SubscribeParams{}
-				params.Read(m)
 				if err := params.Read(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
@@ -232,7 +229,6 @@ func (client *StratumClient) Run() {
 		}
 
 		/// we only send work after authed and subbed (and set a flag so we dont do this again)
-		/// MAYBE/FIXME: auth as soon as the last message is received? this only "auths" on the *next* message
 		if isAuthed && isSubscribed && !stratumInited {
 			stratumInited = true
 
@@ -487,7 +483,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 func (client *StratumClient) submitBlock(block blockSubmission) {
 	client.submissionChan <- block
 }
-func (client *StratumClient) writeRes(res stratum.Response) error {
+func (client *StratumClient) writeRes(res *stratum.Response) error {
 	bytes, err := res.Marshal()
 	if err != nil {
 		client.logError("failed to marshal response: %s", err)
@@ -496,7 +492,7 @@ func (client *StratumClient) writeRes(res stratum.Response) error {
 
 	return client.writeConn(bytes)
 }
-func (client *StratumClient) writeNotif(n stratum.Notification) error {
+func (client *StratumClient) writeNotif(n *stratum.Notification) error {
 	bytes, err := n.Marshal()
 	if err != nil {
 		client.logError("failed to marshal notification: %s", err)

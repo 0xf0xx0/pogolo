@@ -106,14 +106,14 @@ func main() {
 					{
 						&cli.BoolFlag{
 							Name:  "color",
-							Usage: "force color output",
+							Usage: "force enable color output",
 						},
 					},
 					{
 						&cli.BoolFlag{
 							Name:    "nocolor",
 							Aliases: []string{"stdout"},
-							Usage:   "disable color output",
+							Usage:   "force disable color output",
 						},
 					},
 				},
@@ -157,6 +157,11 @@ func main() {
 		// 	}
 		// },
 		Action: func(rootCtx context.Context, cmd *cli.Command) error {
+			if cmd.Bool("color") {
+				oigiki.NoColor = false
+			} else if cmd.Bool("nocolor") {
+				oigiki.NoColor = true
+			}
 			if profileDir := cmd.String("profile"); profileDir != "" {
 				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
@@ -192,12 +197,6 @@ func main() {
 					/// fs error
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.EXIT_CONFIG)
 				}
-			}
-
-			if cmd.Bool("color") {
-				oigiki.NoColor = false
-			} else if cmd.Bool("nocolor") {
-				oigiki.NoColor = true
 			}
 
 			/// ignore vardiff and diff suggestions when benching
