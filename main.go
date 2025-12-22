@@ -112,7 +112,6 @@ func main() {
 					{
 						&cli.BoolFlag{
 							Name:    "nocolor",
-							Aliases: []string{"stdout"},
 							Usage:   "force disable color output",
 						},
 					},
@@ -122,7 +121,7 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "conf",
-				Aliases: []string{"c", "config"},
+				Aliases: []string{"config", "c"},
 				Usage:   "config file `path`",
 				Value:   filepath.Join(CONFIG_ROOT, "pogolo.toml"),
 			},
