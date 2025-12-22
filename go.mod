@@ -7,7 +7,7 @@ go 1.25
 //replace github.com/0xf0xx0/oigiki => ../oigiki
 
 require (
-	github.com/0xf0xx0/oigiki v1.1.0
+	github.com/0xf0xx0/oigiki v1.2.0
 	github.com/0xf0xx0/stratum v0.0.7-0.20251220170550-9650f7e8cf20
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20251106010755-9ff0780da683
@@ -28,10 +28,7 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/fatih/color v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
