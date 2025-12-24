@@ -3,7 +3,7 @@ package constants
 import (
 	"math/big"
 
-	"github.com/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
 
 const (

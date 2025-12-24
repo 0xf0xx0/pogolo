@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"pogolo/constants"
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"testing"
 
-	"github.com/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
 
 func TestMain(t *testing.T) {

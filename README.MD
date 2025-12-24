@@ -10,6 +10,7 @@ start it, point your miners to it, and watch the logs roll by
 
 ## features
 
+- colorful logs (respects NO_COLOR)
 - api (see api.go, swagger spec eventually in 1.0.0)
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
@@ -44,7 +45,7 @@ start it, point your miners to it, and watch the logs roll by
 ## install
 
 ```sh
-git clone https://github.com/0xf0xx0/pogolo.git
+git clone https://git.0xf0xx0.eth.limo/0xf0xx0/pogolo.git
 cd pogolo
 go build
 go install
@@ -84,6 +85,7 @@ to reproduce shares/s result:
 - logs with personality
     - styled around standard 80x24
 - completion (urfave is bugged)
+- option to add workername to coinbase scriptsig?
 - option to ignore empty templates?
 - zmq for block notifs?
 - when 1.0.0:

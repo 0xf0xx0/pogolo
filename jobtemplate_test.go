@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 )
 

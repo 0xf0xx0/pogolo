@@ -38,7 +38,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pogolo/constants"
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -46,7 +46,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/0xf0xx0/oigiki"
+	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -71,7 +71,7 @@ Options:{blue}
 Version:
    {green}v{{.Version}}{/green}
 
-Home page: <https://github.com/0xf0xx0/{{.Name}}>
+Home page: <https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}>
 `
 
 // global state

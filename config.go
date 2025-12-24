@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"pogolo/constants"
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
