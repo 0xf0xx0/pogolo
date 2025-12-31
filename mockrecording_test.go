@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"os"
 
-	// main "pogolo"
-
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
@@ -131,7 +129,7 @@ func getAddr() btcutil.Address {
 }
 func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
-	job,_ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
+	job, _ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	tx := FillCoinbaseTx(addr, btcutil.NewBlock(&job.MsgBlock), job.Subsidy, MOCK_CHAIN)
 	return tx
 }

@@ -4,8 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"testing"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
@@ -224,6 +225,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	}()
 	return clientPipe, &client, submissionChan
 }
+
 // flip suggDiff to true to drop the diff to 0.16
 func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
 	lpipe, _, _ := initClient()

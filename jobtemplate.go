@@ -4,10 +4,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"slices"
 	"strconv"
 	"time"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"

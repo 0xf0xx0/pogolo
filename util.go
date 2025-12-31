@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"slices"
 	"strconv"
 	"sync"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
@@ -122,7 +123,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
 
-	return tx,nil
+	return tx, nil
 }
 
 // thank you btcd devs for doin all this boilerplate work
@@ -255,7 +256,7 @@ func DiffFormat(value float64) string {
 		unit = "T"
 		value /= 1e12
 	} else if value >= 1e9 {
-		unit = "B"
+		unit = "G"
 		value /= 1e9
 	} else if value >= 1e6 {
 		unit = "M"

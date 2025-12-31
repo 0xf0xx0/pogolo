@@ -7,6 +7,7 @@ import (
 
 var m = &clientMap{}
 var fakeclient = &StratumClient{ID: 42069}
+
 func TestClientMap(t *testing.T) {
 	m.Init()
 	m.Add(fakeclient)
@@ -31,7 +32,7 @@ func TestClientMap(t *testing.T) {
 func TestDecodeStratumMessage(t *testing.T) {
 	_, err := DecodeStratumMessage([]byte(MOCK_MINING_SUBSCRIBE))
 	if err != nil {
-		t.Fatalf("failed to parse message: %s",err)
+		t.Fatalf("failed to parse message: %s", err)
 	}
 	_, err = DecodeStratumMessage([]byte(MOCK_MINING_SUBSCRIBE)[:len(MOCK_MINING_SUBSCRIBE)/3])
 	if err == nil {

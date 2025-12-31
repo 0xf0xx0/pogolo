@@ -41,7 +41,7 @@ func TestCreateJobTemplate(t *testing.T) {
 func TestJobMinTime(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
 	template.MinTime = time.Now().Unix() + 6000
-	_,err := CreateJobTemplate(template)
+	_, err := CreateJobTemplate(template)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -50,7 +50,7 @@ func TestJobmaxTime(t *testing.T) {
 	template := MOCK_BLOCK_TEMPLATE
 	template.MinTime = 0
 	template.MaxTime = 6000
-	_,err := CreateJobTemplate(template)
+	_, err := CreateJobTemplate(template)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

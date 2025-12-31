@@ -8,11 +8,12 @@ import (
 	"io"
 	"math"
 	"net"
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
@@ -64,8 +65,6 @@ func (client *StratumClient) Run() {
 		/// messages are newline separated (either lf or crlf)
 		line := bytes.TrimSpace(reader.Bytes())
 
-		/// deadline is 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(10 * time.Second * time.Duration(conf.Pogolo.TargetShareInterval)))
 		/// MAYBE: add stratum log option
 		// client.log("{blackbright}> %s", line)
 
@@ -268,6 +267,9 @@ func (client *StratumClient) Run() {
 			clients.Add(client)
 			client.stats.startTime = time.Now()
 		}
+
+		/// deadline is a minute + 10x target share interval
+		client.conn.SetDeadline(time.Now().Add(time.Minute + 10*time.Second*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 
 	switch err := reader.Err(); err {
