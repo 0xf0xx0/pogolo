@@ -8,7 +8,7 @@ go 1.25.0
 
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0
-	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.7-0.20260107035802-f84740778ce9
+	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.8
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20251106010755-9ff0780da683
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20251106010755-9ff0780da683
@@ -32,6 +32,5 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 )
