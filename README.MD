@@ -11,11 +11,11 @@ start it, point your miners to it, and watch the logs roll by
 ## features
 
 - colorful logs (respects NO_COLOR)
-- api (see api.go, swagger spec eventually in 1.0.0)
+- api (see api.go, swagger spec when the api is done)
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
 - ~~longpolling (i think)~~ borked
-- 9-12ms share processing time, up to 4.3-5.2k shares/sec/client
+- up to 4.3-5.2k shares/sec/client
 
 ## supported BIPs
 - 34
