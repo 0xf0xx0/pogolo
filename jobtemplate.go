@@ -143,8 +143,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 }
 
 // like public-pools copyAndUpdateBlock without the copy
-// MAYBE: move to StratumClient?
-func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
+func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
 	/// because we copied the block from the template when making the job, we can just reuse it
 	msgBlock := job.Block.MsgBlock()
 
@@ -158,7 +157,7 @@ func (job *MiningJob) UpdateBlock(client *StratumClient, share stratum.Share, no
 	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
 		len(sigscript)-(constants.EXTRANONCE_SIZE+int(conf.Pogolo.ExtraNonce2Size)),
 		len(sigscript),
-		append(client.ID.Bytes(), share.ExtraNonce2...)...,
+		append(id.Bytes(), share.ExtraNonce2...)...,
 	)
 
 	/// update the header

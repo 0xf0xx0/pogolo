@@ -82,7 +82,7 @@ func TestUpdateBlock(t *testing.T) {
 
 	tml, _ := CreateJobTemplate(template)
 	job := client.createJob(tml)
-	blk, err := job.UpdateBlock(client, submitParams, notifyParams)
+	blk, err := job.UpdateBlock(client.ID, submitParams, notifyParams)
 	if err != nil {
 		t.Error(err)
 		return

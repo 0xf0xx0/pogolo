@@ -391,7 +391,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// we'll only verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedBlock, err := client.CurrentJob.UpdateBlock(client, share, client.CurrentJob.NotifyParams)
+	updatedBlock, err := client.CurrentJob.UpdateBlock(client.ID, share, client.CurrentJob.NotifyParams)
 	if err != nil {
 		client.logError(err.Error())
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
