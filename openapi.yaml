@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Pogolo API
+  description: API specification for Pogolo
+  version: 1.0.0
+  license:
+    name: GNU General Public License version 3
+    url: https://opensource.org/license/gpl-3-0
+
+servers:
+  - url: http://{server}:{port}
+    variables:
+      server:
+        default: "127.0.0.1"
+      port:
+        default: "5662"
+
+components:
+  schemas:
+    InfoResponse:
+      type: object
+      required:
+        - uptime
+        - blockHeight
+        - totalGophers
+        - totalHashrate
+        - bestDifficulty
+        - tag
+        - gophers
+      properties:
+        uptime:
+          type: integer
+          description: In seconds
+        blockHeight:
+          type: integer
+          description: The height the pool is mining at
+        totalGophers:
+          type: integer
+        totalHashrate:
+          type: number
+        bestDifficulty:
+          type: number
+        tag:
+          type: string
+          description: The configured coinbase tag
+        gophers:
+          type: array
+          description: List of active gophers
+          items:
+            $ref: "#/components/schemas/MiniGopherInfo"
+
+    MiniGopherInfo:
+      type: object
+      required:
+        - userAgent
+        - extranonce1
+      properties:
+        userAgent:
+          type: string
+        extranonce1:
+          type: string
+
+    GopherInfo:
+      type: object
+      required:
+        - address
+        - nickname
+        - uptime
+        - sharesAccepted
+        - sharesRejected
+        - hashrate
+        - targetDifficulty
+        - bestDifficulty
+        - userAgent
+        - extranonce1
+      properties:
+        address:
+          type: string
+          description: On-chain address the miner is mining to
+        nickname:
+          type: string
+        uptime:
+          type: integer
+          description: In seconds
+        sharesAccepted:
+          type: integer
+        sharesRejected:
+          type: integer
+        hashrate:
+          type: number
+        targetDifficulty:
+          type: number
+        bestDifficulty:
+          type: number
+        userAgent:
+          type: string
+        extranonce1:
+          type: string
+
+paths:
+  /api/v1/info:
+    get:
+      summary: Get snapshot of current pool stats
+      operationId: getInfo
+      responses:
+        "200":
+          description: Successful scan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoResponse"
+
+  /api/v1/gopher/{idOrNickname}:
+    get:
+      summary: Get snapshot of a gophers stats
+      operationId: getGopherInfo
+      parameters:
+        - name: idOrNickname
+          in: path
+          required: true
+          description: The gophers extranonce1 or nickname
+          schema:
+            type: string
+
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GopherInfo"
