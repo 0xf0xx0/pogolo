@@ -537,7 +537,7 @@ type ClientStats struct {
 func (stats *ClientStats) update(currTargetDiff float64) {
 	now := time.Now()
 	if stats.lastSubmission.Unix() > 0 {
-		/// exopnential moving average
+		/// exponential moving average
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Exponential_smoothing
 		delta := float64(now.Sub(stats.lastSubmission).Milliseconds())
@@ -546,7 +546,7 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 			stats.avgSubmissionDelta = delta
 		} else {
 			// avg = smoothing*delta + (1-smoothing)*avg
-			smoothing := 0.03
+			smoothing := 0.01
 			stats.avgSubmissionDelta =
 				smoothing*delta + (1-smoothing)*stats.avgSubmissionDelta
 		}
