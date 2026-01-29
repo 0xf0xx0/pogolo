@@ -531,7 +531,7 @@ func backendRoutine(ctx context.Context) {
 						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\n{/green}gopher: {green}%s{/green}\nhash: {green}%s{/green}\ndifficulty: {green}%s{/green}\nnonce: {green}%x{/green}\nextranonce: {blue}%s{green}%x",
 						client.Name(),
 						shareHash,
-						DiffFormat(shareDiff),
+						FormatDifficulty(shareDiff),
 						submission.Share.Nonce,
 						client.ID,
 						submission.Share.ExtraNonce2,

@@ -157,7 +157,6 @@ func CalcDifficulty(header wire.BlockHeader) (float64, chainhash.Hash) {
 }
 
 // port of public-pools calculateNetworkDifficulty
-// TODO: use blockchain.CompactToBig() instead?
 func CalcNetworkDifficulty(nBits uint32) float64 {
 	maxTarget := math.Pow(2, 208) * 65535
 	/// unpack the target from the compact nBits
@@ -251,7 +250,7 @@ func treeNodeCount(leafCount int) int {
 }
 
 // pretty-print difficulty
-func DiffFormat(value float64) string {
+func FormatDifficulty(value float64) string {
 	unit := ""
 	if value >= 1e12 {
 		unit = "T"
