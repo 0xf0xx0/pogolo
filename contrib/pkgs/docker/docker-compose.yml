@@ -1,0 +1,19 @@
+name: pogolo
+
+services:
+  pogolo:
+    build: .
+    restart: on-failure
+    stop_grace_period: 30s
+    volumes:
+      - .:/config:ro
+    environment:
+      POGOLO_HOST: "0.0.0.0"
+      POGOLO_BACKEND_HOST: "host:port" # adjust
+      POGOLO_BACKEND_AUTH: "user:pass" # adjust
+      # colorful logs
+      FORCE_COLOR: 1
+
+    ports:
+      - "5661:5661"
+      - "5662:5662"
