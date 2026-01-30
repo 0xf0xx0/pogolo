@@ -119,6 +119,8 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		SignatureScript:  encodedCoinbaseScript,
 		Sequence:         wire.MaxTxInSequenceNum,
 	})
+	/// 1 slot for witness, second for subsidy
+	coinbaseTxMsg.TxOut = make([]*wire.TxOut, 0, 2)
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
@@ -138,7 +140,6 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 	/// HACK: mining.AddWitnessCommitment appends, empty txout
 	coinbaseMsgTx.TxOut = coinbaseMsgTx.TxOut[:0]
 	/// NOTE: witness gets added furst, just cause its *unique*
-	/// MAYBE: "inline" with a more situation-specific func?
 	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	/// we gotta add the subsidy too
 	coinbaseMsgTx.AddTxOut(&wire.TxOut{
