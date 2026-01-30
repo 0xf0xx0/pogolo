@@ -50,7 +50,6 @@ var DEFAULT_CONFIG = Config{
 		PollInterval: 500,
 	},
 	Pogolo: Pogolo{
-		Interface:           "lo",
 		Port:                5661,
 		HTTPPort:            5662,
 		Tag:                 constants.DEFAULT_COINBASE_TAG,
@@ -77,7 +76,9 @@ func WriteDefaultConfig(path string) error {
 	/// done here to not fuck up runtime
 	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
 	DEFAULT_CONFIG.Backend.Rpcauth = "bitty:axxy"
+	DEFAULT_CONFIG.Pogolo.Interface = "lo"
 	DEFAULT_CONFIG.Pogolo.Host = "[::1]"
+
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
