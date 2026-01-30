@@ -253,7 +253,10 @@ func treeNodeCount(leafCount int) int {
 // pretty-print difficulty
 func FormatDifficulty(value float64) string {
 	unit := ""
-	if value >= 1e12 {
+	if value >= 1e15 {
+		unit = "P"
+		value /= 1e15
+	} else if value >= 1e12 {
 		unit = "T"
 		value /= 1e12
 	} else if value >= 1e9 {
@@ -273,7 +276,10 @@ func FormatDifficulty(value float64) string {
 // takes MH/s
 func FormatHashrate(value float64) string {
 	unit := "M"
-	if value > 1e6 {
+	if value > 1e9 {
+		value /= 1e9
+		unit = "P"
+	} else if value > 1e6 {
 		value /= 1e6
 		unit = "T"
 	} else if value > 1000 {
