@@ -134,6 +134,18 @@ func main() {
 				Aliases: []string{"profile"},
 				Usage:   "write cpu and memory profiles to `dir`",
 			},
+
+			// env config overrides, same format as their related keys
+			&cli.StringFlag{
+				Name:    "RPC_HOST",
+				Sources: cli.EnvVars("POGOLO_RPC_HOST"),
+				Hidden: true,
+			},
+			&cli.StringFlag{
+				Name:    "RPC_AUTH",
+				Sources: cli.EnvVars("POGOLO_RPC_AUTH"),
+				Hidden: true,
+			},
 		},
 		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
 			logError(err.Error())
@@ -179,7 +191,6 @@ func main() {
 				WriteDefaultConfig(cmd.String("writedefaultconf"))
 				return nil
 			}
-
 			/// set defaults
 			DeepCopyConfig(&conf, &DEFAULT_CONFIG)
 			if passedConfig := cmd.String("conf"); passedConfig != "" && passedConfig != "none" {
@@ -196,6 +207,13 @@ func main() {
 					/// fs error
 					return cli.Exit(fmt.Sprintf("error loading config: %s", err), constants.EXIT_CONFIG)
 				}
+			}
+
+			if host := cmd.String("RPC_HOST"); host != "" {
+				conf.Backend.Host = host
+			}
+			if auth := cmd.String("RPC_AUTH"); auth != "" {
+				conf.Backend.Rpcauth = auth
 			}
 
 			/// ignore vardiff and diff suggestions when benching
