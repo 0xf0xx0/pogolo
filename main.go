@@ -38,13 +38,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
 	"github.com/btcsuite/btcd/btcjson"
@@ -111,8 +112,8 @@ func main() {
 					},
 					{
 						&cli.BoolFlag{
-							Name:    "nocolor",
-							Usage:   "force disable color output",
+							Name:  "nocolor",
+							Usage: "force disable color output",
 						},
 					},
 				},
@@ -137,14 +138,19 @@ func main() {
 
 			// env config overrides, same format as their related keys
 			&cli.StringFlag{
-				Name:    "RPC_HOST",
-				Sources: cli.EnvVars("POGOLO_RPC_HOST"),
-				Hidden: true,
+				Name:    "POGOLO_HOST",
+				Sources: cli.EnvVars("POGOLO_HOST"),
+				Hidden:  true,
 			},
 			&cli.StringFlag{
-				Name:    "RPC_AUTH",
-				Sources: cli.EnvVars("POGOLO_RPC_AUTH"),
-				Hidden: true,
+				Name:    "BACKEND_HOST",
+				Sources: cli.EnvVars("POGOLO_BACKEND_HOST"),
+				Hidden:  true,
+			},
+			&cli.StringFlag{
+				Name:    "BACKEND_AUTH",
+				Sources: cli.EnvVars("POGOLO_BACKEND_AUTH"),
+				Hidden:  true,
 			},
 		},
 		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
@@ -209,11 +215,15 @@ func main() {
 				}
 			}
 
-			if host := cmd.String("RPC_HOST"); host != "" {
+			if host := cmd.String("BACKEND_HOST"); host != "" {
 				conf.Backend.Host = host
 			}
-			if auth := cmd.String("RPC_AUTH"); auth != "" {
+			if auth := cmd.String("BACKEND_AUTH"); auth != "" {
 				conf.Backend.Rpcauth = auth
+			}
+
+			if host := cmd.String("POGOLO_HOST"); host != "" {
+				conf.Pogolo.Host = host
 			}
 
 			/// ignore vardiff and diff suggestions when benching
@@ -374,10 +384,10 @@ func startup(rootCtx context.Context) error {
 		}
 	} else {
 		/// is domain, lookup and listen on addrs
-		if net.ParseIP(conf.Pogolo.IP) == nil {
-			addrs, err := net.LookupHost(conf.Pogolo.IP)
+		if net.ParseIP(conf.Pogolo.Host) == nil {
+			addrs, err := net.LookupHost(conf.Pogolo.Host)
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("error looking up host %q: %s", conf.Pogolo.IP, err), constants.EXIT_NET)
+				return cli.Exit(fmt.Sprintf("error looking up host %q: %s", conf.Pogolo.Host, err), constants.EXIT_NET)
 			}
 			for _, addr := range addrs {
 				listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
@@ -391,11 +401,11 @@ func startup(rootCtx context.Context) error {
 			}
 		} else {
 
-			listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.Port))))
+			listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.Host, strconv.Itoa(int(conf.Pogolo.Port))))
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
 			}
-			httpAddr := net.JoinHostPort(conf.Pogolo.IP, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
+			httpAddr := net.JoinHostPort(conf.Pogolo.Host, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
 
 			wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
 		}

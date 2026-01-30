@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"strings"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
@@ -28,7 +29,7 @@ type Backend struct {
 }
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
-	IP                  string  `toml:"ip,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)"`
+	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)"`
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
 	Password            string  `toml:"password,commented" comment:"optional, required from clients if set"`
@@ -76,7 +77,7 @@ func WriteDefaultConfig(path string) error {
 	/// done here to not fuck up runtime
 	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
 	DEFAULT_CONFIG.Backend.Rpcauth = "bitty:axxy"
-	DEFAULT_CONFIG.Pogolo.IP = "[::1]"
+	DEFAULT_CONFIG.Pogolo.Host = "[::1]"
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
