@@ -21,11 +21,13 @@ usage:
 
 options:
 
-	--conf path              config file path (default: "$XDG_CONFIG_HOME/.config/pogolo/pogolo.toml")
-	--writedefaultconf path  write default config to path and exit
-	--profile dir            write cpu and memory profiles to dir
-	--help, -h               show help
-	--version, -v            print the version
+	--conf path, --config path, -c path  config file path (default: "$XDG_CONFIG_HOME/pogolo/pogolo.toml")
+	--writedefaultconf path              write default config to path and exit
+	--prof dir, --profile dir            write cpu and memory profiles to dir
+	--help, -h                           show help
+	--version, -v                        print the version
+	--color                              force enable color output
+	--nocolor                            force disable color output
 */
 package main
 
@@ -60,7 +62,7 @@ import (
 // name and version
 const (
 	NAME    = "pogolo"
-	VERSION = "0.1.0"
+	VERSION = "1.0.0"
 )
 
 const commandHelpTemplate = `Usage:
