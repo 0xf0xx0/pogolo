@@ -44,7 +44,17 @@ start it, point your miners to it, and watch the logs roll by
 
 ## install
 
-docker files exist and work but likely need tweaks, pogolo image at `
+### docker
+pogolo image at https://hub.docker.com/r/0xf0xx0/pogolo
+
+copy the pogolo.toml from `contrib/pkgs/docker`, configure it to your needs, then run
+
+```sh
+docker run -d -v "./pogolo.toml:/config/pogolo.toml" 0xf0xx0/pogolo
+```
+
+docker (+compose) files exist and work but likely need tweaks, theyre also under `contrib/pkgs/docker`
+
 
 ### go
 ```sh
@@ -90,12 +100,9 @@ to reproduce shares/s result:
     - link stratum and mining docs  
       waiting for bip 41  
       https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
-- logs with personality
-    - styled around standard 80x24
 - completion (urfave is bugged)
 - option to add workername to coinbase scriptsig?
 - option to ignore empty templates?
 - zmq for block notifs?
 - when 1.0.0:
-    - docker image
-    - aur packages
+    - aur packages (in progress)

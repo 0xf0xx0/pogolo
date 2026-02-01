@@ -6,7 +6,8 @@ services:
     restart: on-failure
     stop_grace_period: 30s
     volumes:
-      - .:/config:ro
+      # expects to be run with a pogolo.toml in the same dir
+      - ./:/config:ro
     environment:
       POGOLO_HOST: "0.0.0.0"
       POGOLO_BACKEND_HOST: "host:port" # adjust
