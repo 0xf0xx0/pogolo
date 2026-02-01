@@ -46,20 +46,20 @@ start it, point your miners to it, and watch the logs roll by
 
 pogolo image at https://hub.docker.com/r/0xf0xx0/pogolo
 
-copy the pogolo.toml from `contrib/pkgs/docker`, configure it to your needs, then run
+copy the pogolo.toml from [`contrib/pkgs/docker`](./contrib/pkgs/docker), configure it to your needs, then run
 
 ```sh
 docker run -d -v "./pogolo.toml:/config/pogolo.toml" 0xf0xx0/pogolo:latest
 ```
 
-docker (+compose) files exist and work but likely need tweaks, theyre also under `contrib/pkgs/docker`
+docker (+compose) files exist and work but likely need tweaks, theyre also under [`contrib/pkgs/docker`](./contrib/pkgs/docker)
 
 ## go
 
 ```sh
 go install git.0xf0xx0.eth.limo/0xf0xx0/pogolo@latest
 ```
-then follow [configure](#configure).
+then follow [manual install/configure](#configure).
 
 ## manual install
 
@@ -75,11 +75,11 @@ go install
 ### configure
 
 ```sh
-mkdir $XDG_CONFIG_HOME/pogolo
+mkdir "$XDG_CONFIG_HOME/pogolo"
 pogolo --writedefaultconf "$XDG_CONFIG_HOME/pogolo/pogolo.toml"
 ```
 
-or, copy `contrib/pogolo.example.toml` to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`  
+or, copy [`contrib/pogolo.example.toml`](./contrib/pogolo.example.toml) to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`  
 then configure the interface, backend, and auth
 
 ### run
