@@ -42,9 +42,7 @@ start it, point your miners to it, and watch the logs roll by
 
 # setup
 
-## install
-
-### docker
+## docker
 
 pogolo image at https://hub.docker.com/r/0xf0xx0/pogolo
 
@@ -56,11 +54,14 @@ docker run -d -v "./pogolo.toml:/config/pogolo.toml" 0xf0xx0/pogolo:latest
 
 docker (+compose) files exist and work but likely need tweaks, theyre also under `contrib/pkgs/docker`
 
-### go
+## go
 
 ```sh
 go install git.0xf0xx0.eth.limo/0xf0xx0/pogolo@latest
 ```
+then follow [configure](#configure).
+
+## manual install
 
 ### build
 
@@ -71,7 +72,7 @@ go build -trimpath -ldflags="-s -w -buildid="
 go install
 ```
 
-## configure
+### configure
 
 ```sh
 mkdir $XDG_CONFIG_HOME/pogolo
@@ -81,7 +82,7 @@ pogolo --writedefaultconf "$XDG_CONFIG_HOME/pogolo/pogolo.toml"
 or, copy `contrib/pogolo.example.toml` to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`  
 then configure the interface, backend, and auth
 
-## run
+### run
 
 ```sh
 pogolo
