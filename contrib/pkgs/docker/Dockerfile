@@ -4,18 +4,23 @@ ARG TARGETARCH
 
 WORKDIR /build
 
-COPY ./ ./
+# set envs for the rest of the owl
 ENV GOOS=${TARGETOS}
 ENV GOARCH=${TARGETARCH}
 # flags stolen from arch linux requirements
 ENV GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
+
+COPY go.mod go.sum ./
 RUN go mod download
+
+COPY ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
-FROM golang:1.25-alpine
+FROM alpine:latest
 
 WORKDIR /
 
+# MAYBE: copy docker pogolo.toml?
 COPY --from=build /build/pogolo .
 
 # stratum
