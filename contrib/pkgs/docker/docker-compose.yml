@@ -8,13 +8,12 @@ services:
     volumes:
       # expects to be run with a pogolo.toml in the same dir
       - ./:/config:ro
+    ports:
+      - "5661:5661"
+      - "5662:5662"
     environment:
       POGOLO_HOST: "0.0.0.0"
       POGOLO_BACKEND_HOST: "host:port" # adjust
       POGOLO_BACKEND_AUTH: "user:pass" # adjust
       # colorful logs
       FORCE_COLOR: 1
-
-    ports:
-      - "5661:5661"
-      - "5662:5662"
