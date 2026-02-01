@@ -28,6 +28,12 @@ options:
 	--version, -v                        print the version
 	--color                              force enable color output
 	--nocolor                            force disable color output
+
+environment overrides:
+
+	POGOLO_HOST: # overrides [pogolo].host
+	POGOLO_BACKEND_HOST: # overrides [backend].host
+	POGOLO_BACKEND_AUTH: # overrides [backend].rpcauth
 */
 package main
 

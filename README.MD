@@ -54,6 +54,15 @@ docker run -d -v "./pogolo.toml:/config/pogolo.toml" 0xf0xx0/pogolo:latest
 
 docker (+compose) files exist and work but likely need tweaks, theyre also under [`contrib/pkgs/docker`](./contrib/pkgs/docker)
 
+### environment overrides
+for easy config, eg umbrel
+
+```
+POGOLO_HOST: # overrides [pogolo].host
+POGOLO_BACKEND_HOST: # overrides [backend].host
+POGOLO_BACKEND_AUTH: # overrides [backend].rpcauth
+```
+
 ## go
 
 ```sh
