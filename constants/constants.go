@@ -7,13 +7,13 @@ import (
 )
 
 const (
-	VERSION_ROLLING_MASK        = 0x1fffe000 // bip 320 constant
-	EXTRANONCE_SIZE             = 4          // in bytes
-	DEFAULT_DIFFICULTY          = 1024       // for gpu, fpga, and asic miners
-	DEFAULT_COINBASE_TAG        = "/pogolo - decentralize or die/"
-	MIN_DIFFICULTY              = 0.16       // hard min
-	DIFF_ADJUST_PERIOD          = 32         // in shares
-	HASHRATE_WINDOW             = int64(600) // 10 min windows
+	VERSION_ROLLING_MASK = 0x1fffe000 // bip 320 constant
+	EXTRANONCE_SIZE      = 4          // in bytes
+	DEFAULT_DIFFICULTY   = 1024       // for gpu, fpga, and asic miners
+	DEFAULT_COINBASE_TAG = "/pogolo - decentralize or die/"
+	MIN_DIFFICULTY       = 0.16       // hard min
+	DIFF_ADJUST_PERIOD   = 32         // in shares
+	HASHRATE_WINDOW      = int64(600) // 10 min windows
 )
 
 // exit codes

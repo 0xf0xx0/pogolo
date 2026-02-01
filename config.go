@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	CONFIG_ROOT = getConfigDir()
+	CONFIG_ROOT         = getConfigDir()
 	DEFAULT_CONFIG_PATH = filepath.Join(CONFIG_ROOT, "pogolo.toml")
 )
 
