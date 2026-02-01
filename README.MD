@@ -44,10 +44,14 @@ start it, point your miners to it, and watch the logs roll by
 
 ## install
 
+docker files exist and work but likely need tweaks, pogolo image at `
+
+### go
 ```sh
 go install git.0xf0xx0.eth.limo/0xf0xx0/pogolo@latest
 ```
 
+### build
 ```sh
 git clone https://git.0xf0xx0.eth.limo/0xf0xx0/pogolo.git
 cd pogolo

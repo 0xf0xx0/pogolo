@@ -13,9 +13,9 @@ poll_interval = 500
 
 [pogolo]
 # will listen on all interface ips (takes precedence over ip)
-interface = 'wlan0'
+interface = 'lo'
 # ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)
-# ip = '[::1]'
+# host = '[::1]'
 # use 0 to pick a random port
 port = 5661
 # port for the api

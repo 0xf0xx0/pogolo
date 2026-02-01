@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.25.5-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -12,7 +12,7 @@ ENV GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly 
 RUN go mod download
 RUN go build -ldflags="-s -w -buildid="
 
-FROM golang:1.25.5-alpine
+FROM golang:1.25-alpine
 
 WORKDIR /
 
