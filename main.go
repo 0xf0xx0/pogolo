@@ -126,7 +126,7 @@ func main() {
 				Name:    "conf",
 				Aliases: []string{"config", "c"},
 				Usage:   "config file `path`",
-				Value:   filepath.Join(CONFIG_ROOT, "pogolo.toml"),
+				Value: DEFAULT_CONFIG_PATH,
 			},
 			&cli.StringFlag{
 				Name:  "writedefaultconf",
