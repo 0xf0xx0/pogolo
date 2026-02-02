@@ -68,7 +68,7 @@ import (
 // name and version
 const (
 	NAME    = "pogolo"
-	VERSION = "1.0.0"
+	VERSION = "1.0.1"
 )
 
 const commandHelpTemplate = `Usage:
@@ -156,8 +156,8 @@ func main() {
 				Hidden:  true,
 			},
 			&cli.StringFlag{
-				Name:    "BACKEND_AUTH",
-				Sources: cli.EnvVars("POGOLO_BACKEND_AUTH"),
+				Name:    "BACKEND_RPCAUTH",
+				Sources: cli.EnvVars("POGOLO_BACKEND_RPCAUTH"),
 				Hidden:  true,
 			},
 		},
@@ -226,7 +226,7 @@ func main() {
 			if host := cmd.String("BACKEND_HOST"); host != "" {
 				conf.Backend.Host = host
 			}
-			if auth := cmd.String("BACKEND_AUTH"); auth != "" {
+			if auth := cmd.String("BACKEND_RPCAUTH"); auth != "" {
 				conf.Backend.Rpcauth = auth
 			}
 
