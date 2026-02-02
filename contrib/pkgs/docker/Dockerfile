@@ -13,7 +13,7 @@ ENV GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly 
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY ./ ./
+COPY --exclude=contrib/ --exclude=mockdata/ --exclude=*_test.go ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
 FROM alpine:latest
