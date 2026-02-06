@@ -1,0 +1,52 @@
+# Maintainer: 0xf0xx0 <0x0f@lemmy.blahaj.zone>
+pkgname=pogolo-git
+pkgdesc='solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet'
+pkgver=1.0.1
+pkgrel=1
+arch=( 'x86_64' 'aarch64' )
+url='https://github.com/0xf0xx0/pogolo'
+conflicts=( 'pogolo' )
+provides=( 'pogolo' )
+license=( 'AGPL-3.0-or-later' )
+options=( '!debug' '!distcc'  )
+source=( "https://github.com/0xf0xx0.gpg" "$pkgname::git+$url.git?signed" )
+sha256sums=('525344bb9b61e163ff69bf9bcc82d8a10223d5c170ea0f8cdea011d39d52279c'
+            'SKIP')
+depends=( 'glibc' ) # why
+makedepends=( 'go>=1.25' 'git' )
+backup=( "etc/pogolo/pogolo.toml" )
+
+pkgver() {
+    cd "$pkgname"
+    git describe --tags --long --abbrev=7 | sed 's/^v//;s/-/.r/;s/-/./g'
+}
+
+prepare() {
+    cd "$pkgname"
+
+    export GOPATH="$srcdir"
+    export CGO_CPPFLAGS="$CPPFLAGS"
+    export CGO_CFLAGS="$CFLAGS"
+    export CGO_CXXFLAGS="$CXXFLAGS"
+    export CGO_LDFLAGS="$LDFLAGS"
+    export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
+
+    go mod download
+}
+build() {
+    cd "$pkgname"
+
+    go build -ldflags="-s -w -buildid="
+}
+check() {
+    cd "$pkgname"
+
+    go test -v
+}
+package() {
+    cd "$pkgname"
+
+    install -Dvm 755 ./pogolo -t "$pkgdir/usr/bin"
+    install -Dvm 755 ./contrib/pogolo.example.toml "$pkgdir/etc/pogolo/pogolo.toml"
+    install -Dvm 755 ./contrib/init/pogolo.service -t "$pkgdir/etc/systemd/system/"
+}
