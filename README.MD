@@ -8,6 +8,10 @@ think of this as public-pool but minimal and for self-sovereign nerds
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
 start it, point your miners to it, and watch the logs roll by
 
+![cpuminer on regtest](./showoff.png)
+
+*want a go pool you can run on the public internet? check out https://github.com/Distortions81/M45-Core-goPool!*
+
 ## features
 
 - colorful logs (respects NO_COLOR)
