@@ -57,14 +57,14 @@ func initAPI() {
 
 func getInfo(res http.ResponseWriter, req *http.Request) {
 	allClients := clients.All()
-	workerStats := make([]miniWorkerInfo, 0, len(allClients))
+	workerStats := make([]miniWorkerInfo, len(allClients))
 	hashrateSum := float64(0)
 	bestDiff := float64(0)
-	for _, client := range allClients {
-		workerStats = append(workerStats, miniWorkerInfo{
+	for idx, client := range allClients {
+		workerStats[idx] = miniWorkerInfo{
 			UserAgent:   client.UserAgent,
 			ExtraNonce1: client.ID.String(),
-		})
+		}
 		bestDiff = max(bestDiff, client.stats.bestDiff)
 		hashrateSum += client.stats.HashrateH()
 	}
