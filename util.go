@@ -26,33 +26,33 @@ import (
 
 // basically typed sync.Map
 type clientMap struct {
-	lock        sync.RWMutex
-	mapparoonie map[stratum.ID]*StratumClient
+	lock  sync.RWMutex
+	idMap map[stratum.ID]*StratumClient
 }
 
 func (m *clientMap) Init() {
-	m.mapparoonie = make(map[stratum.ID]*StratumClient, 5)
+	m.idMap = make(map[stratum.ID]*StratumClient, 5)
 }
 func (m *clientMap) Add(client *StratumClient) {
 	m.lock.Lock()
-	m.mapparoonie[client.ID] = client
+	m.idMap[client.ID] = client
 	m.lock.Unlock()
 }
 func (m *clientMap) Delete(id stratum.ID) {
 	m.lock.Lock()
-	delete(m.mapparoonie, id)
+	delete(m.idMap, id)
 	m.lock.Unlock()
 }
 func (m *clientMap) Get(id stratum.ID) (*StratumClient, bool) {
 	m.lock.RLock()
-	ret, ok := m.mapparoonie[id]
+	ret, ok := m.idMap[id]
 	m.lock.RUnlock()
 	return ret, ok
 }
 func (m *clientMap) All() []*StratumClient {
 	m.lock.RLock()
-	ret := make([]*StratumClient, 0, len(m.mapparoonie))
-	for _, client := range m.mapparoonie {
+	ret := make([]*StratumClient, 0, len(m.idMap))
+	for _, client := range m.idMap {
 		ret = append(ret, client)
 	}
 	m.lock.RUnlock()
@@ -68,15 +68,10 @@ func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
 }
 
 // we dont need to do error handling here, this is only used to serialize the coinbase
-//
-// TODO: we dont even use the witness arg...
-func SerializeTx(tx *wire.MsgTx, witness bool) []byte {
+// (without the witness)
+func SerializeCoinbaseTx(tx *wire.MsgTx) []byte {
 	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
-	if witness {
-		tx.Serialize(serializedTx)
-	} else {
-		tx.SerializeNoWitness(serializedTx)
-	}
+	tx.SerializeNoWitness(serializedTx)
 	return serializedTx.Bytes()
 }
 
@@ -95,7 +90,6 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
-		/// MAYBE: merge tag and extranonce? would save exactly 1 byte
 		AddData([]byte(conf.Pogolo.Tag)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()

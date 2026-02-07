@@ -449,7 +449,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	coinbaseTx := FillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
 
 	/// serialized without the witness, we handle that on submission
-	serializedCoinbaseTx := SerializeTx(coinbaseTx.MsgTx(), false)
+	serializedCoinbaseTx := SerializeCoinbaseTx(coinbaseTx.MsgTx())
 
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	/// find the split point, right after the input
