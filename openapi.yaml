@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: Pogolo API
-  description: API specification for Pogolo
+  title: pogolo API
+  description: API specification for pogolo
   version: 1.0.0
   license:
     name: GNU General Public License version 3
@@ -38,6 +38,7 @@ components:
           type: integer
         totalHashrate:
           type: number
+          description: In MH/s
         bestDifficulty:
           type: number
         tag:
@@ -88,6 +89,7 @@ components:
           type: integer
         hashrate:
           type: number
+          description: In MH/s
         targetDifficulty:
           type: number
         bestDifficulty:
@@ -104,7 +106,7 @@ paths:
       operationId: getInfo
       responses:
         "200":
-          description: Successful scan
+          description: "Success"
           content:
             application/json:
               schema:
