@@ -38,6 +38,7 @@ type getInfoRes struct {
 	BestDiff      float64          `json:"bestDifficulty"`
 	Tag           string           `json:"tag"`
 	Workers       []miniWorkerInfo `json:"gophers"`
+	BlocksFound   []string         `json:"blocksFound"`
 }
 
 func initAPI() {
@@ -72,6 +73,8 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 	defer currTemplateLock.RUnlock()
 	if currTemplate == nil {
 		/// skip block height and avoid nil pointer deref
+		/// also skip found blocks cause if currTemplate is nil the backend node
+		/// hasnt fully inited
 		marshalAndWrite(res, getInfoRes{
 			Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 			Workers:       workerStats,
@@ -90,6 +93,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		BestDiff:      bestDiff,
 		TotalWorkers:  uint64(len(allClients)),
 		BlockHeight:   uint64(currTemplate.Height),
+		BlocksFound:   foundBlocks,
 	})
 }
 

@@ -95,6 +95,7 @@ var (
 	currTemplateLock   sync.RWMutex
 	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
 	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
+	foundBlocks        = make([]string, 0, 3)          // not gonna bother mutexing this unless it becomes an issue
 	serverStartTime    time.Time
 	/// debug shit
 	totalSharesPerSec = float64(0)
@@ -563,6 +564,7 @@ func backendRoutine(ctx context.Context) {
 					}
 					client, _ := clients.Get(submission.ClientID)
 					shareDiff, shareHash := CalcDifficulty(submission.Block.MsgBlock().Header)
+					foundBlocks = append(foundBlocks, shareHash.String())
 					log(fmt.Sprintf(
 						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\n{/green}gopher: {green}%s{/green}\nhash: {green}%s{/green}\ndifficulty: {green}%s{/green}\nnonce: {green}%x{/green}\nextranonce: {blue}%s{green}%x",
 						client.Name(),
