@@ -68,6 +68,20 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		bestDiff = max(bestDiff, client.stats.bestDiff)
 		hashrateSum += client.stats.HashrateH()
 	}
+	currTemplateLock.RLock()
+	defer currTemplateLock.RUnlock()
+	if currTemplate == nil {
+		/// skip block height and avoid nil pointer deref
+		marshalAndWrite(res, getInfoRes{
+			Uptime:        uint64(time.Since(serverStartTime).Seconds()),
+			Workers:       workerStats,
+			Tag:           conf.Pogolo.Tag,
+			TotalHashrate: hashrateSum / 1e6,
+			BestDiff:      bestDiff,
+			TotalWorkers:  uint64(len(allClients)),
+		})
+		return
+	}
 	marshalAndWrite(res, getInfoRes{
 		Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 		Workers:       workerStats,

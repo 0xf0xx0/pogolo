@@ -1,4 +1,4 @@
-# Maintainer: 0xf0xx0 <0x0f@lemmy.blahaj.zone>
+# Maintainer: 0xf0xx0 <@0x0f@lemmy.blahaj.zone>
 pkgname=pogolo-git
 pkgdesc='solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet'
 pkgver=1.0.1
