@@ -25,6 +25,7 @@ start it, point your miners to it, and watch the logs roll by
 
 - 34
 - 41 (probably)
+- 54
 - 310 (minus `info` and `subscribe-extranonce`)
 - 320
 

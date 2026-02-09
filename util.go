@@ -82,9 +82,11 @@ func ClientIDHash(addr string) stratum.ID {
 
 // placeholder tx, filled by clients
 func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx, error) {
+	height := template.Height
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
-	height := template.Height
+	coinbaseTxMsg.LockTime = uint32(height)-1 /// BIP-54
+
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
 	coinbaseScript := txscript.NewScriptBuilder().
@@ -111,10 +113,11 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	coinbaseTxMsg.AddTxIn(&wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
 		SignatureScript:  encodedCoinbaseScript,
-		Sequence:         wire.MaxTxInSequenceNum,
+		Sequence:         0xfffffffe, /// BIP-54
 	})
 	/// 1 slot for witness, second for subsidy
 	coinbaseTxMsg.TxOut = make([]*wire.TxOut, 0, 2)
+
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
