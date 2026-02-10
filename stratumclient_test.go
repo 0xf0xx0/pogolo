@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strconv"
 	"testing"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -13,7 +14,9 @@ import (
 
 func TestMain(t *testing.T) {
 	clients.Init()
-	currTemplateID = 1
+	jobid, _ := strconv.Atoi(notifyParams.JobID)
+	/// CreateJobTemplate increments the template id, and mock job could be at any number
+	currTemplateID = uint64(jobid)-1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	disableLogs = true
 }
