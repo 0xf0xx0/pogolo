@@ -105,9 +105,9 @@ pogolo
 
 ## miner config
 
-host: stratum+tcp://<your lan ip>:5661
-username: <your onchain address>[.<worker name>]
-password: [required if set in pogolo.toml]
+host: `stratum+tcp://<your lan ip>:5661`  
+username: <your onchain address>[.<worker name>]  
+password: [required if set in pogolo.toml]  
 suggested diff: [optional]
 
 the onchain address is also optional if the pool has a default configured.
