@@ -10,7 +10,7 @@ start it, point your miners to it, and watch the logs roll by
 
 ![cpuminer on regtest](./showoff.png)
 
-*want a go pool you can run on the public internet? check out https://github.com/Distortions81/M45-Core-goPool!*
+_want a go pool you can run on the public internet? check out https://github.com/Distortions81/M45-Core-goPool!_
 
 ## features
 
@@ -61,6 +61,7 @@ docker run -d -v "./pogolo.toml:/config/pogolo.toml" 0xf0xx0/pogolo:latest
 docker (+compose) files exist and work but likely need tweaks, theyre also under [`contrib/pkgs/docker`](./contrib/pkgs/docker)
 
 ### environment overrides
+
 for easy config, eg umbrel
 
 ```
@@ -74,6 +75,7 @@ POGOLO_BACKEND_AUTH: # overrides [backend].rpcauth
 ```sh
 go install git.0xf0xx0.eth.limo/0xf0xx0/pogolo@latest
 ```
+
 then follow [manual install/configure](#configure).
 
 ## manual install
@@ -105,7 +107,7 @@ pogolo
 
 ## miner config
 
-host: `stratum+tcp://<your lan ip>:5661`  
+host: stratum+tcp://\<your lan ip\>:5661  
 username: <your onchain address>[.<worker name>]  
 password: [required if set in pogolo.toml]  
 suggested diff: [optional]
@@ -122,8 +124,8 @@ to reproduce shares/s result:
 ## TODO
 
 - link stratum and mining docs  
-    waiting for bip 41  
-    https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
+   waiting for bip 41  
+   https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
 - completion (urfave is bugged)
 - option to add workername to coinbase scriptsig?
 - option to ignore empty templates?
