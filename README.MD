@@ -14,35 +14,36 @@ start it, point your miners to it, and watch the logs roll by
 
 ## features
 
-- colorful logs (respects NO_COLOR)
-- api (see api.go, swagger spec when the api is done)
+- up to 4.3-5.2k shares/sec/client
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
-- ~~longpolling (i think)~~ borked
-- up to 4.3-5.2k shares/sec/client
+- colorful and detailed logs (respects NO_COLOR)
+- api (see api.go and swagger spec)
 
 ## supported BIPs
 
 - 34
 - 41 (probably)
 - 54
-- 310 (minus `info` and `subscribe-extranonce`)
+- 310 (minus `subscribe-extranonce`)
 - 320
 
 ## supported miners
 
-- \*axe family (bitaxe, nerd\*axe)
+- \*axe family (bitaxe, nerd\*axe, etc)
 - cpuminer
 
-### supported backends
+## supported backends
 
-- bitcoin core (http POST)
-- btcd (http and ws, no tls support)
+pogolo has no tls support.
+
+- JSON-RPC (core, knots, etc)
+- btcd websocket
 
 ## unsupported
 
 - miners requiring extranonce.subscribe
-- luckyminers
+- luckyminers/other non-foss axe clones
 - stratum v2
 
 # setup
@@ -104,12 +105,10 @@ pogolo
 
 ## miner config
 
-```
 host: stratum+tcp://<your lan ip>:5661
 username: <your onchain address>[.<worker name>]
 password: [required if set in pogolo.toml]
 suggested diff: [optional]
-```
 
 the onchain address is also optional if the pool has a default configured.
 
@@ -122,10 +121,9 @@ to reproduce shares/s result:
 
 ## TODO
 
-- document code for future viewers
-    - link stratum and mining docs  
-      waiting for bip 41  
-      https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
+- link stratum and mining docs  
+    waiting for bip 41  
+    https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
 - completion (urfave is bugged)
 - option to add workername to coinbase scriptsig?
 - option to ignore empty templates?
