@@ -515,7 +515,7 @@ func (client *StratumClient) log(s string, a ...any) {
 }
 func (client *StratumClient) logError(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	logError("[{green}" + client.Name() + "{/green}] " + s)
+	logError("{cyan}[{red}" + client.Name() + "{/red}]{/cyan} " + s)
 }
 
 // stats for the api
