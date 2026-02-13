@@ -265,7 +265,7 @@ func main() {
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 				/// we do not care
 				/// FIXME: this makes gbt fail and cause a hang randomly?
-				/// FIXME: stalls shutdown on certain errors?
+				/// FIXME: stalls shutdown on certain errors? prolly related to longpolling
 				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 					/// ok we kinda care
 					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
@@ -599,9 +599,6 @@ func backendRoutine(ctx context.Context) {
 
 		/// save longpoll id
 		// longpollid = template.LongPollID
-
-		/// MAYBE: option to ignore empty templates?
-		// if len(template.Transactions) == 0 {}
 
 		jobTemplate, err := CreateJobTemplate(template)
 		if err != nil {

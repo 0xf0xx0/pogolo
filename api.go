@@ -42,7 +42,6 @@ type getInfoRes struct {
 }
 
 func initAPI() {
-	/// TODO: wip
 	pfx := fmt.Sprintf("GET %s/v%d", API_PFX, API_VER)
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)

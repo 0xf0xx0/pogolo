@@ -128,7 +128,5 @@ to reproduce shares/s result:
    https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
 - completion (urfave is bugged)
 - option to add workername to coinbase scriptsig?
-- option to ignore empty templates?
 - zmq for block notifs?
-- when 1.0.0:
-    - aur packages (in progress)
+- aur packages (in progress)

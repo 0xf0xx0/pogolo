@@ -323,7 +323,6 @@ func (client *StratumClient) adjustDiffRoutine() {
 		delta = -(delta / 2) /// we want to be more conservative when adjusting downwards
 	}
 
-	/// FIXME: this assumes the adjustments will happen less often than jobs, is that a problem?
 	newDiff := max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
 	client.SuggestedDifficulty = newDiff
 	client.log("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
@@ -510,10 +509,8 @@ func (client *StratumClient) writeConn(b []byte) error {
 }
 
 // logging
-// maybe: pick random color for client?
 func (client *StratumClient) log(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	/// MAYBE: move prefix to StratumClient?
 	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
 }
 func (client *StratumClient) logError(s string, a ...any) {

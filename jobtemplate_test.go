@@ -35,7 +35,6 @@ func TestCreateJobTemplate(t *testing.T) {
 			template.PreviousHash,
 			job.MsgBlock.Header.PrevBlock.String())
 	}
-	/// MAYBE/FIXME: how to validate merkle root?
 }
 
 func TestJobMinTime(t *testing.T) {
@@ -66,7 +65,6 @@ func TestValidateCoinbaseScript(t *testing.T) {
 	t.Logf("%q", script)
 	t.Logf("coinbase script: %x", script)
 	t.Logf("script len: %d, max: %d", len(script), blockchain.MaxCoinbaseScriptLen)
-	/// MAYBE: verify the block height is at the start
 }
 
 // this needs to be re-done every time something about the block structure changes

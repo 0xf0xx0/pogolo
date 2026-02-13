@@ -20,7 +20,6 @@ FROM alpine:latest
 
 WORKDIR /
 
-# MAYBE: copy docker pogolo.toml?
 COPY --from=build /build/pogolo .
 
 # stratum
