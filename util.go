@@ -128,7 +128,6 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
-// TODO: populate extranonce1 here
 func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
