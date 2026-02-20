@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -85,7 +86,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	height := template.Height
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
-	coinbaseTxMsg.LockTime = uint32(height)-1 /// BIP-54
+	coinbaseTxMsg.LockTime = uint32(height) - 1 /// BIP-54
 
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
@@ -118,7 +119,6 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	/// 1 slot for witness, second for subsidy
 	coinbaseTxMsg.TxOut = make([]*wire.TxOut, 0, 2)
 
-
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
 
@@ -128,6 +128,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
+// TODO: populate extranonce1 here
 func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
@@ -245,6 +246,31 @@ func treeNodeCount(leafCount int) int {
 		count += i
 	}
 	return count
+}
+
+func parseUserAgent(ua string) string {
+	ua = strings.ToLower(ua)
+
+	if strings.Contains(ua, "axe") {
+		split := strings.Split(ua, "/")
+		if len(split) != 3 {
+			/// confusion
+			return ua
+		}
+		/// format is *axe/<chip>/<fw_version>, drop the version
+		return strings.Join(split[:2], "/")
+	} else if strings.Contains(ua, "nerdminer") {
+		/// https://github.com/BitMaker-hub/NerdMiner_v2/blob/a26865f7cdd9ac1a81c5b0a7c355e23cf4a1d568/src/stratum.cpp#L59
+		return "nerdminer"
+	} else if strings.Contains(ua, "luckyminer") {
+		return "luckyminer"
+	}
+	/// otherwise fall back to public-pools parsing
+	ua = strings.Split(ua, " ")[0]
+	ua = strings.Split(ua, "/")[0]
+	ua = strings.Split(ua, "v")[0]
+	ua = strings.Split(ua, "-")[0]
+	return ua
 }
 
 // pretty-print difficulty

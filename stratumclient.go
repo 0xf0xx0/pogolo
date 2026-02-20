@@ -10,7 +10,6 @@ import (
 	"net"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -269,13 +268,16 @@ func (client *StratumClient) Run() {
 		}
 
 		/// deadline is a minute + 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(time.Minute + 10*time.Second*time.Duration(conf.Pogolo.TargetShareInterval)))
+		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 
 	switch err := reader.Err(); err {
 	case nil:
 	case io.ErrClosedPipe:
 	case io.EOF:
+	case err.(*net.OpError):
+		ne := err.(*net.OpError)
+		client.logError("%s", ne.Err)
 	default:
 		client.logError("%s", err)
 	}
@@ -602,29 +604,4 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 		submissionChan: submissionChannel,
 	}
 	return client
-}
-
-func parseUserAgent(ua string) string {
-	ua = strings.ToLower(ua)
-
-	if strings.Contains(ua, "axe") {
-		split := strings.Split(ua, "/")
-		if len(split) != 3 {
-			/// confusion
-			return ua
-		}
-		/// format is *axe/<chip>/<fw_version>, drop the version
-		return strings.Join(split[:2], "/")
-	} else if strings.Contains(ua, "nerdminer") {
-		/// https://github.com/BitMaker-hub/NerdMiner_v2/blob/a26865f7cdd9ac1a81c5b0a7c355e23cf4a1d568/src/stratum.cpp#L59
-		return "nerdminer"
-	} else if strings.Contains(ua, "luckyminer") {
-		return "luckyminer"
-	}
-	/// otherwise fall back to public-pools parsing
-	ua = strings.Split(ua, " ")[0]
-	ua = strings.Split(ua, "/")[0]
-	ua = strings.Split(ua, "v")[0]
-	ua = strings.Split(ua, "-")[0]
-	return ua
 }
