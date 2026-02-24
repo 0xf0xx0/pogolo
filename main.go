@@ -67,7 +67,7 @@ import (
 // name and version
 const (
 	NAME    = "pogolo"
-	VERSION = "1.1.0"
+	VERSION = "1.1.1"
 )
 
 const commandHelpTemplate = `Usage:
