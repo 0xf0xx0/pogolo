@@ -228,6 +228,7 @@ func main() {
 			if path := cmd.String("logfile"); path != "" {
 				conf.LogFile = resolvePath(path)
 			}
+
 			if conf.LogFile != "" {
 				file, err := os.Create(conf.LogFile)
 				if err != nil {
@@ -235,7 +236,6 @@ func main() {
 				}
 				logFile = file
 			}
-
 			if profileDir := cmd.String("profile"); profileDir != "" {
 				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
