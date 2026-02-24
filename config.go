@@ -43,7 +43,7 @@ type Pogolo struct {
 	IgnoreSuggDiff      bool    `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool    `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 	Benchmarking        bool    `toml:"benchmark,omitempty"`
-	LogFile string `toml:"logFile,commented" comment:"file to log to (path resolution same as cookie)"`
+	LogFile string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
 }
 
 var DEFAULT_CONFIG = Config{
