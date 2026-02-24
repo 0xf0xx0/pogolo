@@ -75,7 +75,7 @@ func (client *StratumClient) Run() {
 		}
 
 		switch m.GetMethod() {
-		case stratum.MiningSubmit:
+		case stratum.MethodMiningSubmit:
 			{
 				if !stratumInited {
 					client.logError("submit before subscribe")
@@ -83,17 +83,17 @@ func (client *StratumClient) Run() {
 					return
 				}
 				s := stratum.Share{}
-				if err := s.Read(m); err != nil {
+				if err := s.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				client.validateShareSubmission(s, m)
 			}
-		case stratum.MiningConfigure:
+		case stratum.MethodMiningConfigure:
 			{
-				params := stratum.ConfigureParams{}
-				if err := params.Read(m); err != nil {
+				params := stratum.MiningConfigureParams{}
+				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
@@ -125,13 +125,13 @@ func (client *StratumClient) Run() {
 				}
 				client.writeRes(stratum.ConfigureResponse(m.MessageID, res))
 			}
-		case stratum.MiningAuthorize:
+		case stratum.MethodMiningAuthorize:
 			{
 				if isAuthed {
 					break
 				}
-				params := stratum.AuthorizeParams{}
-				if err := params.Read(m); err != nil {
+				params := stratum.MiningAuthorizeParams{}
+				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
@@ -157,16 +157,16 @@ func (client *StratumClient) Run() {
 				client.User = decoded
 				client.Nickname = params.Worker
 				client.Password = params.Password
-				client.writeRes(stratum.AuthorizeResponse(m.MessageID, true))
+				client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 				isAuthed = true
 			}
-		case stratum.MiningSubscribe:
+		case stratum.MethodMiningSubscribe:
 			{
 				if isSubscribed {
 					break
 				}
-				params := stratum.SubscribeParams{}
-				if err := params.Read(m); err != nil {
+				params := stratum.MiningSubscribeParams{}
+				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
@@ -180,17 +180,17 @@ func (client *StratumClient) Run() {
 				responseParams := stratum.SubscribeResult{
 					Subscriptions: []stratum.Subscription{
 						{
-							Method:    stratum.MiningNotify,
+							Method:    stratum.MethodMiningNotify,
 							SessionID: client.ID,
 						},
 					},
 					ExtraNonce1:     client.ID,
 					ExtraNonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
 				}
-				client.writeRes(stratum.SubscribeResponse(m.MessageID, responseParams))
+				client.writeRes(responseParams.ToResponse(m.MessageID))
 				isSubscribed = true
 			}
-		case stratum.MiningSuggestDifficulty:
+		case stratum.MethodMiningSuggestDifficulty:
 			{
 				/// only accept a suggested difficulty if we haven't got one before
 				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
@@ -198,8 +198,8 @@ func (client *StratumClient) Run() {
 					break
 				}
 
-				params := stratum.SuggestDifficultyParams{}
-				if err := params.Read(m); err != nil {
+				params := stratum.MiningSuggestDifficultyParams{}
+				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
 					break
@@ -215,14 +215,14 @@ func (client *StratumClient) Run() {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 				}
 			}
-		case stratum.MiningExtranonceSubscribe:
+		case stratum.MethodMiningExtranonceSubscribe:
 			{
 				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNSUPP_METHOD))
 			}
 		default:
 			{
-				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNSUPP_METHOD))
-				client.logError("unsupported stratum message: %+v", m)
+				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
+				client.logError("unknown stratum message: %+v", m)
 			}
 		}
 
@@ -350,7 +350,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			}
 			client.log("adjusting share target to {blue}%g", client.SuggestedDifficulty)
 		}
-		err := client.writeNotif(stratum.Notify(client.CurrentJob.NotifyParams))
+		err := client.writeNotif(client.CurrentJob.MiningNotifyParams.ToNotification())
 		if err != nil {
 			client.logError("error sending job: %s", err)
 		}
@@ -383,7 +383,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	return nil
 }
 func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
-	if share.JobID != client.CurrentJob.NotifyParams.JobID {
+	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
 		client.stats.sharesRejected++
 		client.logError("share rejected: unknown job")
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
@@ -392,7 +392,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// we'll only verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedBlock, err := client.CurrentJob.UpdateBlock(client.ID, share, client.CurrentJob.NotifyParams)
+	updatedBlock, err := client.CurrentJob.UpdateBlock(client.ID, share, client.CurrentJob.MiningNotifyParams)
 	if err != nil {
 		client.logError(err.Error())
 		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
@@ -465,7 +465,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		Block:        *block,
 		Version:      block.MsgBlock().Header.Version,
 		MerkleBranch: template.MerkleBranch,
-		NotifyParams: stratum.NotifyParams{
+		MiningNotifyParams: stratum.MiningNotifyParams{
 			JobID:          template.ID,
 			PrevBlockHash:  &blockHeader.PrevBlock,
 			MerkleBranches: merkleBranches,
@@ -487,6 +487,9 @@ func (client *StratumClient) submitBlock(block blockSubmission) {
 	client.submissionChan <- block
 }
 func (client *StratumClient) writeRes(res *stratum.Response) error {
+	return client.writeMsg(res)
+}
+func (client *StratumClient) writeMsg(res stratum.Message) error {
 	bytes, err := res.Marshal()
 	if err != nil {
 		client.logError("failed to marshal response: %s", err)

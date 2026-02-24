@@ -16,7 +16,7 @@ RUN go mod download
 COPY --exclude=contrib/ --exclude=mockdata/ --exclude=*_test.go ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
-FROM alpine:latest
+FROM --platform=$BUILDPLATFORM alpine:latest
 
 WORKDIR /
 

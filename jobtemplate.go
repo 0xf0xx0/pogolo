@@ -32,7 +32,7 @@ type JobTemplate struct {
 	Height       int64
 }
 type MiningJob struct {
-	stratum.NotifyParams
+	stratum.MiningNotifyParams
 	Block        btcutil.Block
 	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
@@ -143,7 +143,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 }
 
 // like public-pools copyAndUpdateBlock without the copy
-func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stratum.NotifyParams) (*wire.MsgBlock, error) {
+func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stratum.MiningNotifyParams) (*wire.MsgBlock, error) {
 	/// because we copied the block from the template when making the job, we can just reuse it
 	msgBlock := job.Block.MsgBlock()
 

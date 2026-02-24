@@ -65,52 +65,52 @@ var (
 
 // params
 var (
-	authorizeParams = func() stratum.AuthorizeParams {
-		params := stratum.AuthorizeParams{}
-		params.Read(reqFrom(MOCK_MINING_AUTHORIZE))
+	authorizeParams = func() stratum.MiningAuthorizeParams {
+		params := stratum.MiningAuthorizeParams{}
+		params.FromRequest(reqFrom(MOCK_MINING_AUTHORIZE))
 		return params
 	}()
-	configureParams = func() stratum.ConfigureParams {
-		params := stratum.ConfigureParams{}
-		params.Read(reqFrom(MOCK_MINING_CONFIGURE))
+	configureParams = func() stratum.MiningConfigureParams {
+		params := stratum.MiningConfigureParams{}
+		params.FromRequest(reqFrom(MOCK_MINING_CONFIGURE))
 		return params
 	}()
-	subscribeParams = func() stratum.SubscribeParams {
-		params := stratum.SubscribeParams{}
-		params.Read(reqFrom(MOCK_MINING_SUBSCRIBE))
+	subscribeParams = func() stratum.MiningSubscribeParams {
+		params := stratum.MiningSubscribeParams{}
+		params.FromRequest(reqFrom(MOCK_MINING_SUBSCRIBE))
 		return params
 	}()
-	suggestDiffParams = func() stratum.SuggestDifficultyParams {
-		params := stratum.SuggestDifficultyParams{}
-		params.Read(reqFrom(MOCK_MINING_SUGGEST_DIFFICULTY))
+	suggestDiffParams = func() stratum.MiningSuggestDifficultyParams {
+		params := stratum.MiningSuggestDifficultyParams{}
+		params.FromRequest(reqFrom(MOCK_MINING_SUGGEST_DIFFICULTY))
 		return params
 	}()
 
-	submitParams = func() stratum.Share {
-		params := stratum.Share{}
+	submitParams = func() stratum.MiningSubmitParams {
+		params := stratum.MiningSubmitParams{}
 		req := reqFrom(MOCK_MINING_SUBMIT)
-		err := params.Read(req)
+		err := params.FromRequest(req)
 		if err != nil {
 			panic(err)
 		}
 		return params
 	}()
-	notifyParams = func() stratum.NotifyParams {
-		params := stratum.NotifyParams{}
-		params.Read(notiFrom(MOCK_NOTIFY))
+	notifyParams = func() stratum.MiningNotifyParams {
+		params := stratum.MiningNotifyParams{}
+		params.FromNotification(notiFrom(MOCK_NOTIFY))
 		return params
 	}()
 )
 
 // requests
 var (
-	authorizeReq         = stratum.AuthorizeRequest(1, authorizeParams)
-	configureReq         = stratum.ConfigureRequest(2, configureParams)
-	suggestDifficultyReq = stratum.SuggestDifficultyRequest(3, suggestDiffParams)
-	subscribeReq         = stratum.SubscribeRequest(4, subscribeParams)
+	authorizeReq         = authorizeParams.ToRequest(1)
+	configureReq         = configureParams.ToRequest(2)
+	suggestDifficultyReq = suggestDiffParams.ToRequest(3)
+	subscribeReq         = subscribeParams.ToRequest(4)
 
-	notifyReq = stratum.Notify(notifyParams)
-	submitReq = stratum.Submit(5, submitParams)
+	notifyReq = notifyParams.ToNotification()
+	submitReq = submitParams.ToRequest(5)
 )
 
 func reqFrom(r string) *stratum.Request {

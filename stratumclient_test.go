@@ -16,7 +16,7 @@ func TestMain(t *testing.T) {
 	clients.Init()
 	jobid, _ := strconv.Atoi(notifyParams.JobID)
 	/// CreateJobTemplate increments the template id, and mock job could be at any number
-	currTemplateID = uint64(jobid)-1
+	currTemplateID = uint64(jobid) - 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	disableLogs = true
 }
@@ -42,7 +42,7 @@ func TestAuthorize(t *testing.T) {
 	res := sendReqAndWaitForRes(t, req, lpipe)
 	validateRes(req, res, t)
 	resp := stratum.BooleanResult{}
-	resp.Read(&res)
+	resp.FromResponse(&res)
 	if resp.Result == false {
 		t.Error("result was false")
 	}
@@ -59,12 +59,12 @@ func TestSubscribe(t *testing.T) {
 	req := subscribeReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
 	r := stratum.SubscribeResult{}
-	err := r.Read(&res)
+	err := r.FromResponse(&res)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if r.Subscriptions[0].Method != stratum.MiningNotify {
-		t.Errorf("subscription method mismatch: expected %q, got %q", stratum.MiningNotify, r.Subscriptions[0].Method)
+	if r.Subscriptions[0].Method != stratum.MethodMiningNotify {
+		t.Errorf("subscription method mismatch: expected %q, got %q", stratum.MethodMiningNotify, r.Subscriptions[0].Method)
 	}
 	if r.ExtraNonce1 != client.ID {
 		t.Errorf("extranonce1 mismatch: expected %q, got %q", client.ID, r.ExtraNonce1)
@@ -87,7 +87,7 @@ func TestSuggestDifficulty(t *testing.T) {
 
 func TestUnimplementedMethod(t *testing.T) {
 	lpipe, _, _ := initClient()
-	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.ClientGetVersion, []interface{}{}), lpipe)
+	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.MethodClientGetVersion, []interface{}{}), lpipe)
 	if res.Error.Code != constants.ERROR_UNSUPP_METHOD.Code {
 		t.Fatalf("expected code %d, got code %d",
 			constants.ERROR_UNK_METHOD.Code, res.Error.Code,
@@ -141,7 +141,7 @@ func TestSubmitUnkJob(t *testing.T) {
 
 	share := submitParams
 	share.JobID = ""
-	req := stratum.Submit(9, share)
+	req := share.ToRequest(9)
 	res := sendReqAndWaitForRes(t, req, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
@@ -155,7 +155,7 @@ func TestSubmitBeforeSub(t *testing.T) {
 
 	share := submitParams
 	share.JobID = ""
-	req := stratum.Submit(9, share)
+	req := share.ToRequest(9)
 	res := sendReqAndWaitForRes(t, req, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
