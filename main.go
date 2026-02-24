@@ -1,8 +1,7 @@
 /*
 	/pogolo - decentralize or die/
 
-solo db-less bitcoin-only mining pool,
-meant for lan swarms, not the internet;
+solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet;
 start it, point your miners to it, and watch the logs roll by
 
 think of this as public-pool but minimal and for self-sovereign nerds
@@ -97,6 +96,7 @@ var (
 	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
 	foundBlocks        = make([]string, 0, 3)          // not gonna bother mutexing this unless it becomes an issue
 	serverStartTime    time.Time
+	logFile            *os.File
 	/// debug shit
 	totalSharesPerSec = float64(0)
 	disableLogs       = false /// used for testing
@@ -144,6 +144,10 @@ func main() {
 				Aliases: []string{"profile"},
 				Usage:   "write cpu and memory profiles to `dir`",
 			},
+			&cli.StringFlag{
+				Name:  "logfile",
+				Usage: "write logs to `file`",
+			},
 
 			// env config overrides, same format as their related keys
 			&cli.StringFlag{
@@ -188,20 +192,7 @@ func main() {
 			} else if cmd.Bool("nocolor") {
 				oigiki.NoColor = true
 			}
-			if profileDir := cmd.String("profile"); profileDir != "" {
-				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
-				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
-				if err != nil {
-					return err
-				}
-				memProfFile, err := os.Create(filepath.Join(profileDir, "./mem.prof"))
-				if err != nil {
-					return err
-				}
-				pprof.StartCPUProfile(profileFile)
-				defer pprof.WriteHeapProfile(memProfFile)
-				defer pprof.StopCPUProfile()
-			}
+
 			if cmd.String("writedefaultconf") != "" {
 				WriteDefaultConfig(cmd.String("writedefaultconf"))
 				return nil
@@ -224,15 +215,38 @@ func main() {
 				}
 			}
 
+			/// conf overrides
 			if host := cmd.String("BACKEND_HOST"); host != "" {
 				conf.Backend.Host = host
 			}
 			if auth := cmd.String("BACKEND_RPCAUTH"); auth != "" {
 				conf.Backend.Rpcauth = auth
 			}
-
 			if host := cmd.String("POGOLO_HOST"); host != "" {
 				conf.Pogolo.Host = host
+			}
+			if path := cmd.String("logfile"); path != "" {
+				conf.LogFile = resolvePath(path)
+				file, err := os.Create(conf.LogFile)
+				if err != nil {
+					return err
+				}
+				logFile = file
+			}
+
+			if profileDir := cmd.String("profile"); profileDir != "" {
+				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
+				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
+				if err != nil {
+					return err
+				}
+				memProfFile, err := os.Create(filepath.Join(profileDir, "./mem.prof"))
+				if err != nil {
+					return err
+				}
+				pprof.StartCPUProfile(profileFile)
+				defer pprof.WriteHeapProfile(memProfFile)
+				defer pprof.StopCPUProfile()
 			}
 
 			/// ignore vardiff and diff suggestions when benching

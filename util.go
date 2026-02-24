@@ -315,11 +315,21 @@ func log(s string) {
 	if disableLogs {
 		return
 	}
-	fmt.Println(oigiki.ProcessTags(oigiki.TagString(s, "cyan")))
+	s = oigiki.ProcessTags(oigiki.TagString(s, "cyan"))
+	if logFile != nil {
+		fmt.Fprintln(logFile, s)
+		return
+	}
+	fmt.Println(s)
 }
 func logError(s string) {
 	if disableLogs {
 		return
 	}
-	println(oigiki.ProcessTags(oigiki.TagString(s, "red")))
+	s = oigiki.ProcessTags(oigiki.TagString(s, "red"))
+	if logFile != nil {
+		fmt.Fprintln(logFile, s)
+		return
+	}
+	println(s)
 }
