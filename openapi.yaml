@@ -21,6 +21,7 @@ components:
       type: object
       required:
         - uptime
+        - blocksFound
         - blockHeight
         - totalGophers
         - totalHashrate
@@ -31,6 +32,11 @@ components:
         uptime:
           type: integer
           description: In seconds
+        blocksFound:
+          type: array
+          description: Array of block hashes
+          items:
+            type: string
         blockHeight:
           type: integer
           description: The height the pool is mining at
