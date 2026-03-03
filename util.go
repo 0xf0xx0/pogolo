@@ -147,11 +147,10 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 }
 
 // port of public-pools calculateDifficulty
-func CalcDifficulty(header wire.BlockHeader) (float64, chainhash.Hash) {
-	hashResult := header.BlockHash()
-	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hashResult))
+func CalcDifficulty(hash chainhash.Hash) float64 {
+	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hash))
 	diff, _ := s64.Quo(constants.TrueDiff1, s64).Float64()
-	return diff, hashResult
+	return diff
 }
 
 // port of public-pools calculateNetworkDifficulty

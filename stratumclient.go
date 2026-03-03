@@ -16,6 +16,7 @@ import (
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 // aka gopher
@@ -30,6 +31,7 @@ type StratumClient struct {
 	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
+	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	stats               *ClientStats
 	ID                  stratum.ID
 	VersionRollingMask  uint32
@@ -399,7 +401,17 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		return
 	}
 
-	shareDiff, shareHash := CalcDifficulty(updatedBlock.Header)
+	/// check if share is dupe
+	shareHash := updatedBlock.Header.BlockHash()
+	if _, ok := client.shareHashes[shareHash]; ok {
+		client.writeRes(m.Respond(constants.ERROR_DUPE_SHARE))
+		client.logError("share rejected: dupe")
+		return
+	}
+	/// add to dupe map
+	client.shareHashes[shareHash] = struct{}{}
+
+	shareDiff := CalcDifficulty(shareHash)
 	if shareDiff >= client.TargetDifficulty {
 		if !conf.Benchmarking && shareDiff >= client.CurrentJob.NetworkDiff {
 			/// !!! block! dont say ANYTHING until after submitted
@@ -477,6 +489,10 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 			CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
 			Clean:         true, /// we don't support multiple active jobs
 		},
+	}
+	/// reset dupe share map
+	for h := range client.shareHashes {
+		delete(client.shareHashes, h)
 	}
 
 	return job
@@ -605,6 +621,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,
+		shareHashes: make(map[chainhash.Hash]struct{}, 15),
 	}
 	return client
 }

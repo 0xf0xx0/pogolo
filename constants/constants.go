@@ -44,6 +44,7 @@ var (
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "Not accepted"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "Unknown job"}
+	ERROR_DUPE_SHARE   = stratum.Error{Code: 412, Message: "Duplicate share"}
 	ERROR_LOW_DIFF     = stratum.Error{Code: 413, Message: "Difficulty too low"}
 	// for data we understand but couldnt process
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}

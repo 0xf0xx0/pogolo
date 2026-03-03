@@ -579,7 +579,8 @@ func backendRoutine(ctx context.Context) {
 						continue
 					}
 					client, _ := clients.Get(submission.ClientID)
-					shareDiff, shareHash := CalcDifficulty(submission.Block.MsgBlock().Header)
+					shareHash := submission.Block.MsgBlock().Header.BlockHash()
+					shareDiff := CalcDifficulty(shareHash)
 					foundBlocks = append(foundBlocks, shareHash.String())
 					log(fmt.Sprintf(
 						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\n{/green}gopher: {green}%s{/green}\nhash: {green}%s{/green}\ndifficulty: {green}%s{/green}\nnonce: {green}%x{/green}\nextranonce: {blue}%s{green}%x",
