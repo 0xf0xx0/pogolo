@@ -115,7 +115,8 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 
 	block := wire.MsgBlock{
 		Header: wire.BlockHeader{
-			Version:    template.Version,
+			/// OR configured activation bits with template from node
+			Version:    template.Version | conf.Pogolo.BIPVersionBits,
 			Bits:       headerBits,
 			PrevBlock:  *prevBlockHash,
 			Timestamp:  time.Unix(currTime, 0),
