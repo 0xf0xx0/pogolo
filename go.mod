@@ -2,6 +2,8 @@ module git.0xf0xx0.eth.limo/0xf0xx0/pogolo
 
 go 1.25.0
 
+replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
+
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0
 	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260222224407-0af9fc0af4be
@@ -9,7 +11,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20251106010755-9ff0780da683
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20251106010755-9ff0780da683
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/urfave/cli/v3 v3.6.2
+	github.com/urfave/cli/v3 v3.7.0
 	github.com/zeebo/xxh3 v1.1.0
 )
 

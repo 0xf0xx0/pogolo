@@ -58,7 +58,7 @@ func TestSubscribe(t *testing.T) {
 
 	req := subscribeReq
 	res := sendReqAndWaitForRes(t, req, lpipe)
-	r := stratum.SubscribeResult{}
+	r := stratum.MiningSubscribeResult{}
 	err := r.FromResponse(&res)
 	if err != nil {
 		t.Fatal(err.Error())

@@ -125,7 +125,8 @@ func (client *StratumClient) Run() {
 						return
 					}
 				}
-				client.writeRes(stratum.ConfigureResponse(m.MessageID, res))
+
+				client.writeRes(res.ToResponse(m.MessageID))
 			}
 		case stratum.MethodMiningAuthorize:
 			{
@@ -179,8 +180,8 @@ func (client *StratumClient) Run() {
 					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
 					return
 				}
-				responseParams := stratum.SubscribeResult{
-					Subscriptions: []stratum.Subscription{
+				responseParams := stratum.MiningSubscribeResult{
+					Subscriptions: []stratum.MiningSubscription{
 						{
 							Method:    stratum.MethodMiningNotify,
 							SessionID: client.ID,
@@ -378,7 +379,10 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.TargetDifficulty {
 		return nil
 	}
-	if err := client.writeNotif(stratum.SetDifficulty(newDiff)); err != nil {
+	setdiff := &stratum.MiningSetDifficultyParams{
+		Difficulty: newDiff,
+	}
+	if err := client.writeNotif(setdiff.ToNotification()); err != nil {
 		return err
 	}
 	client.TargetDifficulty = newDiff
@@ -404,7 +408,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// check if share is dupe
 	shareHash := updatedBlock.Header.BlockHash()
 	if _, ok := client.shareHashes[shareHash]; ok {
-		client.writeRes(m.Respond(constants.ERROR_DUPE_SHARE))
+		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DUPE_SHARE))
 		client.logError("share rejected: dupe")
 		return
 	}
