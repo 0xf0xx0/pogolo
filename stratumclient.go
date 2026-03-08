@@ -81,13 +81,13 @@ func (client *StratumClient) Run() {
 			{
 				if !stratumInited {
 					client.logError("submit before subscribe")
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_SUBBED))
+					client.writeRes(m.RespondError(constants.ERROR_NOT_SUBBED))
 					return
 				}
 				s := stratum.Share{}
 				if err := s.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				client.validateShareSubmission(s, m)
@@ -97,7 +97,7 @@ func (client *StratumClient) Run() {
 				params := stratum.MiningConfigureParams{}
 				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				res := stratum.ConfigureResult{}
@@ -106,7 +106,7 @@ func (client *StratumClient) Run() {
 						mask, err := strconv.ParseUint(rawMask.(string), 16, 32)
 						if err != nil {
 							client.logError("couldnt parse version rolling mask %v", rawMask)
-							client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+							client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 							return
 						}
 						/// bip-310
@@ -121,7 +121,7 @@ func (client *StratumClient) Run() {
 					} else {
 						/// *uhhhhhhhhhhhhhhhh*
 						client.logError("couldnt read version rolling mask? shouldnt happen i *think*")
-						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+						client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 						return
 					}
 				}
@@ -136,19 +136,19 @@ func (client *StratumClient) Run() {
 				params := stratum.MiningAuthorizeParams{}
 				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
 					client.logError("invalid password")
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNAUTHORIZED))
+					client.writeRes(m.RespondError(constants.ERROR_UNAUTHORIZED))
 					return
 				}
 				decoded, err := btcutil.DecodeAddress(params.Username, backendChainParams)
 				if err != nil {
 					if defaultMiningAddr == nil {
 						client.logError("failed decoding address: %s", err)
-						client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+						client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 						return
 					}
 					/// assume just the workername was passed
@@ -171,13 +171,13 @@ func (client *StratumClient) Run() {
 				params := stratum.MiningSubscribeParams{}
 				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				client.UserAgent = parseUserAgent(params.UserAgent)
 				if client.UserAgent == "luckyminer" {
 					/// unsupported
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
 					return
 				}
 				responseParams := stratum.MiningSubscribeResult{
@@ -197,14 +197,14 @@ func (client *StratumClient) Run() {
 			{
 				/// only accept a suggested difficulty if we haven't got one before
 				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
 					break
 				}
 
 				params := stratum.MiningSuggestDifficultyParams{}
 				if err := params.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				suggestedDiff := math.Abs(params.Difficulty)
@@ -215,16 +215,16 @@ func (client *StratumClient) Run() {
 					client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 				} else {
 					client.logError("rejected suggested difficulty")
-					client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_NOT_ACCEPTED))
+					client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
 				}
 			}
 		case stratum.MethodMiningExtranonceSubscribe:
 			{
-				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNSUPP_METHOD))
+				client.writeRes(m.RespondError(constants.ERROR_UNSUPP_METHOD))
 			}
 		default:
 			{
-				client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_METHOD))
+				client.writeRes(m.RespondError(constants.ERROR_UNK_METHOD))
 				client.logError("unknown stratum message: %+v", m)
 			}
 		}
@@ -392,7 +392,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
 		client.stats.sharesRejected++
 		client.logError("share rejected: unknown job")
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNK_JOB))
+		client.writeRes(m.RespondError(constants.ERROR_UNK_JOB))
 		return
 	}
 	/// we'll only verify the difficulty
@@ -401,14 +401,14 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	updatedBlock, err := client.CurrentJob.UpdateBlock(client.ID, share, client.CurrentJob.MiningNotifyParams)
 	if err != nil {
 		client.logError(err.Error())
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_UNPROCESSABLE))
+		client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 		return
 	}
 
 	/// check if share is dupe
 	shareHash := updatedBlock.Header.BlockHash()
 	if _, ok := client.shareHashes[shareHash]; ok {
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_DUPE_SHARE))
+		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
 		client.logError("share rejected: dupe")
 		return
 	}
@@ -444,7 +444,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 			updatedBlock.Header.Version, share.Nonce, client.ID, share.ExtraNonce2,
 			FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 	} else {
-		client.writeRes(stratum.NewErrorResponse(m.MessageID, constants.ERROR_LOW_DIFF))
+		client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))
 		client.stats.sharesRejected++
 		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 	}
