@@ -409,6 +409,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	shareHash := updatedBlock.Header.BlockHash()
 	if _, ok := client.shareHashes[shareHash]; ok {
 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
+		client.stats.sharesRejected++
 		client.logError("share rejected: dupe")
 		return
 	}
@@ -625,7 +626,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,
-		shareHashes: make(map[chainhash.Hash]struct{}, 15),
+		shareHashes:    make(map[chainhash.Hash]struct{}, 15),
 	}
 	return client
 }
