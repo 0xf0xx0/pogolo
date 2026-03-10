@@ -33,7 +33,7 @@ type StratumClient struct {
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
-	stats               *ClientStats
+	stats               *StratumClientStats
 	ID                  stratum.ID
 	VersionRollingMask  uint32
 }
@@ -551,7 +551,7 @@ func (client *StratumClient) logError(s string, a ...any) {
 }
 
 // stats for the api
-type ClientStats struct {
+type StratumClientStats struct {
 	lastTimeSlot,
 	currTimeSlot timeSlot
 	startTime, // time the client subscribed
@@ -563,7 +563,7 @@ type ClientStats struct {
 	hashrate float64
 }
 
-func (stats *ClientStats) update(currTargetDiff float64) {
+func (stats *StratumClientStats) update(currTargetDiff float64) {
 	now := time.Now()
 	if stats.lastSubmission.Unix() > 0 {
 		/// exponential moving average
@@ -586,18 +586,18 @@ func (stats *ClientStats) update(currTargetDiff float64) {
 }
 
 // getters
-func (stats *ClientStats) Uptime() uint64 {
+func (stats *StratumClientStats) Uptime() uint64 {
 	return uint64(time.Since(stats.startTime).Seconds())
 }
-func (stats *ClientStats) HashrateMH() float64 {
+func (stats *StratumClientStats) HashrateMH() float64 {
 	return stats.hashrate / 1e6
 }
-func (stats *ClientStats) HashrateH() float64 {
+func (stats *StratumClientStats) HashrateH() float64 {
 	return stats.hashrate
 }
 
 // live hashrate in H/s
-func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
+func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
 	/// calc copied from public-pool
 	windowStart := time.Unix((shareTime.Unix()/constants.HASHRATE_WINDOW)*constants.HASHRATE_WINDOW, 0)
 	/// first call, make the current slot (and set the last as the init time)
@@ -628,7 +628,7 @@ func (stats *ClientStats) calcHashrate(shareTime time.Time, currTargetDiff float
 func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
 	client := StratumClient{
 		ID:             ClientIDHash(conn.RemoteAddr().String()),
-		stats:          &ClientStats{},
+		stats:          &StratumClientStats{},
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate),
 		submissionChan: submissionChannel,

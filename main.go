@@ -644,21 +644,23 @@ func backendRoutine(ctx context.Context) {
 		currTemplateLock.Unlock()
 		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
-		go notifyClients(currTemplate) /// this might take a while
+		go notifyClients() /// this might take a while
 		select {
-		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
-		/// shortcircuit
-		case <-triggerGBT:
 		case <-ctx.Done():
 			{
 				return
 			}
+		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
+		/// shortcircuit
+		case <-triggerGBT:
 		}
 	}
 }
 
-func notifyClients(j *JobTemplate) {
+func notifyClients() {
+	currTemplateLock.RLock()
+	defer currTemplateLock.RUnlock()
 	for _, client := range clients.All() {
-		client.TemplateChannel() <- j
+		client.TemplateChannel() <- currTemplate
 	}
 }
