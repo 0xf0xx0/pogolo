@@ -99,7 +99,7 @@ var (
 	logFile            *os.File
 	/// debug shit
 	totalSharesPerSec = float64(0)
-	disableLogs       = false /// used for testing
+	disableLogs       = false /// used for tests
 )
 
 func main() {
@@ -494,7 +494,7 @@ func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 			{
 				/// no need for a pool, pogolo will likely never handle enough clients for it to matter
 				client := CreateClient(conn, submissionChan)
-				go client.Run()
+				go client.Run(ctx)
 			}
 		}
 	}
@@ -610,7 +610,15 @@ func backendRoutine(ctx context.Context) {
 		})
 		if err != nil {
 			logError(fmt.Sprintf("error fetching template: %s", err))
-			time.Sleep(time.Millisecond * time.Duration(conf.Backend.PollInterval))
+
+			select {
+			case <-ctx.Done():
+				{
+					return
+				}
+			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
+			}
+
 			continue
 		}
 
@@ -620,7 +628,15 @@ func backendRoutine(ctx context.Context) {
 		jobTemplate, err := CreateJobTemplate(template)
 		if err != nil {
 			logError(fmt.Sprintf("error making job template: %s", err.Error()))
-			time.Sleep(time.Second * time.Duration(conf.Pogolo.JobInterval))
+
+			select {
+			case <-ctx.Done():
+				{
+					return
+				}
+			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
+			}
+
 			continue
 		}
 		currTemplateLock.Lock()

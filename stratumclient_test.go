@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -219,7 +220,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	clientPipe, poolPipe := net.Pipe()
 	client := CreateClient(poolPipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
-	go client.Run()
+	go client.Run(context.Background())
 	/// discard submissions
 	go func() {
 		for {

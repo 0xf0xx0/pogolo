@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ type blockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
 }
 
-func (client *StratumClient) Run() {
+func (client *StratumClient) Run(ctx context.Context) {
 	defer client.Stop()
 	go client.readTemplateChanRoutine()
 	stratumInited := false
@@ -62,6 +63,11 @@ func (client *StratumClient) Run() {
 
 	/// processing loop
 	for reader.Scan() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 
 		/// messages are newline separated (either lf or crlf)
 		line := bytes.TrimSpace(reader.Bytes())
