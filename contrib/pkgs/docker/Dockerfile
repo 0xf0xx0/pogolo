@@ -7,7 +7,6 @@ WORKDIR /build
 # set envs for the rest of the owl
 ENV GOOS=${TARGETOS}
 ENV GOARCH=${TARGETARCH}
-# flags stolen from arch linux requirements
 ENV GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
 
 COPY go.mod go.sum ./
@@ -16,7 +15,7 @@ RUN go mod download
 COPY --exclude=contrib/ --exclude=mockdata/ --exclude=*_test.go ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
-FROM --platform=$BUILDPLATFORM alpine:latest
+FROM alpine:latest
 
 WORKDIR /
 

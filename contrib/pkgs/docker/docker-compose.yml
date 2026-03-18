@@ -4,7 +4,7 @@ services:
   pogolo:
     build: .
     restart: on-failure
-    stop_grace_period: 30s
+    stop_grace_period: 15s
     volumes:
       # expects to be run with a pogolo.toml in the same dir
       - ./:/config:ro
