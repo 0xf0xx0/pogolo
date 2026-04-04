@@ -507,6 +507,7 @@ func backendRoutine(ctx context.Context) {
 	getBlockCountPoll := func() {
 		/// wait for the initial template
 	busywait:
+		/// wait for furst template to be made...
 		for {
 			select {
 			case <-ctx.Done():
@@ -525,6 +526,8 @@ func backendRoutine(ctx context.Context) {
 			}
 		}
 
+		/// ...then update on height changes
+		/// TODO: switch to getbestblockhash? will this fall over on dupes?
 		for {
 			select {
 			case <-ctx.Done():
