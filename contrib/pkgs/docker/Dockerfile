@@ -5,8 +5,8 @@ ARG TARGETARCH
 WORKDIR /build
 
 # set envs for the rest of the owl
-ENV GOOS=${TARGETOS}
-ENV GOARCH=${TARGETARCH}
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
 ENV GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
 
 COPY go.mod go.sum ./
@@ -19,6 +19,7 @@ FROM alpine:latest
 
 WORKDIR /
 
+RUN apk add --no-cache libc6-compat
 COPY --from=build /build/pogolo .
 
 # stratum
