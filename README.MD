@@ -67,7 +67,7 @@ for easy config, eg umbrel
 ```
 POGOLO_HOST: # overrides [pogolo].host
 POGOLO_BACKEND_HOST: # overrides [backend].host
-POGOLO_BACKEND_AUTH: # overrides [backend].rpcauth
+POGOLO_BACKEND_RPCAUTH: # overrides [backend].rpcauth
 ```
 
 ## go

@@ -32,7 +32,7 @@ environment overrides:
 
 	POGOLO_HOST: # overrides [pogolo].host
 	POGOLO_BACKEND_HOST: # overrides [backend].host
-	POGOLO_BACKEND_AUTH: # overrides [backend].rpcauth
+	POGOLO_BACKEND_RPCAUTH: # overrides [backend].rpcauth
 */
 package main
 
@@ -67,7 +67,7 @@ import (
 // name and version
 const (
 	NAME    = "pogolo"
-	VERSION = "1.1.1"
+	VERSION = "1.1.2"
 )
 
 const commandHelpTemplate = `Usage:
@@ -175,17 +175,18 @@ func main() {
 			os.Exit(constants.EXIT_MISC)
 		},
 		/// XXX: https://github.com/urfave/cli/issues/1993
-		// ShellComplete: func(ctx context.Context, cmd *cli.Command) {
-		// 	if cmd.NArg() > 0 {
-		// 		return
-		// 	}
-		// 	flags := cmd.Root().VisibleFlags()
-		// 	for _, flag := range flags {
-		// 		if !flag.IsSet() {
-		// 			fmt.Fprintf(cmd.Root().Writer, "--"+flag.Names()[0]+"\n")
-		// 		}
-		// 	}
-		// },
+		/* ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+			if cmd.NArg() > 0 {
+				return
+			}
+			flags := cmd.Root().VisibleFlags()
+			for _, flag := range flags {
+				if !flag.IsSet() {
+					fmt.Fprintf(cmd.Root().Writer, "--"+flag.Names()[0]+"\n")
+				}
+			}
+		},
+		*/
 		Action: func(rootCtx context.Context, cmd *cli.Command) error {
 			if cmd.Bool("color") {
 				oigiki.NoColor = false
