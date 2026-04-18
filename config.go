@@ -22,15 +22,15 @@ type Config struct {
 	Pogolo  `toml:"pogolo"`
 }
 type Backend struct {
-	Host         string `toml:"host" comment:"RPC host:port"`
+	Host         string `toml:"host" comment:"RPC host:port, overridden by POGOLO_BACKEND_HOST"`
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported (takes precedence over rpcauth)"`
-	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)"`
+	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)\noverridden by POGOLO_BACKEND_RPCAUTH"`
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if websocket is true"`
 }
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
-	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)"`
+	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)\noverridden by POGOLO_HOST"`
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
 	Password            string  `toml:"password,commented" comment:"optional, required from clients if set"`
