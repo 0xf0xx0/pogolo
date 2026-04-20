@@ -88,7 +88,7 @@ func TestSuggestDifficulty(t *testing.T) {
 
 func TestUnimplementedMethod(t *testing.T) {
 	lpipe, _, _ := initClient()
-	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.MethodClientGetVersion, []interface{}{}), lpipe)
+	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.MethodClientGetVersion, []any{}), lpipe)
 	if res.Error.Code != constants.ERROR_UNK_METHOD.Code {
 		t.Fatalf("expected code %d, got code %d",
 			constants.ERROR_UNK_METHOD.Code, res.Error.Code,

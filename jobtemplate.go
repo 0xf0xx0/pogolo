@@ -41,10 +41,7 @@ type MiningJob struct {
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {
 	/// set the block timestamp, clamping to min and max time
-	currTime := time.Now().Unix()
-	if template.MinTime > currTime {
-		currTime = template.MinTime
-	}
+	currTime := max(template.MinTime, time.Now().Unix())
 	if template.MaxTime > template.MinTime && template.MaxTime < currTime {
 		currTime = template.MaxTime
 	}

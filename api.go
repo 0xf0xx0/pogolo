@@ -124,7 +124,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 func writeError(res http.ResponseWriter, code int, msg string) error {
 	res.WriteHeader(code)
 	if msg != "" {
-		return writeResponse(res, []byte(fmt.Sprintf(`{"error":%q}`, msg)))
+		return writeResponse(res, fmt.Appendf(nil, `{"error":%q}`, msg))
 	}
 	return nil
 }
