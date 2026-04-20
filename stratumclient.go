@@ -416,7 +416,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	if _, ok := client.shareHashes[shareHash]; ok {
 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
 		client.stats.sharesRejected++
-		client.logError("share rejected: dupe")
+		client.logError("share rejected: duplicate")
 		return
 	}
 	/// add to dupe map
