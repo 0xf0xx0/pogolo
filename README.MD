@@ -32,6 +32,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 
 - \*axe family (bitaxe, nerd\*axe, etc)
 - cpuminer
+- antminers
 
 ## supported backends
 
@@ -112,7 +113,8 @@ username: <your onchain address>[.<worker name>]
 password: [required if set in pogolo.toml]  
 suggested diff: [optional]
 
-the onchain address is also optional if the pool has a default configured.
+the onchain address is also optional if the pool has a default configured.  
+stale jobs are normal, the expected error rate is 0.2%.
 
 ## benchmarking
 
