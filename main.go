@@ -528,7 +528,6 @@ func backendRoutine(ctx context.Context) {
 		}
 
 		/// ...then update on height changes
-		/// TODO: switch to getbestblockhash? will this fall over on dupes?
 		for {
 			select {
 			case <-ctx.Done():

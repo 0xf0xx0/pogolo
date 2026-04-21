@@ -72,9 +72,6 @@ func (client *StratumClient) Run(ctx context.Context) {
 		/// messages are newline separated (either lf or crlf)
 		line := bytes.TrimSpace(reader.Bytes())
 
-		/// MAYBE: add stratum log option
-		// client.log("{blackbright}> %s", line)
-
 		/// process the message
 		m, err := DecodeStratumMessage(line)
 		if err != nil {

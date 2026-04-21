@@ -54,5 +54,11 @@ func TestCreateEmptyCoinbase(t *testing.T) {
 		t.Fatalf("failed to fallback to default pool tag: %s", err)
 	}
 
-	/// TODO: handle extranonce2 too large
+	en2 := conf.Pogolo.ExtraNonce2Size
+	conf.Pogolo.ExtraNonce2Size = 255
+	_, err = CreateEmptyCoinbase(MOCK_BLOCK_TEMPLATE)
+	conf.Pogolo.ExtraNonce2Size = en2
+	if err != nil {
+		t.Fatalf("failed to fallback to default pool tag: %s", err)
+	}
 }
