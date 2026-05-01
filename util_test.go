@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
 
 var m = &clientMap{}
@@ -60,5 +62,19 @@ func TestCreateEmptyCoinbase(t *testing.T) {
 	conf.Pogolo.ExtraNonce2Size = en2
 	if err != nil {
 		t.Fatalf("failed to fallback to default pool tag: %s", err)
+	}
+}
+
+func TestClientIDGeneration(t *testing.T) {
+	set := make(map[stratum.ID]struct{}, 2)
+	for i := 0; i < 100; i++ {
+		hash := ClientIDHash("127.0.0.1:42069")
+		_, ok := set[hash]
+		if !ok {
+			set[hash] = struct{}{}
+		}
+	}
+	for k := range set {
+		t.Log(k.String())
 	}
 }

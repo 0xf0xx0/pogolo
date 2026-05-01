@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -78,7 +79,8 @@ func SerializeCoinbaseTx(tx *wire.MsgTx) []byte {
 
 // hashes client ip address+port for no reason other than being different
 func ClientIDHash(addr string) stratum.ID {
-	return stratum.ID(uint32(xxh3.HashString(addr)))
+	/// randomly pick between upper and lower 32 for double the extranonce1s
+	return stratum.ID(xxh3.HashString(addr) >> (rand.N(2)*32))
 }
 
 // placeholder tx, filled by clients
