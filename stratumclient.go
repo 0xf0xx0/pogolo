@@ -28,12 +28,15 @@ type StratumClient struct {
 	UserAgent           string
 	TargetDifficulty    float64
 	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID
+	VersionRollingMask  uint32
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	stats               *StratumClientStats
-	ID                  stratum.ID
-	VersionRollingMask  uint32
+	stratumInited       bool
+	isAuthed            bool
+	isSubscribed        bool
 }
 
 // used for hashrate calc
@@ -51,9 +54,6 @@ type blockSubmission struct {
 func (client *StratumClient) Run(ctx context.Context) {
 	defer client.Stop()
 	go client.readTemplateChanRoutine()
-	stratumInited := false
-	isAuthed := false
-	isSubscribed := false
 
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
@@ -71,198 +71,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		line := bytes.TrimSpace(reader.Bytes())
 
 		/// process the message
-		m, err := DecodeStratumMessage(line)
-		if err != nil {
-			client.logError("stratum decode error: %s", err)
-			return
-		}
-
-		switch m.GetMethod() {
-		case stratum.MethodMiningSubmit:
-			{
-				if !stratumInited {
-					client.logError("submit before subscribe")
-					client.writeRes(m.RespondError(constants.ERROR_NOT_SUBBED))
-					return
-				}
-				s := stratum.Share{}
-				if err := s.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
-				}
-				client.validateShareSubmission(s, m)
-			}
-		case stratum.MethodMiningConfigure:
-			{
-				params := stratum.MiningConfigureParams{}
-				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
-				}
-				res := stratum.MiningConfigureResult{}
-				if params.Supports(stratum.ExtensionVersionRolling) {
-					rollingConfig, err := params.GetVersionRolling()
-					if err != nil {
-						client.logError("couldnt parse version rolling config: %s", err)
-						client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-						return
-					}
-					/// bip-310
-					client.VersionRollingMask = uint32(rollingConfig.Mask) & constants.VERSION_ROLLING_MASK
-
-					err = res.SetVersionRolling(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
-					if err != nil {
-						/// uhhhhhhhhhhhhhhhh
-						/// honestly just leave this as a panic
-						panic(err)
-					}
-				}
-
-				client.writeRes(res.ToResponse(m.MessageID))
-			}
-		case stratum.MethodMiningAuthorize:
-			{
-				if isAuthed {
-					break
-				}
-				params := stratum.MiningAuthorizeParams{}
-				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
-				}
-				if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
-					client.logError("invalid password")
-					client.writeRes(m.RespondError(constants.ERROR_UNAUTHORIZED))
-					return
-				}
-				decoded, err := btcutil.DecodeAddress(params.Username, backendChainParams)
-				if err != nil {
-					if defaultMiningAddr == nil {
-						client.logError("failed decoding address: %s", err)
-						client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-						return
-					}
-					/// assume just the workername was passed
-					if params.Username != "" {
-						params.Worker = params.Username
-					}
-					decoded = *defaultMiningAddr
-				}
-				client.User = decoded
-				client.Nickname = params.Worker
-				client.Password = params.Password
-				client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
-				isAuthed = true
-			}
-		case stratum.MethodMiningSubscribe:
-			{
-				if isSubscribed {
-					break
-				}
-				params := stratum.MiningSubscribeParams{}
-				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
-				}
-				client.UserAgent = parseUserAgent(params.UserAgent)
-				if client.UserAgent == "luckyminer" {
-					/// unsupported
-					client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
-					return
-				}
-				responseParams := stratum.MiningSubscribeResult{
-					Subscriptions: []stratum.MiningSubscription{
-						{
-							Method:    stratum.MethodMiningNotify,
-							SessionID: client.ID,
-						},
-					},
-					Extranonce1:     client.ID,
-					Extranonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
-				}
-				client.writeRes(responseParams.ToResponse(m.MessageID))
-				isSubscribed = true
-			}
-		case stratum.MethodMiningSuggestDifficulty:
-			{
-				/// only accept a suggested difficulty if we haven't got one before
-				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
-					client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
-					break
-				}
-
-				params := stratum.MiningSuggestDifficultyParams{}
-				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
-					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
-				}
-				suggestedDiff := math.Abs(params.Difficulty)
-				if suggestedDiff >= constants.MIN_DIFFICULTY {
-					/// this comment is just for visual spacing
-					client.SuggestedDifficulty = suggestedDiff
-					client.log("suggested difficulty {blue}%g", suggestedDiff)
-					client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
-				} else {
-					client.logError("rejected suggested difficulty")
-					client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
-				}
-			}
-		case stratum.MethodMiningExtranonceSubscribe:
-			{
-				client.writeRes(m.RespondError(constants.ERROR_UNSUPP_METHOD))
-			}
-		default:
-			{
-				client.writeRes(m.RespondError(constants.ERROR_UNK_METHOD))
-				client.logError("unknown stratum message: %+v", m)
-			}
-		}
-
-		/// we only send work after authed and subbed (and set a flag so we dont do this again)
-		if isAuthed && isSubscribed && !stratumInited {
-			stratumInited = true
-
-			log(fmt.Sprintf(
-				/// dig, cause gophers, get it?
-				"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
-				client.Name(), client.ID, client.Addr(),
-			))
-
-			if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
-				client.log("{yellow}mining to pool address")
-			}
-			if client.VersionRollingMask > 0 {
-				client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
-			}
-			/// the client may have suggested a difficulty before fully initialized
-			/// if they haven't, we alert them to our default diff here
-			if client.SuggestedDifficulty == 0 {
-				if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
-					if conf.Benchmarking {
-						client.setDifficulty(0.000001) /// lowest diff before cpuminer deadlocks
-					} else {
-						/// use the hardcoded min
-						client.setDifficulty(constants.MIN_DIFFICULTY)
-					}
-				} else {
-					client.setDifficulty(conf.Pogolo.DefaultDifficulty)
-				}
-			}
-
-			/// i dont think the order matters, but lets send the current template
-			/// before adding to the client map, just in case notifyClients gets
-			/// called in between (and rapid-fires jobs)
-			if currTemplate != nil {
-				client.TemplateChannel() <- currTemplate
-			}
-			clients.Add(client)
-			client.stats.startTime = time.Now()
-		}
+		go client.processMessage(line)
 
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
@@ -278,6 +87,207 @@ func (client *StratumClient) Run(ctx context.Context) {
 	default:
 		client.logError("%s", err)
 	}
+}
+
+func (client *StratumClient) processMessage(line []byte) {
+	m, err := DecodeStratumMessage(line)
+	if err != nil {
+		client.logError("stratum decode error: %s", err)
+		return
+	}
+
+	switch m.GetMethod() {
+	case stratum.MethodMiningSubmit:
+		{
+			if !client.stratumInited {
+				client.logError("submit before subscribe")
+				client.writeRes(m.RespondError(constants.ERROR_NOT_SUBBED))
+				client.Stop()
+				return
+			}
+			s := stratum.Share{}
+			if err := s.FromRequest(m); err != nil {
+				client.logError("error processing %s: %s", m.Method, err)
+				client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+				break
+			}
+			client.validateShareSubmission(s, m)
+		}
+	case stratum.MethodMiningConfigure:
+		{
+			params := stratum.MiningConfigureParams{}
+			if err := params.FromRequest(m); err != nil {
+				client.logError("error processing %s: %s", m.Method, err)
+				client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+				break
+			}
+			res := stratum.MiningConfigureResult{}
+			if params.Supports(stratum.ExtensionVersionRolling) {
+				rollingConfig, err := params.GetVersionRolling()
+				if err != nil {
+					client.logError("couldnt parse version rolling config: %s", err)
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+					client.Stop()
+					return
+				}
+				/// bip-310
+				client.VersionRollingMask = uint32(rollingConfig.Mask) & constants.VERSION_ROLLING_MASK
+
+				err = res.SetVersionRolling(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
+				if err != nil {
+					/// uhhhhhhhhhhhhhhhh
+					/// honestly just leave this as a panic
+					panic(err)
+				}
+			}
+
+			client.writeRes(res.ToResponse(m.MessageID))
+		}
+	case stratum.MethodMiningAuthorize:
+		{
+			if client.isAuthed {
+				break
+			}
+			params := stratum.MiningAuthorizeParams{}
+			if err := params.FromRequest(m); err != nil {
+				client.logError("error processing %s: %s", m.Method, err)
+				client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+				break
+			}
+			if conf.Pogolo.Password != "" && params.Password != conf.Pogolo.Password {
+				client.logError("invalid password")
+				client.writeRes(m.RespondError(constants.ERROR_UNAUTHORIZED))
+				client.Stop()
+				return
+			}
+			decoded, err := btcutil.DecodeAddress(params.Username, backendChainParams)
+			if err != nil {
+				if defaultMiningAddr == nil {
+					client.logError("failed decoding address: %s", err)
+					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+					client.Stop()
+					return
+				}
+				/// assume just the workername was passed
+				if params.Username != "" {
+					params.Worker = params.Username
+				}
+				decoded = *defaultMiningAddr
+			}
+			client.User = decoded
+			client.Nickname = params.Worker
+			client.Password = params.Password
+			client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
+			client.isAuthed = true
+		}
+	case stratum.MethodMiningSubscribe:
+		{
+			if client.isSubscribed {
+				break
+			}
+			params := stratum.MiningSubscribeParams{}
+			if err := params.FromRequest(m); err != nil {
+				client.logError("error processing %s: %s", m.Method, err)
+				client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+				break
+			}
+			client.UserAgent = parseUserAgent(params.UserAgent)
+			if client.UserAgent == "luckyminer" {
+				/// unsupported
+				client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
+				client.Stop()
+				return
+			}
+			responseParams := stratum.MiningSubscribeResult{
+				Subscriptions: []stratum.MiningSubscription{
+					{
+						Method:    stratum.MethodMiningNotify,
+						SessionID: client.ID,
+					},
+				},
+				Extranonce1:     client.ID,
+				Extranonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
+			}
+			client.writeRes(responseParams.ToResponse(m.MessageID))
+			client.isSubscribed = true
+		}
+	case stratum.MethodMiningSuggestDifficulty:
+		{
+			/// only accept a suggested difficulty if we haven't got one before
+			if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
+				client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
+				break
+			}
+
+			params := stratum.MiningSuggestDifficultyParams{}
+			if err := params.FromRequest(m); err != nil {
+				client.logError("error processing %s: %s", m.Method, err)
+				client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+				break
+			}
+			suggestedDiff := math.Abs(params.Difficulty)
+			if suggestedDiff >= constants.MIN_DIFFICULTY {
+				/// this comment is just for visual spacing
+				client.SuggestedDifficulty = suggestedDiff
+				client.log("suggested difficulty {blue}%g", suggestedDiff)
+				client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
+			} else {
+				client.logError("rejected suggested difficulty")
+				client.writeRes(m.RespondError(constants.ERROR_NOT_ACCEPTED))
+			}
+		}
+	case stratum.MethodMiningExtranonceSubscribe:
+		{
+			client.writeRes(m.RespondError(constants.ERROR_UNSUPP_METHOD))
+		}
+	default:
+		{
+			client.writeRes(m.RespondError(constants.ERROR_UNK_METHOD))
+			client.logError("unknown stratum message: %+v", m)
+		}
+	}
+
+	/// we only send work after authed and subbed (and set a flag so we dont do this again)
+	if client.isAuthed && client.isSubscribed && !client.stratumInited {
+		client.stratumInited = true
+
+		log(fmt.Sprintf(
+			/// dig, cause gophers, get it?
+			"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
+			client.Name(), client.ID, client.Addr(),
+		))
+
+		if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+			client.log("{yellow}mining to pool address")
+		}
+		if client.VersionRollingMask > 0 {
+			client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
+		}
+		/// the client may have suggested a difficulty before fully initialized
+		/// if they haven't, we alert them to our default diff here
+		if client.SuggestedDifficulty == 0 {
+			if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
+				if conf.Benchmarking {
+					client.setDifficulty(0.000001) /// lowest diff before cpuminer deadlocks
+				} else {
+					/// use the hardcoded min
+					client.setDifficulty(constants.MIN_DIFFICULTY)
+				}
+			} else {
+				client.setDifficulty(conf.Pogolo.DefaultDifficulty)
+			}
+		}
+
+		/// i dont think the order matters, but lets send the current template
+		/// before adding to the client map, just in case notifyClients gets
+		/// called in between (and rapid-fires jobs)
+		if currTemplate != nil {
+			client.TemplateChannel() <- currTemplate
+		}
+		clients.Add(client)
+		client.stats.startTime = time.Now()
+	}
+	return
 }
 func (client *StratumClient) Stop() {
 	if client.templateChan == nil {
