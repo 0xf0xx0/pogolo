@@ -2,11 +2,11 @@ module git.0xf0xx0.eth.limo/0xf0xx0/pogolo
 
 go 1.25.0
 
-//replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
+replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
 
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0
-	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260420132648-8b1066d6a4db
+	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260517023006-717ebec60d1f
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil v1.1.7-0.20251106010755-9ff0780da683
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.1-0.20251106010755-9ff0780da683

@@ -592,7 +592,7 @@ func backendRoutine(ctx context.Context) {
 						FormatDifficulty(shareDiff),
 						submission.Share.Nonce,
 						client.ID,
-						submission.Share.ExtraNonce2,
+						submission.Share.Extranonce2,
 					))
 
 					/// one day pogolo will win a block, reload, and win a second back to back

@@ -67,12 +67,12 @@ func TestSubscribe(t *testing.T) {
 	if r.Subscriptions[0].Method != stratum.MethodMiningNotify {
 		t.Errorf("subscription method mismatch: expected %q, got %q", stratum.MethodMiningNotify, r.Subscriptions[0].Method)
 	}
-	if r.ExtraNonce1 != client.ID {
-		t.Errorf("extranonce1 mismatch: expected %q, got %q", client.ID, r.ExtraNonce1)
+	if r.Extranonce1 != client.ID {
+		t.Errorf("extranonce1 mismatch: expected %q, got %q", client.ID, r.Extranonce1)
 	}
-	if r.ExtraNonce2Size != constants.EXTRANONCE_SIZE {
+	if r.Extranonce2Size != constants.EXTRANONCE_SIZE {
 		t.Errorf("extranonce2 size mismatch: expected %d, got %d",
-			constants.EXTRANONCE_SIZE, r.ExtraNonce2Size)
+			constants.EXTRANONCE_SIZE, r.Extranonce2Size)
 	}
 	validateRes(req, res, t)
 }

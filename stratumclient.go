@@ -9,8 +9,6 @@ import (
 	"io"
 	"math"
 	"net"
-	"slices"
-	"strconv"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -103,29 +101,22 @@ func (client *StratumClient) Run(ctx context.Context) {
 					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
-				res := stratum.ConfigureResult{}
-				if slices.Contains(params.Supported, "version-rolling") {
-					if rawMask, ok := params.Parameters["version-rolling.mask"]; ok {
-						mask, err := strconv.ParseUint(rawMask.(string), 16, 32)
-						if err != nil {
-							client.logError("couldnt parse version rolling mask %v", rawMask)
-							client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-							return
-						}
-						/// bip-310
-						client.VersionRollingMask = uint32(mask) & constants.VERSION_ROLLING_MASK
-
-						err = res.Add(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
-						if err != nil {
-							/// uhhhhhhhhhhhhhhhh
-							/// honestly just leave this as a panic
-							panic(err)
-						}
-					} else {
-						/// *uhhhhhhhhhhhhhhhh*
-						client.logError("couldnt read version rolling mask? shouldnt happen i *think*")
+				res := stratum.MiningConfigureResult{}
+				if params.Supports(stratum.ExtensionVersionRolling) {
+					rollingConfig, err := params.GetVersionRolling()
+					if err != nil {
+						client.logError("couldnt parse version rolling config: %s", err)
 						client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 						return
+					}
+					/// bip-310
+					client.VersionRollingMask = uint32(rollingConfig.Mask) & constants.VERSION_ROLLING_MASK
+
+					err = res.SetVersionRolling(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
+					if err != nil {
+						/// uhhhhhhhhhhhhhhhh
+						/// honestly just leave this as a panic
+						panic(err)
 					}
 				}
 
@@ -190,8 +181,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 							SessionID: client.ID,
 						},
 					},
-					ExtraNonce1:     client.ID,
-					ExtraNonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
+					Extranonce1:     client.ID,
+					Extranonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
 				}
 				client.writeRes(responseParams.ToResponse(m.MessageID))
 				isSubscribed = true
@@ -445,7 +436,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%8x{/blue} nonce: {green}%8x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
 			FormatDifficulty(shareDiff), FormatDifficulty(client.TargetDifficulty), FormatDifficulty(client.stats.bestDiff),
 			shareHash,
-			updatedBlock.Header.Version, share.Nonce, client.ID, share.ExtraNonce2,
+			updatedBlock.Header.Version, share.Nonce, client.ID, share.Extranonce2,
 			FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 	} else {
 		client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))

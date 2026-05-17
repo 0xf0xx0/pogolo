@@ -145,7 +145,7 @@ func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stra
 	/// because we copied the block from the template when making the job, we can just reuse it
 	msgBlock := job.Block.MsgBlock()
 
-	if len(share.ExtraNonce2) != int(conf.Pogolo.ExtraNonce2Size) {
+	if len(share.Extranonce2) != int(conf.Pogolo.ExtraNonce2Size) {
 		return nil, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
 	}
 
@@ -155,7 +155,7 @@ func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stra
 	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
 		len(sigscript)-(constants.EXTRANONCE_SIZE+int(conf.Pogolo.ExtraNonce2Size)),
 		len(sigscript),
-		append(id.Bytes(), share.ExtraNonce2...)...,
+		append(id.Bytes(), share.Extranonce2...)...,
 	)
 
 	/// update the header
