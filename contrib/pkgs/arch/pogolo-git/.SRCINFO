@@ -1,0 +1,22 @@
+pkgbase = pogolo-git
+	pkgdesc = solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet
+	pkgver = 1.1.2.r7.g633361b
+	pkgrel = 1
+	url = https://github.com/0xf0xx0/pogolo
+	arch = x86_64
+	arch = aarch64
+	license = AGPL-3.0-or-later
+	makedepends = go>=1.25
+	makedepends = git
+	depends = glibc
+	provides = pogolo
+	conflicts = pogolo
+	options = !debug
+	options = !distcc
+	backup = etc/pogolo/pogolo.toml
+	source = https://github.com/0xf0xx0.gpg
+	source = pogolo-git::git+https://github.com/0xf0xx0/pogolo.git?signed
+	sha256sums = 525344bb9b61e163ff69bf9bcc82d8a10223d5c170ea0f8cdea011d39d52279c
+	sha256sums = SKIP
+
+pkgname = pogolo-git
