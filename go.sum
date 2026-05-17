@@ -6,6 +6,8 @@ git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260308172129-a403c9115e8f h1:JUT
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260308172129-a403c9115e8f/go.mod h1:mWwY0mrVOpuejlAIZyVduTooRrrYmJqTtQ6h1Rn60U4=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260420132648-8b1066d6a4db h1:l2aSEcbZO2YSRuN1aqhboH6bWS0mK3RHtg1UjleGexI=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260420132648-8b1066d6a4db/go.mod h1:yjkV06yyjm14gzSWbXHbRQHwo6fxbXaJb4+Hrygj8hQ=
+git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260517023006-717ebec60d1f h1:KxwNq8J0as4zWIKlYFIsbCALpe5Ew9wSapJxBLW3+nQ=
+git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260517023006-717ebec60d1f/go.mod h1:yjkV06yyjm14gzSWbXHbRQHwo6fxbXaJb4+Hrygj8hQ=
 github.com/btcsuite/btcd v0.25.0 h1:JPbjwvHGpSywBRuorFFqTjaVP4y6Qw69XJ1nQ6MyWJM=
 github.com/btcsuite/btcd v0.25.0/go.mod h1:qbPE+pEiR9643E1s1xu57awsRhlCIm1ZIi6FfeRA4KE=
 github.com/btcsuite/btcd/btcec/v2 v2.3.6 h1:IzlsEr9olcSRKB/n7c4351F3xHKxS2lma+1UFGCYd4E=

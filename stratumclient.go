@@ -308,7 +308,7 @@ func (client *StratumClient) adjustDiff() {
 		return
 	}
 	/// negative = running slow, positive = running fast
-	/// floor it to avoid floating point madness
+	/// round it to avoid floating point madness
 	difference := math.Round(float64(conf.Pogolo.TargetShareInterval) - client.stats.avgSubmissionDelta/1000)
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
