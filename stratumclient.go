@@ -43,8 +43,8 @@ type timeSlot struct {
 }
 
 type blockSubmission struct {
-	Block    btcutil.Block
-	Share    stratum.Share
+	Block    *btcutil.Block
+	Share    *stratum.Share
 	ClientID stratum.ID // for lookup in client map
 }
 
@@ -433,8 +433,8 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		/// !!! block! dont say ANYTHING until after submitted
 		submission := blockSubmission{
 			ClientID: client.ID,
-			Block:    *btcutil.NewBlock(updatedBlock),
-			Share:    share,
+			Block:    btcutil.NewBlock(updatedBlock),
+			Share:    &share,
 		}
 
 		client.submitBlock(submission)

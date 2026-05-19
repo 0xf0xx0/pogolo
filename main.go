@@ -576,7 +576,7 @@ func backendRoutine(ctx context.Context) {
 				}
 			case submission := <-submissionChan:
 				{
-					err := backend.SubmitBlock(&submission.Block, nil)
+					err := backend.SubmitBlock(submission.Block, nil)
 					if err != nil {
 						logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 						continue
