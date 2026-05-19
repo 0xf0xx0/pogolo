@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	VERSION_ROLLING_MASK = uint32(0x1fffe000) // bip 320 constant
+	VERSION_ROLLING_MASK = uint32(0x1fffffe0) // bip 323 constant
 	EXTRANONCE_SIZE      = 4          // in bytes
 	DEFAULT_DIFFICULTY   = 1024       // for gpu, fpga, and asic miners
 	DEFAULT_COINBASE_TAG = "/pogolo - decentralize or die/"
