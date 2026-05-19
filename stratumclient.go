@@ -60,6 +60,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 	reader := bufio.NewScanner(client.conn)
 
 	/// processing loop
+	/// this should be async but
+	/// 1) its annoying to implement and
+	/// 2) theres no point imo, everything gets handled in order anyway
+	/// its fast enough
 	for reader.Scan() {
 		select {
 		case <-ctx.Done():
@@ -385,22 +389,37 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
 	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
 		client.stats.sharesRejected++
-		client.logError("share rejected: unknown job")
 		client.writeRes(m.RespondError(constants.ERROR_UNK_JOB))
+		client.logError("share rejected: unknown job")
 		return
 	}
-	/// we'll only verify the difficulty
+	if share.VersionMask & ^constants.VERSION_ROLLING_MASK != 0 {
+		client.stats.sharesRejected++
+		client.writeRes(m.RespondError(constants.ERROR_INV_VER))
+		client.logError("share rejected: invalid version")
+		return
+	}
+	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
 	updatedBlock, err := client.CurrentJob.UpdateBlock(client.ID, share, client.CurrentJob.MiningNotifyParams)
 	if err != nil {
-		client.logError(err.Error())
 		client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+		client.logError(err.Error())
+		return
+	}
+
+	shareHash := updatedBlock.Header.BlockHash()
+	shareDiff := CalcDifficulty(shareHash)
+
+	if shareDiff < client.TargetDifficulty {
+		client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))
+		client.stats.sharesRejected++
+		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 		return
 	}
 
 	/// check if share is dupe
-	shareHash := updatedBlock.Header.BlockHash()
 	if _, ok := client.shareHashes[shareHash]; ok {
 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
 		client.stats.sharesRejected++
@@ -410,39 +429,33 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// add to dupe map
 	client.shareHashes[shareHash] = struct{}{}
 
-	shareDiff := CalcDifficulty(shareHash)
-	if shareDiff >= client.TargetDifficulty {
-		if !conf.Benchmarking && shareDiff >= client.CurrentJob.NetworkDiff {
-			/// !!! block! dont say ANYTHING until after submitted
-			submission := blockSubmission{
-				ClientID: client.ID,
-				Block:    *btcutil.NewBlock(updatedBlock),
-				Share:    share,
-			}
-
-			client.submitBlock(submission)
-			client.log("{yellow}block candidate submitted")
+	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
+		/// !!! block! dont say ANYTHING until after submitted
+		submission := blockSubmission{
+			ClientID: client.ID,
+			Block:    *btcutil.NewBlock(updatedBlock),
+			Share:    share,
 		}
-		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
 
-		if shareDiff > client.stats.bestDiff {
-			client.stats.bestDiff = shareDiff
-			client.log("{green}new best session diff!")
-		}
-		client.stats.sharesAccepted++
-
-		/// update with the target diff for a more accurate estimation
-		client.stats.update(client.TargetDifficulty)
-		client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%08x{/blue} nonce: {green}%08x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
-			FormatDifficulty(shareDiff), FormatDifficulty(client.TargetDifficulty), FormatDifficulty(client.stats.bestDiff),
-			shareHash,
-			updatedBlock.Header.Version, share.Nonce, client.ID, share.Extranonce2,
-			FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
-	} else {
-		client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))
-		client.stats.sharesRejected++
-		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
+		client.submitBlock(submission)
+		client.log("{yellow}block candidate submitted")
 	}
+
+	client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
+
+	/// vanity things
+	if shareDiff > client.stats.bestDiff {
+		client.stats.bestDiff = shareDiff
+		client.log("{green}new best session diff!")
+	}
+	client.stats.sharesAccepted++
+	/// update with the target diff for a more accurate estimation
+	client.stats.update(client.TargetDifficulty)
+	client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%08x{/blue} nonce: {green}%08x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
+		FormatDifficulty(shareDiff), FormatDifficulty(client.TargetDifficulty), FormatDifficulty(client.stats.bestDiff),
+		shareHash,
+		updatedBlock.Header.Version, share.Nonce, client.ID, share.Extranonce2,
+		FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 
 	// attempt to queue a diff adjustment every `constants.SUBMISSION_DELTA_WINDOW`
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.DIFF_ADJUST_PERIOD == 0 {

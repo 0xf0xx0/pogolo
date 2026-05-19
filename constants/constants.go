@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	VERSION_ROLLING_MASK = 0x1fffe000 // bip 320 constant
+	VERSION_ROLLING_MASK = uint32(0x1fffe000) // bip 320 constant
 	EXTRANONCE_SIZE      = 4          // in bytes
 	DEFAULT_DIFFICULTY   = 1024       // for gpu, fpga, and asic miners
 	DEFAULT_COINBASE_TAG = "/pogolo - decentralize or die/"
@@ -44,6 +44,7 @@ var (
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "Not accepted"}
 	ERROR_UNK_JOB      = stratum.Error{Code: 410, Message: "Unknown job"}
+	ERROR_INV_VER      = stratum.Error{Code: 411, Message: "Invalid version"}
 	ERROR_DUPE_SHARE   = stratum.Error{Code: 412, Message: "Duplicate share"}
 	ERROR_LOW_DIFF     = stratum.Error{Code: 413, Message: "Difficulty too low"}
 	// for data we understand but couldnt process
