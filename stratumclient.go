@@ -28,12 +28,12 @@ type StratumClient struct {
 	UserAgent           string
 	TargetDifficulty    float64
 	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID
+	VersionRollingMask  uint32
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	stats               *StratumClientStats
-	ID                  stratum.ID
-	VersionRollingMask  uint32
 }
 
 // used for hashrate calc
@@ -557,9 +557,9 @@ type StratumClientStats struct {
 	currTimeSlot timeSlot
 	startTime, // time the client subscribed
 	lastSubmission time.Time // used for calcing delta between `mining.submit`s
-	avgSubmissionDelta float64 // in ms
 	sharesAccepted,
 	sharesRejected uint64
+	avgSubmissionDelta, // in ms
 	bestDiff, // session
 	hashrate float64
 }
@@ -571,11 +571,11 @@ func (stats *StratumClientStats) update(currTargetDiff float64) {
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Exponential_smoothing
 		delta := float64(now.Sub(stats.lastSubmission).Milliseconds())
-		/// start the avg calc with the furst delta, not 0
+		/// start the avg calc with the target delta, not 0
 		if stats.avgSubmissionDelta == 0 {
-			stats.avgSubmissionDelta = delta
+			stats.avgSubmissionDelta = float64(conf.Pogolo.TargetShareInterval)
 		} else {
-			// avg = smoothing*delta + (1-smoothing)*avg
+			/// avg = smoothing*delta + (1-smoothing)*avg
 			smoothing := 0.01
 			stats.avgSubmissionDelta =
 				smoothing*delta + (1-smoothing)*stats.avgSubmissionDelta
