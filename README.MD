@@ -26,7 +26,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 - 41 (probably)
 - 54
 - 310 (minus `subscribe-extranonce`)
-- 320
+- 323
 
 ## supported miners
 
