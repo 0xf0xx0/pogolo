@@ -80,10 +80,14 @@ components:
         - bestDifficulty
         - userAgent
         - extranonce1
+        - averageShareTime
       properties:
         address:
           type: string
           description: On-chain address the miner is mining to
+        averageShareTime:
+          type: number
+          description: float64 averaged share time, in seconds
         nickname:
           type: string
         uptime:
