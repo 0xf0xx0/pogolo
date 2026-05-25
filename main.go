@@ -226,11 +226,11 @@ func main() {
 			if host := cmd.String("POGOLO_HOST"); host != "" {
 				conf.Pogolo.Host = host
 			}
+
+			/// conf loading
 			if path := cmd.String("logfile"); path != "" {
 				conf.LogFile = resolvePath(path)
-			}
 
-			if conf.LogFile != "" {
 				file, err := os.Create(conf.LogFile)
 				if err != nil {
 					return err
