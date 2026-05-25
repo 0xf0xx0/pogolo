@@ -29,8 +29,6 @@ const (
 var (
 	// server errors
 
-	// internal server error
-	ERROR_INTERNAL = stratum.Error{Code: 500, Message: "Internal server error"}
 	// unknown stratum method
 	ERROR_UNK_METHOD = stratum.Error{Code: 501, Message: "Unknown method"}
 	// unsupported stratum method
