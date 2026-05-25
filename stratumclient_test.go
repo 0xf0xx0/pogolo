@@ -147,7 +147,7 @@ func TestSubmitUnkJob(t *testing.T) {
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
 	}
-	if res.Error != nil && res.Error.Code != constants.ERROR_UNK_JOB.Code {
+	if res.Error != nil && res.Error.Code != constants.ERROR_STALE.Code {
 		t.Fatalf("share submission failed, but wrong error: %s", res.Error)
 	}
 }
