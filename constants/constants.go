@@ -43,6 +43,7 @@ var (
 	ERROR_UNAUTHORIZED = stratum.Error{Code: 403, Message: "Unauthorized"}
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "Not accepted"}
+	// normal mining errors
 	ERROR_STALE        = stratum.Error{Code: 410, Message: "Stale job"}
 	ERROR_INV_VER_MASK = stratum.Error{Code: 411, Message: "Invalid version mask"}
 	ERROR_DUPE_SHARE   = stratum.Error{Code: 412, Message: "Duplicate share"}
