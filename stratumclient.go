@@ -307,7 +307,7 @@ func (client *StratumClient) Stop() {
 }
 
 // aims for the .TargetShareInterval
-func (client *StratumClient) adjustDiff() {
+func (client *StratumClient) calcNextDifficulty() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
 	}
@@ -467,7 +467,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 
 	// attempt to queue a diff adjustment every `constants.SUBMISSION_DELTA_WINDOW`
 	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.DIFF_ADJUST_PERIOD == 0 {
-		client.adjustDiff()
+		client.calcNextDifficulty()
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
