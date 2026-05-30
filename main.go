@@ -538,7 +538,7 @@ func backendRoutine(ctx context.Context) {
 				{
 					if count, err := backend.GetBlockCount(); err == nil {
 						currTemplateLock.RLock()
-						if count == currTemplate.Height {
+						if count >= currTemplate.Height {
 							log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
 
 							triggerGBT <- struct{}{}
