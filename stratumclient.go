@@ -411,19 +411,19 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 
 	shareHash := updatedBlock.Header.BlockHash()
 	shareDiff := CalcDifficulty(shareHash)
+	ntime := updatedBlock.Header.Timestamp.Unix()
+
+	if ntime < client.CurrentJob.MinTime || ntime > client.CurrentJob.MaxTime {
+		client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
+		client.stats.sharesRejected++
+		client.logError("share rejected: invalid timestamp")
+		return
+	}
 
 	if shareDiff < client.TargetDifficulty {
 		client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))
 		client.stats.sharesRejected++
 		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
-		return
-	}
-
-	timestamp := updatedBlock.Header.Timestamp.Unix()
-	if timestamp < client.CurrentJob.MinTime || timestamp > client.CurrentJob.MaxTime {
-		client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
-		client.stats.sharesRejected++
-		client.logError("share rejected: invalid timestamp")
 		return
 	}
 
