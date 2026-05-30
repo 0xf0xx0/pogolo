@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"sync"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -20,6 +21,7 @@ import (
 
 // aka gopher
 type StratumClient struct {
+	currentJobMutex     *sync.RWMutex
 	CurrentJob          MiningJob
 	conn                net.Conn
 	User                btcutil.Address
@@ -32,6 +34,7 @@ type StratumClient struct {
 	VersionRollingMask  uint32
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
+	shareHashMutex      *sync.Mutex
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	stats               *StratumClientStats
 }
@@ -338,7 +341,9 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			/// closed
 			return
 		}
+		client.currentJobMutex.Lock()
 		client.CurrentJob = client.createJob(template)
+		client.currentJobMutex.Unlock()
 		/// adjusted by vardiff
 		/// stratum spec applies diff changes to next job, so announce changes before announcing job
 		if client.SuggestedDifficulty > 0 && client.SuggestedDifficulty != client.TargetDifficulty {
@@ -387,6 +392,8 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	return nil
 }
 func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
+	client.currentJobMutex.RLock()
+	defer client.currentJobMutex.RUnlock()
 	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
 		client.stats.sharesRejected++
 		client.writeRes(m.RespondError(constants.ERROR_STALE))
@@ -435,7 +442,9 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		return
 	}
 	/// add to dupe map
+	client.shareHashMutex.Lock()
 	client.shareHashes[shareHash] = struct{}{}
+	client.shareHashMutex.Unlock()
 
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
@@ -513,6 +522,8 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		},
 	}
 	/// reset dupe share map
+	client.shareHashMutex.Lock()
+	defer client.shareHashMutex.Unlock()
 	for h := range client.shareHashes {
 		delete(client.shareHashes, h)
 	}
