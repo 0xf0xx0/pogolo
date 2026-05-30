@@ -113,7 +113,7 @@ pogolo --writedefaultconf "$XDG_CONFIG_HOME/pogolo/pogolo.toml"
 ```
 
 or, copy [`contrib/pogolo.example.toml`](./contrib/pogolo.example.toml) to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`  
-then configure the interface, backend, and auth
+then configure the interface, backend, and auth, and optionally set up the systemd unit in [`contrib/init/pogolo.service`](./contrib/init/pogolo.service)
 
 # run
 
