@@ -360,6 +360,13 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		if err != nil {
 			client.logError("error sending job: %s", err)
 		}
+
+		/// reset dupe share map
+		client.shareHashMutex.Lock()
+		for h := range client.shareHashes {
+			delete(client.shareHashes, h)
+		}
+		client.shareHashMutex.Unlock()
 	}
 }
 
@@ -501,7 +508,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	partOneIndex += len(inputScript)
 
-	job := MiningJob{
+	return MiningJob{
 		NetworkDiff:  template.NetworkDiff,
 		Block:        *block,
 		Version:      block.MsgBlock().Header.Version,
@@ -521,14 +528,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 			Clean:         true, /// we don't support multiple active jobs
 		},
 	}
-	/// reset dupe share map
-	client.shareHashMutex.Lock()
-	defer client.shareHashMutex.Unlock()
-	for h := range client.shareHashes {
-		delete(client.shareHashes, h)
-	}
-
-	return job
 }
 
 // chatter
