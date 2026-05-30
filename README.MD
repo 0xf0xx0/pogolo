@@ -34,7 +34,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 
 - 34
 - 41 (probably)
-- 54
+- 54 (coinbase, relies on a compliant backend for the rest)
 - 310 (minus `subscribe-extranonce`)
 - 323
 
