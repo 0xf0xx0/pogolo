@@ -46,6 +46,7 @@ var (
 	ERROR_INV_VER_MASK = stratum.Error{Code: 411, Message: "Invalid version mask"}
 	ERROR_DUPE_SHARE   = stratum.Error{Code: 412, Message: "Duplicate share"}
 	ERROR_LOW_DIFF     = stratum.Error{Code: 413, Message: "Difficulty too low"}
+	ERROR_BAD_TIME     = stratum.Error{Code: 414, Message: "Invalid ntime"}
 	// for data we understand but couldnt process
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}
 )

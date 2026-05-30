@@ -419,6 +419,14 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		return
 	}
 
+	timestamp := updatedBlock.Header.Timestamp.Unix()
+	if timestamp < client.CurrentJob.MinTime || timestamp > client.CurrentJob.MaxTime {
+		client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
+		client.stats.sharesRejected++
+		client.logError("share rejected: invalid timestamp")
+		return
+	}
+
 	/// check if share is dupe
 	if _, ok := client.shareHashes[shareHash]; ok {
 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
@@ -489,6 +497,8 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		Block:        *block,
 		Version:      block.MsgBlock().Header.Version,
 		MerkleBranch: template.MerkleBranch,
+		MinTime:      template.MinTime,
+		MaxTime:      template.MaxTime,
 		MiningNotifyParams: stratum.MiningNotifyParams{
 			JobID:          template.ID,
 			PrevBlockHash:  &blockHeader.PrevBlock,

@@ -30,6 +30,8 @@ type JobTemplate struct {
 	NetworkDiff  float64
 	Subsidy      int64
 	Height       int64
+	MinTime      int64
+	MaxTime      int64
 }
 type MiningJob struct {
 	stratum.MiningNotifyParams
@@ -37,6 +39,8 @@ type MiningJob struct {
 	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
 	Version      int32
+	MinTime      int64
+	MaxTime      int64
 }
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {
@@ -136,6 +140,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		NetworkDiff:  CalcNetworkDifficulty(headerBits),
 		Subsidy:      *template.CoinbaseValue,
 		Height:       template.Height,
+		/// pass min and max time through for share validation
+		MinTime: template.MinTime,
+		MaxTime: template.MaxTime,
 	}
 	return job, nil
 }
