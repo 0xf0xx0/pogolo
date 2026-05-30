@@ -14,26 +14,34 @@ RestartSec=15
 ConfigurationDirectory=pogolo
 ConfigurationDirectoryMode=0755
 
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-PrivateDevices=true
-ProtectKernelTunables=true
-ProtectControlGroups=true
-NoNewPrivileges=true
 LockPersonality=true
-ProtectHostname=true
+NoNewPrivileges=true
+MemoryDenyWriteExecute=true
+
+PrivateDevices=true
+PrivateMounts=true
+PrivateTmp=true
+PrivateUsers=true
+ProcSubset=pid
+
 ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
 ProtectKernelLogs=true
 ProtectKernelModules=true
+ProtectKernelTunables=true
 ProtectProc=invisible
-ProcSubset=pid
-PrivateMounts=true
-PrivateUsers=true
+ProtectSystem=strict
+
 RemoveIPC=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictRealtime=true
 RestrictSUIDSGID=true
+
 SystemCallArchitectures=native
+# debug for profiling
+SystemCallFilter=@basic-io @network-io @debug
 
 [Install]
 WantedBy=multi-user.target
