@@ -64,7 +64,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 
 	/// processing loop
 	/// this should be async but
-	/// 1) its annoying to implement and
+	/// 1) it complicates shutdown and
 	/// 2) theres no point imo, everything gets handled in order anyway
 	/// its fast enough
 	for reader.Scan() {
@@ -558,7 +558,6 @@ func (client *StratumClient) writeNotif(n *stratum.Notification) error {
 }
 func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
-	// client.log("{blackbright}< %s", b)
 	return err
 }
 
