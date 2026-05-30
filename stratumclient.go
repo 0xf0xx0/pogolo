@@ -427,7 +427,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	shareDiff := CalcDifficulty(shareHash)
 	ntime := updatedBlock.Header.Timestamp.Unix()
 
-	if ntime < client.CurrentJob.MinTime || ntime > client.CurrentJob.MaxTime {
+	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
 		client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
 		client.stats.sharesRejected++
 		client.logError("share rejected: invalid timestamp")
@@ -441,6 +441,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		return
 	}
 
+	client.shareHashMutex.Lock()
 	/// check if share is dupe
 	if _, ok := client.shareHashes[shareHash]; ok {
 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
@@ -449,7 +450,6 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		return
 	}
 	/// add to dupe map
-	client.shareHashMutex.Lock()
 	client.shareHashes[shareHash] = struct{}{}
 	client.shareHashMutex.Unlock()
 
@@ -648,12 +648,14 @@ func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDif
 // clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
 	client := StratumClient{
-		ID:             ClientIDHash(conn.RemoteAddr().String()),
-		stats:          &StratumClientStats{},
-		conn:           conn,
-		templateChan:   make(chan *JobTemplate),
-		submissionChan: submissionChannel,
-		shareHashes:    make(map[chainhash.Hash]struct{}, 15),
+		ID:              ClientIDHash(conn.RemoteAddr().String()),
+		stats:           &StratumClientStats{},
+		conn:            conn,
+		templateChan:    make(chan *JobTemplate),
+		submissionChan:  submissionChannel,
+		shareHashes:     make(map[chainhash.Hash]struct{}, 15),
+		currentJobMutex: &sync.RWMutex{},
+		shareHashMutex:  &sync.Mutex{},
 	}
 	return client
 }
