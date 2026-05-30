@@ -12,7 +12,17 @@ start it, point your miners to it, and watch the logs roll by
 
 _want a go pool you can run on the public internet? check out https://github.com/Distortions81/M45-Core-goPool!_
 
-## features
+
+- [features](#features)
+- [install](#install)
+    - [umbrel](#umbrel)
+    - [docker](#docker)
+    - [go](#go)
+    - [manual install](#manual-install)
+- [configure](#configure)
+
+
+# features
 
 - up to 4.3-5.2k shares/sec/client
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
@@ -20,7 +30,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 - colorful and detailed logs (respects NO_COLOR)
 - api (see api.go and swagger spec)
 
-## supported BIPs
+# supported BIPs
 
 - 34
 - 41 (probably)
@@ -28,30 +38,35 @@ _want a go pool you can run on the public internet? check out https://github.com
 - 310 (minus `subscribe-extranonce`)
 - 323
 
-## supported miners
+# supported miners
 
 - \*axe family (bitaxe, nerd\*axe, etc)
 - cpuminer
 - antminers
 
-## supported backends
+# supported backends
 
 pogolo has no tls support.
 
 - JSON-RPC (core, knots, etc)
 - btcd websocket
 
-## unsupported
+# unsupported
 
 - miners requiring extranonce.subscribe
 - luckyminers/other non-foss axe clones
 - stratum v2
 
-# setup
+# install
+
+## umbrel
+
+get pogolo from the umbrel app store: https://apps.umbrel.com/app/pogolo  
+then point your miners to stratum+tcp://umbrel.local:5661
 
 ## docker
 
-pogolo image at https://hub.docker.com/r/0xf0xx0/pogolo
+image at https://hub.docker.com/r/0xf0xx0/pogolo
 
 copy the pogolo.toml from [`contrib/pkgs/docker`](./contrib/pkgs/docker), configure it to your needs, then run
 
@@ -90,7 +105,7 @@ go build -trimpath -ldflags="-s -w -buildid="
 go install
 ```
 
-### configure
+# configure
 
 ```sh
 mkdir "$XDG_CONFIG_HOME/pogolo"
@@ -100,30 +115,30 @@ pogolo --writedefaultconf "$XDG_CONFIG_HOME/pogolo/pogolo.toml"
 or, copy [`contrib/pogolo.example.toml`](./contrib/pogolo.example.toml) to `$XDG_CONFIG_HOME/pogolo/pogolo.toml`  
 then configure the interface, backend, and auth
 
-### run
+# run
 
 ```sh
 pogolo
 ```
 
-## miner config
+# miner config
 
 host: stratum+tcp://\<your lan ip\>:5661  
-username: <your onchain address>[.<worker name>]  
+username: \<your onchain address\>[.\<worker name\>]  
 password: [required if set in pogolo.toml]  
 suggested diff: [optional]
 
 the onchain address is also optional if the pool has a default configured.  
 stale jobs are normal, the expected error rate is 0.2%.
 
-## benchmarking
+# benchmarking
 
 to reproduce shares/s result:
 
 1. set `benchmark = true` in your config
-2. connect with cpuminer (preferably from a different machine) and watch the shares fly
+2. connect with cpuminer and watch the shares fly
 
-## TODO
+# TODO
 
 - link stratum and mining docs  
    waiting for bip 41  
