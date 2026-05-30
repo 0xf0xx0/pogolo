@@ -341,11 +341,16 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			/// closed
 			return
 		}
+
 		client.currentJobMutex.Lock()
 		client.CurrentJob = client.createJob(template)
 		client.currentJobMutex.Unlock()
-		/// adjusted by vardiff
-		/// stratum spec applies diff changes to next job, so announce changes before announcing job
+
+		/// vardiff
+		if !conf.Pogolo.DisableVarDiff {
+			client.calcNextDifficulty()
+		}
+		/// stratum spec applies diff changes to next job, so announce diff before announcing job
 		if client.SuggestedDifficulty > 0 && client.SuggestedDifficulty != client.TargetDifficulty {
 			if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
 				if errors.Is(err, net.ErrClosed) {
@@ -356,7 +361,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			}
 			client.log("adjusting share target to {blue}%g", client.SuggestedDifficulty)
 		}
-		err := client.writeNotif(client.CurrentJob.MiningNotifyParams.ToNotification())
+
+		err := client.writeNotif(client.CurrentJob.ToNotification())
 		if err != nil {
 			client.logError("error sending job: %s", err)
 		}
@@ -480,11 +486,6 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		shareHash,
 		updatedBlock.Header.Version, share.Nonce, client.ID, share.Extranonce2,
 		FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
-
-	// attempt to queue a diff adjustment every `constants.SUBMISSION_DELTA_WINDOW`
-	if !conf.Pogolo.DisableVarDiff && (client.stats.sharesAccepted+client.stats.sharesRejected)%constants.DIFF_ADJUST_PERIOD == 0 {
-		client.calcNextDifficulty()
-	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	block := btcutil.NewBlock(template.MsgBlock.Copy())
