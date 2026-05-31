@@ -146,4 +146,5 @@ to reproduce shares/s result:
 - completion (urfave is bugged)
 - option to add workername to coinbase scriptsig?
 - zmq for block notifs?
+- block submission metrics? prolly only if i decide to do prometheus
 - aur packages (in progress)
