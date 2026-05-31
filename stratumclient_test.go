@@ -232,7 +232,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 
 // flip suggDiff to true to drop the diff to 0.16
 func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
-	lpipe, _, _ := initClient()
+	lpipe, c, _ := initClient()
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendReqAndWaitForRes(t, configureReq, lpipe)
 	if suggDiff {
@@ -245,5 +245,7 @@ func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
 	/// notify
 	readPipe(t, lpipe)
 
+	c.CurrentJob.MinTime = 0
+	c.CurrentJob.MaxTime = 0
 	return lpipe
 }
