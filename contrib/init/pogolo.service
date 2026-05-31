@@ -16,7 +16,6 @@ ConfigurationDirectoryMode=0755
 
 LockPersonality=true
 NoNewPrivileges=true
-MemoryDenyWriteExecute=true
 
 PrivateDevices=true
 PrivateMounts=true
@@ -35,13 +34,10 @@ ProtectProc=invisible
 ProtectSystem=strict
 
 RemoveIPC=true
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictRealtime=true
 RestrictSUIDSGID=true
 
 SystemCallArchitectures=native
-# debug for profiling
-SystemCallFilter=@basic-io @network-io @debug
 
 [Install]
 WantedBy=multi-user.target
