@@ -5,7 +5,7 @@ StartLimitIntervalSec=30
 StartLimitBurst=5
 
 [Service]
-ExecStart=/usr/local/bin/pogolo --conf /etc/pogolo/pogolo.toml
+ExecStart=pogolo --conf /etc/pogolo/pogolo.toml
 TimeoutStopSec=5
 Restart=on-failure
 RestartSec=15
