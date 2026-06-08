@@ -81,6 +81,7 @@ components:
         - userAgent
         - extranonce1
         - averageShareTime
+        - protocolVersion
       properties:
         address:
           type: string
@@ -108,6 +109,9 @@ components:
           type: string
         extranonce1:
           type: string
+        protocolVersion:
+          type: number
+          description: either 1 for SV1, or 2 for SV2
 
 paths:
   /api/v1/info:

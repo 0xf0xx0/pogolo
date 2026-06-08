@@ -13,17 +13,18 @@ const API_PFX = "/api"
 const API_VER = 1
 
 type detailedWorkerInfo struct {
-	Address        string  `json:"address"`
-	Nickname       string  `json:"nickname"`
-	UserAgent      string  `json:"userAgent"`
-	Extranonce1    string  `json:"extranonce1"`
-	Uptime         uint64  `json:"uptime"`
-	AcceptedShares uint64  `json:"sharesAccepted"`
-	RejectedShares uint64  `json:"sharesRejected"`
-	Hashrate       float64 `json:"hashrate"`
-	TargetDiff     float64 `json:"targetDifficulty"`
-	BestDiff       float64 `json:"bestDifficulty"`
-	AvgShareTime   float64 `json:"averageShareTime"`
+	Address         string  `json:"address"`
+	Nickname        string  `json:"nickname"`
+	UserAgent       string  `json:"userAgent"`
+	Extranonce1     string  `json:"extranonce1"`
+	Uptime          uint64  `json:"uptime"`
+	AcceptedShares  uint64  `json:"sharesAccepted"`
+	RejectedShares  uint64  `json:"sharesRejected"`
+	Hashrate        float64 `json:"hashrate"`
+	TargetDiff      float64 `json:"targetDifficulty"`
+	BestDiff        float64 `json:"bestDifficulty"`
+	AvgShareTime    float64 `json:"averageShareTime"`
+	ProtocolVersion uint8   `json:"protocolVersion"`
 }
 
 // only the neccesary details
@@ -108,17 +109,18 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	}
 
 	info := detailedWorkerInfo{
-		Address:        worker.User.EncodeAddress(),
-		Nickname:       worker.Nickname,
-		UserAgent:      worker.UserAgent,
-		Extranonce1:    worker.ID.String(),
-		Hashrate:       worker.stats.HashrateMH(),
-		TargetDiff:     worker.TargetDifficulty,
-		BestDiff:       worker.stats.bestDiff,
-		AcceptedShares: worker.stats.sharesAccepted,
-		RejectedShares: worker.stats.sharesRejected,
-		Uptime:         worker.stats.Uptime(),
-		AvgShareTime:   worker.stats.avgSubmissionDelta,
+		Address:         worker.User.EncodeAddress(),
+		Nickname:        worker.Nickname,
+		UserAgent:       worker.UserAgent,
+		Extranonce1:     worker.ID.String(),
+		Hashrate:        worker.stats.HashrateMH(),
+		TargetDiff:      worker.TargetDifficulty,
+		BestDiff:        worker.stats.bestDiff,
+		AcceptedShares:  worker.stats.sharesAccepted,
+		RejectedShares:  worker.stats.sharesRejected,
+		Uptime:          worker.stats.Uptime(),
+		AvgShareTime:    worker.stats.avgSubmissionDelta,
+		ProtocolVersion: 1,
 	}
 	marshalAndWrite(res, info)
 }
