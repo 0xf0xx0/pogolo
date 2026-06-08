@@ -14,15 +14,15 @@ const API_VER = 1
 
 type detailedWorkerInfo struct {
 	Address         string  `json:"address"`
+	Extranonce1     string  `json:"extranonce1"`
 	Nickname        string  `json:"nickname"`
 	UserAgent       string  `json:"userAgent"`
-	Extranonce1     string  `json:"extranonce1"`
-	Uptime          uint64  `json:"uptime"`
 	AcceptedShares  uint64  `json:"sharesAccepted"`
 	RejectedShares  uint64  `json:"sharesRejected"`
 	Hashrate        float64 `json:"hashrate"`
-	TargetDiff      float64 `json:"targetDifficulty"`
 	BestDiff        float64 `json:"bestDifficulty"`
+	TargetDiff      float64 `json:"targetDifficulty"`
+	Uptime          uint64  `json:"uptime"`
 	AvgShareTime    float64 `json:"averageShareTime"`
 	ProtocolVersion uint8   `json:"protocolVersion"`
 }

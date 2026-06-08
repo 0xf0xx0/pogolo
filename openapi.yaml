@@ -71,17 +71,17 @@ components:
       type: object
       required:
         - address
+        - averageShareTime
+        - bestDifficulty
+        - extranonce1
+        - hashrate
         - nickname
-        - uptime
+        - protocolVersion
         - sharesAccepted
         - sharesRejected
-        - hashrate
         - targetDifficulty
-        - bestDifficulty
+        - uptime
         - userAgent
-        - extranonce1
-        - averageShareTime
-        - protocolVersion
       properties:
         address:
           type: string
@@ -89,29 +89,29 @@ components:
         averageShareTime:
           type: number
           description: float64 averaged share time, in seconds
-        nickname:
+        bestDifficulty:
+          type: number
+        extranonce1:
           type: string
-        uptime:
-          type: integer
-          description: In seconds
-        sharesAccepted:
-          type: integer
-        sharesRejected:
-          type: integer
         hashrate:
           type: number
           description: In MH/s
-        targetDifficulty:
-          type: number
-        bestDifficulty:
-          type: number
-        userAgent:
-          type: string
-        extranonce1:
+        nickname:
           type: string
         protocolVersion:
           type: number
           description: either 1 for SV1, or 2 for SV2
+        sharesAccepted:
+          type: integer
+        sharesRejected:
+          type: integer
+        targetDifficulty:
+          type: number
+        uptime:
+          type: integer
+          description: In seconds
+        userAgent:
+          type: string
 
 paths:
   /api/v1/info:
