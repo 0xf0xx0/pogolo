@@ -342,9 +342,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			return
 		}
 
-		client.currentJobMutex.Lock()
-		client.CurrentJob = client.createJob(template)
-		client.currentJobMutex.Unlock()
+		newJob := client.createJob(template)
 
 		/// vardiff
 		if !conf.Pogolo.DisableVarDiff {
@@ -362,7 +360,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			client.log("adjusting share target to {blue}%g", client.SuggestedDifficulty)
 		}
 
-		err := client.writeNotif(client.CurrentJob.ToNotification())
+		err := client.writeNotif(newJob.ToNotification())
 		if err != nil {
 			client.logError("error sending job: %s", err)
 		}
@@ -373,6 +371,10 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			delete(client.shareHashes, h)
 		}
 		client.shareHashMutex.Unlock()
+		/// store new job
+		client.currentJobMutex.Lock()
+		client.CurrentJob = newJob
+		client.currentJobMutex.Unlock()
 	}
 }
 
