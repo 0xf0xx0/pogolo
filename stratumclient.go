@@ -70,13 +70,12 @@ func (client *StratumClient) Run(ctx context.Context) {
 	if err != nil {
 		return
 	}
-	if b[0] == '{' {
+	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
 		client.protocol = 1
 		client.processSv1Loop(ctx)
 	} else {
-		return
-		// client.protocol = 2
-		// client.processSv2Loop(ctx)
+		client.protocol = 2
+		client.processSv2Loop(ctx)
 	}
 }
 
@@ -92,13 +91,36 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 			return
 		default:
 		}
+
 		frame := stratumv2.Frame{}
-		if err = frame.DecodeFromReader(client.conn); err != nil {
+		switch err := frame.DecodeFromReader(client.conn); err {
+		case io.ErrClosedPipe:
+		case io.EOF:
+			return
+		case nil:
+		default:
 			client.logError("failed to read frame: %s", err)
-			continue
 		}
 
 		switch frame.MessageType {
+		case stratumv2.MethodSubmitSharesStandard:
+			{
+				share := stratumv2.SubmitSharesStandard{}
+				if err = share.Decode(frame.Payload); err != nil {
+					client.logError("error decoding SubmitSharesStandard: %s", err)
+					break
+				}
+				client.validateSv2ShareSubmission(&share)
+			}
+		case stratumv2.MethodSubmitSharesExtended:
+			{
+				share := stratumv2.SubmitSharesExtended{}
+				if err = share.Decode(frame.Payload); err != nil {
+					client.logError("error decoding SubmitSharesExtended: %s", err)
+					break
+				}
+				client.validateSv2ShareSubmission(&share)
+			}
 		case stratumv2.MethodSetupConnection:
 			{
 				if setupReceived {
@@ -134,6 +156,51 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 					Flags: msg.Flags,
 				})
 				setupReceived = true
+			}
+		case stratumv2.MethodOpenStandardMiningChannel:
+			{
+				if channelOpened {
+					client.logError("mining channel already open")
+				}
+				msg := stratumv2.OpenStandardMiningChannel{}
+				if err = msg.Decode(frame.Payload); err != nil {
+					client.logError("error decoding OpenStandardMiningChannel: %s", err)
+					break
+				}
+
+				/// TODO: validate
+				client.SuggestedDifficulty = CalcDifficulty(msg.MaxTarget)
+				client.stats.hashrate = float64(msg.NominalHashRate)
+
+				split := strings.Split(msg.UserIdentity, ".")
+				if len(split) > 1 {
+					client.Nickname = split[1]
+				}
+				decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+				if err != nil {
+					if defaultMiningAddr == nil {
+						client.logError("failed decoding address: %s", err)
+						client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+							RequestID: msg.RequestID,
+							ErrorCode: stratumv2.UnknownUserError,
+						})
+						return
+					}
+					/// assume just the workername was passed
+					if split[0] != "" {
+						client.Nickname = split[0]
+					}
+					decoded = *defaultMiningAddr
+				}
+				client.User = decoded
+
+				client.writeSv2Res(&stratumv2.OpenStandardMiningChannelSuccess{
+					RequestID:        msg.RequestID,
+					ChannelID:        uint32(client.ID),
+					Target:           msg.MaxTarget,
+					ExtranoncePrefix: client.ID.Bytes(),
+				})
+				channelOpened = true
 			}
 		case stratumv2.MethodOpenExtendedMiningChannel:
 			{
@@ -182,6 +249,15 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 					ExtranonceSize: uint16(conf.Pogolo.ExtraNonce2Size),
 				})
 				channelOpened = true
+			}
+		case stratumv2.MethodCloseChannel:
+			{
+				msg := stratumv2.CloseChannel{}
+				if err = msg.Decode(frame.Payload); err != nil {
+					client.logError("error decoding CloseChannel: %s", err)
+					return
+				}
+				return
 			}
 		}
 
@@ -234,7 +310,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context) {
 					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
-				client.validateShareSubmission(s, m)
+				client.validateSv1ShareSubmission(s, m)
 			}
 		case stratum.MethodMiningConfigure:
 			{
@@ -548,7 +624,8 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	client.TargetDifficulty = newDiff
 	return nil
 }
-func (client *StratumClient) validateShareSubmission(share stratum.Share, m *stratum.Request) {
+
+func (client *StratumClient) validateSv1ShareSubmission(share stratum.Share, m *stratum.Request) {
 	client.currentJobMutex.RLock()
 	defer client.currentJobMutex.RUnlock()
 	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
@@ -641,6 +718,12 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		updatedHeader.Version, share.Nonce, client.ID, share.Extranonce2,
 		formatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 }
+
+func (client *StratumClient) validateSv2ShareSubmission(share stratumv2.Codable) {
+	client.currentJobMutex.RLock()
+	defer client.currentJobMutex.RUnlock()
+}
+
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	block := btcutil.NewBlock(template.MsgBlock.Copy())
 	blockHeader := block.MsgBlock().Header
