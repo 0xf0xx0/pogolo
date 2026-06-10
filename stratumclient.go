@@ -412,7 +412,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
 		client.stats.sharesRejected++
 		client.writeRes(m.RespondError(constants.ERROR_STALE))
-		client.logError("share rejected: stale/unknown job")
+		client.logError("share rejected: stale job")
 		return
 	}
 	if share.VersionMask & ^constants.VERSION_ROLLING_MASK != 0 {
