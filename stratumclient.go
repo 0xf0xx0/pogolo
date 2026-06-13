@@ -18,6 +18,7 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 )
 
 // aka gopher
@@ -47,7 +48,8 @@ type timeSlot struct {
 }
 
 type blockSubmission struct {
-	Block    *btcutil.Block
+	Header   wire.BlockHeader
+	Coinbase *wire.MsgTx
 	Share    *stratum.Share
 	ClientID stratum.ID // for lookup in client map
 }
@@ -433,16 +435,16 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedBlock, err := client.CurrentJob.UpdateBlock(client.ID, share, client.CurrentJob.MiningNotifyParams)
+	updatedHeader, err := client.CurrentJob.UpdateHeader(client.ID, share, client.CurrentJob.MiningNotifyParams)
 	if err != nil {
 		client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 		client.logError(err.Error())
 		return
 	}
 
-	shareHash := updatedBlock.Header.BlockHash()
+	shareHash := updatedHeader.BlockHash()
 	shareDiff := calcDifficulty(shareHash)
-	ntime := updatedBlock.Header.Timestamp.Unix()
+	ntime := updatedHeader.Timestamp.Unix()
 
 	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
 		client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
@@ -475,7 +477,8 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 		/// !!! block! dont say ANYTHING until after submitted
 		submission := blockSubmission{
 			ClientID: client.ID,
-			Block:    btcutil.NewBlock(updatedBlock),
+			Header:   client.CurrentJob.Header,
+			Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
 			Share:    &share,
 		}
 
@@ -496,7 +499,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%08x{/blue} nonce: {green}%08x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
 		formatDifficulty(shareDiff), formatDifficulty(client.TargetDifficulty), formatDifficulty(client.stats.bestDiff),
 		shareHash,
-		updatedBlock.Header.Version, share.Nonce, client.ID, share.Extranonce2,
+		updatedHeader.Version, share.Nonce, client.ID, share.Extranonce2,
 		formatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
@@ -509,7 +512,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	coinbaseTx := fillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
-
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
 
@@ -522,12 +524,13 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	return MiningJob{
-		NetworkDiff:  template.NetworkDiff,
-		Block:        *block,
-		Version:      block.MsgBlock().Header.Version,
+		Header:       blockHeader,
+		CoinbaseTx:   coinbaseTx,
+		Version:      blockHeader.Version,
 		MerkleBranch: template.MerkleBranch,
 		MinTime:      template.MinTime,
 		MaxTime:      template.MaxTime,
+		NetworkDiff:  template.NetworkDiff,
 		MiningNotifyParams: stratum.MiningNotifyParams{
 			JobID:          template.ID,
 			PrevBlockHash:  &blockHeader.PrevBlock,

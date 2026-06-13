@@ -80,21 +80,21 @@ func TestUpdateBlock(t *testing.T) {
 
 	tml, _ := CreateJobTemplate(template)
 	job := client.createJob(tml)
-	blk, err := job.UpdateBlock(client.ID, submitParams, notifyParams)
+	hdr, err := job.UpdateHeader(client.ID, submitParams, notifyParams)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	shareDiff := calcDifficulty(blk.Header.BlockHash())
+	shareDiff := calcDifficulty(hdr.BlockHash())
 	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
 		return
 	}
 
 	serializedHeader := bytes.NewBuffer([]byte{})
-	blk.Header.Serialize(serializedHeader)
+	hdr.Serialize(serializedHeader)
 	t.Logf("sharediff: %g", shareDiff)
 	t.Logf("header: %s", hex.EncodeToString(serializedHeader.Bytes()))
-	t.Logf("hash: %s", blk.BlockHash())
+	t.Logf("hash: %s", hdr.BlockHash())
 }

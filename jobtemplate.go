@@ -35,7 +35,8 @@ type JobTemplate struct {
 }
 type MiningJob struct {
 	stratum.MiningNotifyParams
-	Block        btcutil.Block
+	Header       wire.BlockHeader
+	CoinbaseTx   *btcutil.Tx
 	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
 	Version      int32
@@ -148,16 +149,13 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 }
 
 // like public-pools copyAndUpdateBlock without the copy
-func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stratum.MiningNotifyParams) (*wire.MsgBlock, error) {
-	/// because we copied the block from the template when making the job, we can just reuse it
-	msgBlock := job.Block.MsgBlock()
-
+func (job *MiningJob) UpdateHeader(id stratum.ID, share stratum.Share, notif stratum.MiningNotifyParams) (wire.BlockHeader, error) {
 	if len(share.Extranonce2) != int(conf.Pogolo.ExtraNonce2Size) {
-		return nil, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
+		return wire.BlockHeader{}, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
 	}
 
 	/// mutate the coinbase script with the client id and extranonce2
-	coinbaseMsgTx := msgBlock.Transactions[0]
+	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
 	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
 	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
 		len(sigscript)-(constants.EXTRANONCE_SIZE+int(conf.Pogolo.ExtraNonce2Size)),
@@ -166,16 +164,16 @@ func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stra
 	)
 
 	/// update the header
-	msgBlock.Header.Nonce = share.Nonce
-	msgBlock.Header.Version = job.Version + int32(share.VersionMask)
-	msgBlock.Header.Timestamp = time.Unix(int64(share.Time), 0)
+	job.Header.Nonce = share.Nonce
+	job.Header.Version = job.Version + int32(share.VersionMask)
+	job.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	/// coinbase was changed, thus recalc the root
 	coinbaseTx := btcutil.NewTx(coinbaseMsgTx)
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
 	branches[0] = coinbaseTx.Hash()
 	branches = append(branches, job.MerkleBranch...)
-	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
+	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
-	return msgBlock, nil
+	return job.Header, nil
 }

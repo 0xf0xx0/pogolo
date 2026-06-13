@@ -576,13 +576,18 @@ func backendRoutine(ctx context.Context) {
 				}
 			case submission := <-submissionChan:
 				{
-					err := backend.SubmitBlock(submission.Block, nil)
+					block := btcutil.NewBlock(currTemplate.MsgBlock.Copy())
+					msgBlock := block.MsgBlock()
+					msgBlock.Header = submission.Header
+					msgBlock.Transactions[0] = submission.Coinbase
+
+					err := backend.SubmitBlock(block, nil)
 					if err != nil {
 						logError(fmt.Sprintf("error from backend while submitting block: %s", err))
 						continue
 					}
 					client, _ := clients.Get(submission.ClientID)
-					shareHash := submission.Block.MsgBlock().Header.BlockHash()
+					shareHash := msgBlock.Header.BlockHash()
 					shareDiff := calcDifficulty(shareHash)
 					foundBlocks = append(foundBlocks, shareHash.String())
 					log(fmt.Sprintf(
