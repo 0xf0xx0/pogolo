@@ -662,7 +662,7 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) Strat
 		ID:              ClientIDHash(conn.RemoteAddr().String()),
 		stats:           &StratumClientStats{},
 		conn:            conn,
-		templateChan:    make(chan *JobTemplate),
+		templateChan:    make(chan *JobTemplate, 1),
 		submissionChan:  submissionChannel,
 		shareHashes:     make(map[chainhash.Hash]struct{}, 15),
 		currentJobMutex: &sync.RWMutex{},

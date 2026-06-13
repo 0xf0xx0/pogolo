@@ -603,51 +603,11 @@ func backendRoutine(ctx context.Context) {
 		}
 	}()
 
+	// trigger initial job template fetch
+	triggerGBT <- struct{}{}
+
 	/// main gbt loop
 	for {
-		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
-			Rules:        []string{"segwit"}, /// required by gbt
-			Capabilities: []string{"proposal", "coinbasevalue" /* "longpoll" */},
-			Mode:         "template",
-			// LongPollID:   longpollid,
-		})
-		if err != nil {
-			logError(fmt.Sprintf("error fetching template: %s", err))
-
-			select {
-			case <-ctx.Done():
-				{
-					return
-				}
-			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
-			}
-
-			continue
-		}
-
-		/// save longpoll id
-		// longpollid = template.LongPollID
-
-		jobTemplate, err := CreateJobTemplate(template)
-		if err != nil {
-			logError(fmt.Sprintf("error making job template: %s", err.Error()))
-
-			select {
-			case <-ctx.Done():
-				{
-					return
-				}
-			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
-			}
-
-			continue
-		}
-		currTemplateLock.Lock()
-		currTemplate = jobTemplate
-		currTemplateLock.Unlock()
-		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
-		/// this gets shipped to each StratumClient to become a full MiningJob
-		go notifyClients() /// this might take a while
 		select {
 		case <-ctx.Done():
 			{
@@ -657,6 +617,32 @@ func backendRoutine(ctx context.Context) {
 		/// shortcircuit
 		case <-triggerGBT:
 		}
+
+		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
+			Rules:        []string{"segwit"}, /// required by gbt
+			Capabilities: []string{"proposal", "coinbasevalue" /* "longpoll" */},
+			Mode:         "template",
+			// LongPollID:   longpollid,
+		})
+		if err != nil {
+			logError(fmt.Sprintf("error fetching template: %s", err))
+			continue
+		}
+
+		/// save longpoll id
+		// longpollid = template.LongPollID
+
+		jobTemplate, err := CreateJobTemplate(template)
+		if err != nil {
+			logError(fmt.Sprintf("error making job template: %s", err.Error()))
+			continue
+		}
+		currTemplateLock.Lock()
+		currTemplate = jobTemplate
+		currTemplateLock.Unlock()
+		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		/// this gets shipped to each StratumClient to become a full MiningJob
+		go notifyClients() /// this might take a while
 	}
 }
 
