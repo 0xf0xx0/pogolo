@@ -41,11 +41,12 @@ var (
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "Not accepted"}
 	// normal mining errors
-	ERROR_STALE        = stratum.Error{Code: 410, Message: "Stale job"}
-	ERROR_INV_VER_MASK = stratum.Error{Code: 411, Message: "Invalid version mask"}
-	ERROR_DUPE_SHARE   = stratum.Error{Code: 412, Message: "Duplicate share"}
-	ERROR_LOW_DIFF     = stratum.Error{Code: 413, Message: "Difficulty too low"}
-	ERROR_BAD_TIME     = stratum.Error{Code: 414, Message: "Invalid ntime"}
+	ERROR_STALE              = stratum.Error{Code: 410, Message: "Stale job"}
+	ERROR_SHARE_BETWEEN_JOBS = stratum.Error{Code: 411, Message: "Share submitted during job change"}
+	ERROR_INV_VER_MASK       = stratum.Error{Code: 412, Message: "Invalid version mask"}
+	ERROR_DUPE_SHARE         = stratum.Error{Code: 413, Message: "Duplicate share"}
+	ERROR_LOW_DIFF           = stratum.Error{Code: 414, Message: "Difficulty too low"}
+	ERROR_BAD_TIME           = stratum.Error{Code: 415, Message: "Invalid ntime"}
 	// for data we understand but couldnt process
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}
 )

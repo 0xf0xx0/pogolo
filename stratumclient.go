@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -410,11 +411,19 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	client.currentJobMutex.RLock()
 	defer client.currentJobMutex.RUnlock()
 	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
+		prevJobID, _ := strconv.ParseUint(client.CurrentJob.MiningNotifyParams.JobID, 16, 64)
+		if share.JobID == strconv.FormatUint(prevJobID-1, 16) {
+			client.logError("share submitted during job change")
+			client.stats.sharesRejected++
+			client.writeRes(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
+			return
+		}
 		client.stats.sharesRejected++
 		client.writeRes(m.RespondError(constants.ERROR_STALE))
 		client.logError("share rejected: stale job")
 		return
 	}
+
 	if share.VersionMask & ^constants.VERSION_ROLLING_MASK != 0 {
 		client.stats.sharesRejected++
 		client.writeRes(m.RespondError(constants.ERROR_INV_VER_MASK))
