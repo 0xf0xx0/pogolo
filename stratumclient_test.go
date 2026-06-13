@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"testing"
+	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
@@ -112,6 +113,9 @@ func TestInitSequence(t *testing.T) {
 	readPipe(t, lpipe)
 	/// notify
 	readPipe(t, lpipe)
+
+	/// WHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+	time.Sleep(time.Millisecond)
 
 	if client.CurrentJob.PrevBlockHash == nil {
 		t.Fatal("job wasnt created, did init fail?")
@@ -244,6 +248,8 @@ func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
 	readPipe(t, lpipe)
 	/// notify
 	readPipe(t, lpipe)
+
+	time.Sleep(time.Millisecond)
 
 	c.CurrentJob.MinTime = 0
 	c.CurrentJob.MaxTime = 0
