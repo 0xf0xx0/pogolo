@@ -447,7 +447,7 @@ func startup(rootCtx context.Context) error {
 
 	log("\n{yellow}stopping")
 	if conf.Benchmarking {
-		log(fmt.Sprintf("total shares/s: %f", totalSharesPerSec))
+		println(fmt.Sprintf("total shares/s: %f", totalSharesPerSec))
 	}
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"math"
-	"math/big"
 	"math/rand/v2"
 	"slices"
 	"strconv"
@@ -155,10 +154,45 @@ func fillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 	return coinbase
 }
 
-// port of public-pools calculateDifficulty
+// shamelessly stolen from m45core lol
+// faster diff calc
 func calcDifficulty(hash chainhash.Hash) float64 {
-	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hash))
-	diff, _ := s64.Quo(constants.TrueDiff1, s64).Float64()
+	x := math.Pow(2, 208) * 65535
+	msb := -1
+	for i := len(hash) - 1; i >= 0; i-- {
+		if hash[i] != 0 {
+			msb = i
+			break
+		}
+	}
+	if msb < 0 {
+		return x
+	}
+
+	var top uint64
+	for j := range 8 {
+		idx := msb - j
+		var b byte
+		if idx >= 0 {
+			b = hash[idx]
+		}
+		top = (top << 8) | uint64(b)
+	}
+	if top == 0 {
+		return x
+	}
+
+	// For msb==31 we used bytes [31..24], leaving 24 bytes below => exponentBits=192.
+	exponentBits := 8 * (msb - 7)
+
+	// diff = (65535 / top) * 2^(208 - exponentBits)
+	diff := math.Ldexp(65535.0/float64(top), 208-exponentBits)
+	if diff <= 0 || math.IsNaN(diff) {
+		return x
+	}
+	if math.IsInf(diff, 0) {
+		return math.MaxFloat64
+	}
 	return diff
 }
 

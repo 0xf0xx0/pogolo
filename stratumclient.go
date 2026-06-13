@@ -306,7 +306,7 @@ func (client *StratumClient) Stop() {
 	if conf.Benchmarking {
 		sharesPS := float64(client.stats.sharesAccepted) / float64(client.stats.Uptime())
 		totalSharesPerSec += sharesPS
-		log(fmt.Sprintf("shares/s: %f", sharesPS))
+		println(fmt.Sprintf("shares/s: %f", sharesPS))
 	}
 }
 
