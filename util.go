@@ -62,7 +62,7 @@ func (m *clientMap) All() []*StratumClient {
 	return ret
 }
 
-func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
+func decodeStratumMessage(msg []byte) (*stratum.Request, error) {
 	var m stratum.Request
 	if err := m.Unmarshal(msg); err != nil {
 		return nil, err
@@ -72,20 +72,20 @@ func DecodeStratumMessage(msg []byte) (*stratum.Request, error) {
 
 // we dont need to do error handling here, this is only used to serialize the coinbase
 // (without the witness)
-func SerializeCoinbaseTx(tx *wire.MsgTx) []byte {
+func serializeCoinbaseTx(tx *wire.MsgTx) []byte {
 	serializedTx := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
 	tx.SerializeNoWitness(serializedTx)
 	return serializedTx.Bytes()
 }
 
 // hashes client ip address+port for no reason other than being different
-func ClientIDHash(addr string) stratum.ID {
+func clientIDHash(addr string) stratum.ID {
 	/// randomly pick between upper and lower 32 for double the extranonce1s
 	return stratum.ID(xxh3.HashString(addr) >> (rand.N(2) * 32))
 }
 
 // placeholder tx, filled by clients
-func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx, error) {
+func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx, error) {
 	height := template.Height
 	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
 
@@ -137,7 +137,7 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
-func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
+func fillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
 
@@ -156,14 +156,14 @@ func FillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 }
 
 // port of public-pools calculateDifficulty
-func CalcDifficulty(hash chainhash.Hash) float64 {
+func calcDifficulty(hash chainhash.Hash) float64 {
 	s64 := new(big.Float).SetInt(blockchain.HashToBig(&hash))
 	diff, _ := s64.Quo(constants.TrueDiff1, s64).Float64()
 	return diff
 }
 
 // port of public-pools calculateNetworkDifficulty
-func CalcNetworkDifficulty(nBits uint32) float64 {
+func calcNetworkDifficulty(nBits uint32) float64 {
 	maxTarget := math.Pow(2, 208) * 65535
 	/// unpack the target from the compact nBits
 	mantissa := float64(nBits & 0x007fffff)
@@ -173,7 +173,7 @@ func CalcNetworkDifficulty(nBits uint32) float64 {
 	return maxTarget / target
 }
 
-func MerkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
+func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	root := branches[0]
 	/// optimization: reuse array to store the combined hashes
 	/// instead of creating a new one every time
@@ -185,7 +185,7 @@ func MerkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	}
 	return root
 }
-func BuildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
+func buildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
 	index := slices.Index(tree, leaf)
 
 	if index == -1 {
@@ -281,7 +281,7 @@ func parseUserAgent(ua string) string {
 }
 
 // pretty-print difficulty
-func FormatDifficulty(value float64) string {
+func formatDifficulty(value float64) string {
 	unit := ""
 	if value >= 1e15 {
 		unit = "P"
@@ -304,7 +304,7 @@ func FormatDifficulty(value float64) string {
 }
 
 // takes MH/s
-func FormatHashrate(value float64) string {
+func formatHashrate(value float64) string {
 	unit := "M"
 	if value > 1e9 {
 		value /= 1e9

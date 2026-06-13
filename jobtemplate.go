@@ -82,7 +82,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	}
 
 	/// create temp coinbase
-	cb, err := CreateEmptyCoinbase(template)
+	cb, err := createEmptyCoinbase(template)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 
 	/// this merkle tree is for the header merkle root, created from the block txids
 	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)
-	merkleBranches := BuildMerkleProof(merkleTree, txns[0].Hash())
+	merkleBranches := buildMerkleProof(merkleTree, txns[0].Hash())
 	/// prune empty branches
 	merkleBranches = slices.DeleteFunc(merkleBranches, func(h *chainhash.Hash) bool {
 		return h == nil
@@ -137,7 +137,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		MsgBlock:     block,
 		MerkleBranch: merkleBranch,
 		Bits:         bits,
-		NetworkDiff:  CalcNetworkDifficulty(headerBits),
+		NetworkDiff:  calcNetworkDifficulty(headerBits),
 		Subsidy:      *template.CoinbaseValue,
 		Height:       template.Height,
 		/// pass min and max time through for share validation
@@ -175,7 +175,7 @@ func (job *MiningJob) UpdateBlock(id stratum.ID, share stratum.Share, notif stra
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
 	branches[0] = coinbaseTx.Hash()
 	branches = append(branches, job.MerkleBranch...)
-	msgBlock.Header.MerkleRoot = *MerkleRootFromBranches(branches)
+	msgBlock.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
 	return msgBlock, nil
 }

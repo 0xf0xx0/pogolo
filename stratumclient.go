@@ -79,7 +79,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		line := bytes.TrimSpace(reader.Bytes())
 
 		/// process the message
-		m, err := DecodeStratumMessage(line)
+		m, err := decodeStratumMessage(line)
 		if err != nil {
 			client.logError("stratum decode error: %s", err)
 			return
@@ -441,7 +441,7 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	}
 
 	shareHash := updatedBlock.Header.BlockHash()
-	shareDiff := CalcDifficulty(shareHash)
+	shareDiff := calcDifficulty(shareHash)
 	ntime := updatedBlock.Header.Timestamp.Unix()
 
 	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
@@ -493,10 +493,10 @@ func (client *StratumClient) validateShareSubmission(share stratum.Share, m *str
 	/// update with the target diff for a more accurate estimation
 	client.stats.update(client.TargetDifficulty)
 	client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%08x{/blue} nonce: {green}%08x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
-		FormatDifficulty(shareDiff), FormatDifficulty(client.TargetDifficulty), FormatDifficulty(client.stats.bestDiff),
+		formatDifficulty(shareDiff), formatDifficulty(client.TargetDifficulty), formatDifficulty(client.stats.bestDiff),
 		shareHash,
 		updatedBlock.Header.Version, share.Nonce, client.ID, share.Extranonce2,
-		FormatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
+		formatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	block := btcutil.NewBlock(template.MsgBlock.Copy())
@@ -507,10 +507,10 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		merkleBranches[i] = branch[:]
 	}
 
-	coinbaseTx := FillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
+	coinbaseTx := fillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
 
 	/// serialized without the witness, we handle that on submission
-	serializedCoinbaseTx := SerializeCoinbaseTx(coinbaseTx.MsgTx())
+	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
 
 	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
 	/// find the split point, right after the input
@@ -659,7 +659,7 @@ func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDif
 // clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
 	client := StratumClient{
-		ID:              ClientIDHash(conn.RemoteAddr().String()),
+		ID:              clientIDHash(conn.RemoteAddr().String()),
 		stats:           &StratumClientStats{},
 		conn:            conn,
 		templateChan:    make(chan *JobTemplate, 1),
