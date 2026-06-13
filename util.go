@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	crand "crypto/rand"
 	"fmt"
 	"math"
 	"math/big"
@@ -92,9 +93,15 @@ func CreateEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
+	/// random byte to avoid client loops if template doesn't change
+	/// better alternative to not sending the job at all
+	randomByte := make([]byte, 1)
+	crand.Read(randomByte)
+
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
+		AddData(randomByte).
 		AddData([]byte(conf.Pogolo.Tag)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
