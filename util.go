@@ -102,7 +102,8 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
-		AddData([]byte{byte(rng.Uint64())}).
+		/// MAYBE: remove prng, use jobid % 256?
+		AddData([]byte{uint8(rng.Uint64())}).
 		AddData([]byte(conf.Pogolo.Tag)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()

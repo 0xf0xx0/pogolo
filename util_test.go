@@ -67,7 +67,7 @@ func TestCreateEmptyCoinbase(t *testing.T) {
 
 func TestClientIDGeneration(t *testing.T) {
 	set := make(map[stratum.ID]struct{}, 2)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		hash := clientIDHash("127.0.0.1:42069")
 		_, ok := set[hash]
 		if !ok {
