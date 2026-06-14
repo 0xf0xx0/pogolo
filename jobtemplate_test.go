@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -69,6 +70,7 @@ func TestValidateCoinbaseScript(t *testing.T) {
 
 // this needs to be re-done every time something about the block structure changes
 func TestUpdateBlock(t *testing.T) {
+	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	conf = DEFAULT_CONFIG
 	template := MOCK_BLOCK_TEMPLATE
 	expectedShareDiff := MOCK_SHAREDIFF
@@ -86,6 +88,7 @@ func TestUpdateBlock(t *testing.T) {
 		return
 	}
 
+	fmt.Printf("%+v\n", hdr)
 	shareDiff := calcDifficulty(hdr.BlockHash())
 	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)

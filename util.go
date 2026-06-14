@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	crand "crypto/rand"
 	"fmt"
 	"math"
 	"math/rand/v2"
@@ -25,6 +24,12 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/zeebo/xxh3"
 )
+
+var (
+	seeda = rand.Uint64()
+	seedb = rand.Uint64()
+)
+var rng = rand.NewPCG(seeda, seedb)
 
 // basically typed sync.Map
 type clientMap struct {
@@ -94,13 +99,10 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
 	/// random byte to avoid client loops if template doesn't change
 	/// better alternative to not sending the job at all
-	randomByte := make([]byte, 1)
-	crand.Read(randomByte)
-
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
-		AddData(randomByte).
+		AddData([]byte{byte(rng.Uint64())}).
 		AddData([]byte(conf.Pogolo.Tag)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
