@@ -149,7 +149,7 @@ func TestSubmitUnkJob(t *testing.T) {
 	lpipe := ezInitClient(t, false)
 
 	share := submitParams
-	share.JobID = ""
+	share.JobID = "fffffff"
 	req := share.ToRequest(9)
 	res := sendReqAndWaitForRes(t, req, lpipe)
 	if res.Error == nil {
@@ -217,7 +217,7 @@ func readPipe(t testing.TB, lpipe net.Conn) stratum.Response {
 }
 func validateRes(req *stratum.Request, res stratum.Response, t *testing.T) {
 	if req.MessageID != res.MessageID {
-		t.Errorf("Message ID mismatch: expected %q, got %q", req.MessageID, res.MessageID)
+		t.Errorf("Message ID mismatch: expected %d, got %d", req.MessageID, res.MessageID)
 	}
 	if res.Error != nil {
 		t.Errorf("Error in response: %s", res.Error.Message)
@@ -253,8 +253,9 @@ func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
 	/// notify
 	readPipe(t, lpipe)
 
-	time.Sleep(time.Millisecond)
-
+	// i think this helps with race conditions idk
+	c.currentJobMutex.Lock()
+	defer c.currentJobMutex.Unlock()
 	c.CurrentJob.MinTime = 0
 	c.CurrentJob.MaxTime = 0
 	return lpipe

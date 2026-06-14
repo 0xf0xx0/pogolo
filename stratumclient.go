@@ -50,10 +50,21 @@ type timeSlot struct {
 	accDiff uint64 // accumulated difficulty, used for hashrate calc
 }
 
+// all shares are converted into this common struct
+type commonShare struct {
+	ChannelID   uint32
+	JobID       uint32
+	Time        uint32
+	Version     uint32
+	Nonce       uint32
+	Extranonce2 []byte
+	Sequence    uint32 // only for sv2
+}
+
 type blockSubmission struct {
 	Header   wire.BlockHeader
 	Coinbase *wire.MsgTx
-	Share    *stratum.Share
+	Share    *commonShare
 	ClientID stratum.ID // for lookup in client map
 }
 
@@ -64,26 +75,27 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 	/// peek to determine protocol
-	// sv1 always starts with '{'
 	r := bufio.NewReader(client.conn)
+	s := bufio.NewScanner(r)
 	b, err := r.Peek(1)
 	if err != nil {
 		return
 	}
+	// sv1 always starts with '{' and might start with whitespace
 	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
 		client.protocol = 1
-		client.processSv1Loop(ctx)
+		client.processSv1Loop(ctx, s)
 	} else {
 		client.protocol = 2
-		client.processSv2Loop(ctx)
+		client.processSv2Loop(ctx, r)
 	}
 }
 
-func (client *StratumClient) processSv2Loop(ctx context.Context) {
+func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.Reader) {
 	var err error
 
 	stratumInited := false
-	setupReceived := false
+	setupCompleted := false
 	channelOpened := false
 	for {
 		select {
@@ -93,7 +105,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 		}
 
 		frame := stratumv2.Frame{}
-		switch err := frame.DecodeFromReader(client.conn); err {
+		switch err := frame.DecodeFromReader(reader); err {
 		case io.ErrClosedPipe:
 		case io.EOF:
 			return
@@ -103,15 +115,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 		}
 
 		switch frame.MessageType {
-		case stratumv2.MethodSubmitSharesStandard:
-			{
-				share := stratumv2.SubmitSharesStandard{}
-				if err = share.Decode(frame.Payload); err != nil {
-					client.logError("error decoding SubmitSharesStandard: %s", err)
-					break
-				}
-				client.validateSv2ShareSubmission(&share)
-			}
 		case stratumv2.MethodSubmitSharesExtended:
 			{
 				share := stratumv2.SubmitSharesExtended{}
@@ -119,11 +122,37 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 					client.logError("error decoding SubmitSharesExtended: %s", err)
 					break
 				}
-				client.validateSv2ShareSubmission(&share)
+				s := commonShare{
+					ChannelID:   share.ChannelID,
+					JobID:       share.JobID,
+					Time:        share.Time,
+					Version:     share.Version,
+					Nonce:       share.Nonce,
+					Extranonce2: share.Extranonce,
+					Sequence:    share.Sequence,
+				}
+				client.validateShareSubmission(s, nil)
+			}
+		case stratumv2.MethodSubmitSharesStandard:
+			{
+				share := stratumv2.SubmitSharesStandard{}
+				if err = share.Decode(frame.Payload); err != nil {
+					client.logError("error decoding SubmitSharesStandard: %s", err)
+					break
+				}
+				s := commonShare{
+					ChannelID: share.ChannelID,
+					JobID:     share.JobID,
+					Time:      share.Time,
+					Version:   share.Version,
+					Nonce:     share.Nonce,
+					Sequence:  share.Sequence,
+				}
+				client.validateShareSubmission(s, nil)
 			}
 		case stratumv2.MethodSetupConnection:
 			{
-				if setupReceived {
+				if setupCompleted {
 					client.logError("already set up")
 					break
 				}
@@ -155,7 +184,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 				client.writeSv2Res(&stratumv2.SetupConnectionSuccess{
 					Flags: msg.Flags,
 				})
-				setupReceived = true
+				setupCompleted = true
 			}
 		case stratumv2.MethodOpenStandardMiningChannel:
 			{
@@ -261,15 +290,16 @@ func (client *StratumClient) processSv2Loop(ctx context.Context) {
 			}
 		}
 
-		if !stratumInited && setupReceived && channelOpened {
+		if !stratumInited && setupCompleted && channelOpened {
 			stratumInited = true
 			client.startMining()
 		}
+		/// deadline is a minute + 10x target share interval
+		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 }
 
-func (client *StratumClient) processSv1Loop(ctx context.Context) {
-	reader := bufio.NewScanner(client.conn)
+func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.Scanner) {
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
@@ -279,7 +309,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context) {
 	/// 1) it complicates shutdown and
 	/// 2) theres no point imo, everything gets handled in order anyway
 	/// its fast enough
-	for reader.Scan() {
+	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
 			return
@@ -287,7 +317,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context) {
 		}
 
 		/// messages are newline separated (either lf or crlf)
-		line := bytes.TrimSpace(reader.Bytes())
+		line := bytes.TrimSpace(scanner.Bytes())
 
 		/// process the message
 		m, err := decodeStratumMessage(line)
@@ -304,13 +334,21 @@ func (client *StratumClient) processSv1Loop(ctx context.Context) {
 					client.writeRes(m.RespondError(constants.ERROR_NOT_SUBBED))
 					return
 				}
-				s := stratum.Share{}
-				if err := s.FromRequest(m); err != nil {
+				share := stratum.Share{}
+				if err := share.FromRequest(m); err != nil {
 					client.logError("error processing %s: %s", m.Method, err)
 					client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
-				client.validateSv1ShareSubmission(s, m)
+				jobID, _ := strconv.ParseUint(share.JobID, 16, 64)
+				s := commonShare{
+					JobID:       uint32(jobID),
+					Time:        share.Time,
+					Version:     uint32(client.CurrentJob.Version) + share.VersionMask,
+					Nonce:       share.Nonce,
+					Extranonce2: share.Extranonce2,
+				}
+				client.validateShareSubmission(s, m)
 			}
 		case stratum.MethodMiningConfigure:
 			{
@@ -453,7 +491,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context) {
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 
-	switch err := reader.Err(); err {
+	switch err := scanner.Err(); err {
 	case nil:
 	case io.ErrClosedPipe:
 	case io.EOF:
@@ -625,36 +663,80 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	return nil
 }
 
-func (client *StratumClient) validateSv1ShareSubmission(share stratum.Share, m *stratum.Request) {
+func (client *StratumClient) validateShareSubmission(share commonShare, m *stratum.Request) {
 	client.currentJobMutex.RLock()
+	currTemplateLock.RLock()
 	defer client.currentJobMutex.RUnlock()
-	if share.JobID != client.CurrentJob.MiningNotifyParams.JobID {
-		prevJobID, _ := strconv.ParseUint(client.CurrentJob.MiningNotifyParams.JobID, 16, 64)
-		if share.JobID == strconv.FormatUint(prevJobID-1, 16) {
+	defer currTemplateLock.RUnlock()
+
+	if share.JobID != uint32(currTemplateID) {
+		client.stats.sharesRejected++
+		if share.JobID == uint32(currTemplateID-1) {
+			if m != nil {
+				client.writeRes(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
+			} else {
+				client.writeSv2Res(&stratumv2.SubmitSharesError{
+					ChannelID:      uint32(client.ID),
+					SequenceNumber: share.Sequence,
+					ErrorCode:      constants.ERROR_SHARE_BETWEEN_JOBS.Error(),
+				})
+			}
 			client.logError("share submitted during job change")
-			client.stats.sharesRejected++
-			client.writeRes(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
 			return
 		}
-		client.stats.sharesRejected++
-		client.writeRes(m.RespondError(constants.ERROR_STALE))
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_STALE))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      stratumv2.StaleShareError,
+			})
+		}
 		client.logError("share rejected: stale job")
 		return
 	}
 
-	if share.VersionMask & ^constants.VERSION_ROLLING_MASK != 0 {
+	if share.ChannelID != 0 && share.ChannelID != uint32(client.ID) {
 		client.stats.sharesRejected++
-		client.writeRes(m.RespondError(constants.ERROR_INV_VER_MASK))
+		client.writeSv2Res(&stratumv2.SubmitSharesError{
+			ChannelID:      uint32(client.ID),
+			SequenceNumber: share.Sequence,
+			ErrorCode:      stratumv2.InvalidChannelIDError,
+		})
+		client.logError("share rejected: invalid channel ID")
+		return
+	}
+
+	if share.Version&constants.VERSION_ROLLING_MASK != share.Version {
+		client.stats.sharesRejected++
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_INV_VER_MASK))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      constants.ERROR_INV_VER_MASK.Error(),
+			})
+		}
 		client.logError("share rejected: invalid version mask")
 		return
 	}
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedHeader, err := client.CurrentJob.UpdateHeader(client.ID, share, client.CurrentJob.MiningNotifyParams)
-	if err != nil {
-		client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
-		client.logError(err.Error())
+	updatedHeader, ok := client.CurrentJob.UpdateHeader(client.ID, share, client.CurrentJob.MiningNotifyParams)
+	if !ok {
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_UNPROCESSABLE))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      constants.ERROR_UNPROCESSABLE.Error(),
+			})
+		}
+		client.logError("invalid extranonce2 length")
 		return
 	}
 
@@ -663,31 +745,54 @@ func (client *StratumClient) validateSv1ShareSubmission(share stratum.Share, m *
 	ntime := updatedHeader.Timestamp.Unix()
 
 	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
-		client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_BAD_TIME))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      constants.ERROR_BAD_TIME.Error(),
+			})
+		}
 		client.stats.sharesRejected++
 		client.logError("share rejected: invalid timestamp")
 		return
 	}
 
 	if shareDiff < client.TargetDifficulty {
-		client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_LOW_DIFF))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      stratumv2.DifficultyTooLowError,
+			})
+		}
 		client.stats.sharesRejected++
 		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 		return
 	}
 
 	client.shareHashMutex.Lock()
+	defer client.shareHashMutex.Unlock()
 	/// check if share is dupe
 	if _, ok := client.shareHashes[shareHash]; ok {
-		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      constants.ERROR_DUPE_SHARE.Error(),
+			})
+		}
 		client.stats.sharesRejected++
 		client.logError("share rejected: duplicate")
-		client.shareHashMutex.Unlock()
 		return
 	}
 	/// add to dupe map
 	client.shareHashes[shareHash] = struct{}{}
-	client.shareHashMutex.Unlock()
 
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
@@ -702,13 +807,19 @@ func (client *StratumClient) validateSv1ShareSubmission(share stratum.Share, m *
 		client.log("{yellow}block candidate submitted")
 	}
 
-	client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
+	if m != nil {
+		client.writeRes(stratum.NewBooleanResponse(m.MessageID, true))
+	} else {
+		/// TODO: figure out batching
+		client.writeSv2Res(&stratumv2.SubmitSharesSuccess{
+			ChannelID:               share.ChannelID,
+			LastSequenceNumber:      share.Sequence,
+			NewSubmitsAcceptedCount: 1,
+			NewSharesSum:            uint64(shareDiff),
+		})
+	}
 
 	/// vanity things
-	client.vanity(shareDiff, shareHash, updatedHeader, share.Nonce, share.Extranonce2)
-}
-
-func (client *StratumClient) vanity(shareDiff float64, shareHash chainhash.Hash, updatedHeader wire.BlockHeader, nonce uint32, extranonce2 []byte) {
 	if shareDiff > client.stats.bestDiff {
 		client.stats.bestDiff = shareDiff
 		client.log("{green}new best session diff!")
@@ -719,216 +830,8 @@ func (client *StratumClient) vanity(shareDiff float64, shareHash chainhash.Hash,
 	client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%08x{/blue} nonce: {green}%08x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
 		formatDifficulty(shareDiff), formatDifficulty(client.TargetDifficulty), formatDifficulty(client.stats.bestDiff),
 		shareHash,
-		updatedHeader.Version, nonce, client.ID, extranonce2,
+		updatedHeader.Version, share.Nonce, client.ID, share.Extranonce2,
 		formatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
-}
-
-func (client *StratumClient) validateSv2ShareSubmission(share stratumv2.Codable) {
-	client.currentJobMutex.RLock()
-	defer client.currentJobMutex.RUnlock()
-
-	switch share.(type) {
-	case *stratumv2.SubmitSharesStandard:
-		{
-			s := share.(*stratumv2.SubmitSharesStandard)
-			if s.ChannelID != uint32(client.ID) {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      stratumv2.InvalidChannelIDError,
-				})
-				client.logError("share rejected: invalid channel ID")
-				return
-			}
-			if strconv.FormatUint(uint64(s.JobID), 16) != client.CurrentJob.JobID {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      stratumv2.InvalidJobIDError,
-				})
-				client.logError("share rejected: stale job")
-				return
-			}
-			/// TODO: figure out of we should care about this for sv2
-			if s.Version & ^constants.VERSION_ROLLING_MASK != 0 {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      "invalid-version", /// ?????
-				})
-				client.logError("share rejected: invalid version")
-				return
-			}
-			ntime := int64(s.Time)
-			/// TODO: figure out of we should care about this for sv2
-			if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      "bad-time",
-				})
-				client.logError("share rejected: invalid timestamp")
-				return
-			}
-
-			updatedBlock, err := client.CurrentJob.UpdateHeaderSv2(client.ID, s, client.CurrentJob.MiningNotifyParams)
-			if err != nil {
-				client.logError(err.Error())
-				return
-			}
-
-			shareHash := updatedBlock.Header.BlockHash()
-			shareDiff := calcDifficulty(shareHash)
-
-			if shareDiff < client.TargetDifficulty {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      stratumv2.DifficultyTooLowError,
-				})
-				client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
-				return
-			}
-
-			client.shareHashMutex.Lock()
-			/// check if share is dupe
-			if _, ok := client.shareHashes[shareHash]; ok {
-				client.stats.sharesRejected++
-				client.logError("share rejected: duplicate")
-				return
-			}
-			/// add to dupe map
-			client.shareHashes[shareHash] = struct{}{}
-			client.shareHashMutex.Unlock()
-
-			if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
-				/// !!! block! dont say ANYTHING until after submitted
-				submission := blockSubmission{
-					ClientID: client.ID,
-					Header:   updatedBlock,
-					Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
-					Share:    &share,
-				}
-
-				client.submitBlock(submission)
-				client.log("{yellow}block candidate submitted")
-			}
-
-			/// TODO: figure out batching
-			client.writeSv2Res(&stratumv2.SubmitSharesSuccess{
-				ChannelID:               s.ChannelID,
-				LastSequenceNumber:      s.Sequence,
-				NewSubmitsAcceptedCount: 1,
-				NewSharesSum:            uint64(shareDiff),
-			})
-
-			client.vanity(shareDiff, shareHash, updatedBlock, s.Nonce, []byte{})
-		}
-	case *stratumv2.SubmitSharesExtended:
-		{
-			s := share.(*stratumv2.SubmitSharesExtended)
-			if s.ChannelID != uint32(client.ID) {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      stratumv2.InvalidChannelIDError,
-				})
-				client.logError("share rejected: invalid channel ID")
-				return
-			}
-			if strconv.FormatUint(uint64(s.JobID), 16) != client.CurrentJob.JobID {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      stratumv2.InvalidJobIDError,
-				})
-				client.logError("share rejected: stale job")
-				return
-			}
-			if s.Version & ^constants.VERSION_ROLLING_MASK != 0 {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      "invalid-version", /// ?????
-				})
-				client.logError("share rejected: invalid version")
-				return
-			}
-			ntime := int64(s.Time)
-
-			if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      "bad-time",
-				})
-				client.logError("share rejected: invalid timestamp")
-				return
-			}
-
-			updatedBlock, err := client.CurrentJob.UpdateBlockSv2(client.ID, s, client.CurrentJob.MiningNotifyParams)
-			if err != nil {
-				client.logError(err.Error())
-				return
-			}
-
-			shareHash := updatedBlock.Header.BlockHash()
-			shareDiff := CalcDifficulty(shareHash)
-
-			if shareDiff < client.TargetDifficulty {
-				client.stats.sharesRejected++
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: s.Sequence,
-					ErrorCode:      stratumv2.DifficultyTooLowError,
-				})
-				client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
-				return
-			}
-
-			client.shareHashMutex.Lock()
-			/// check if share is dupe
-			if _, ok := client.shareHashes[shareHash]; ok {
-				client.stats.sharesRejected++
-				client.logError("share rejected: duplicate")
-				return
-			}
-			/// add to dupe map
-			client.shareHashes[shareHash] = struct{}{}
-			client.shareHashMutex.Unlock()
-
-			if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
-				/// !!! block! dont say ANYTHING until after submitted
-				submission := blockSubmission{
-					ClientID: client.ID,
-					Block:    btcutil.NewBlock(updatedBlock),
-					Share:    &share,
-				}
-
-				client.submitBlock(submission)
-				client.log("{yellow}block candidate submitted")
-			}
-
-			/// TODO: figure out batching
-			client.writeSv2Res(&stratumv2.SubmitSharesSuccess{
-				ChannelID:               s.ChannelID,
-				LastSequenceNumber:      s.Sequence,
-				NewSubmitsAcceptedCount: 1,
-				NewSharesSum:            uint64(shareDiff),
-			})
-
-			client.vanity(shareDiff, shareHash, updatedBlock, s.Nonce, s.Extranonce)
-		}
-	}
 }
 
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {

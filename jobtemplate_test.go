@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -82,9 +83,19 @@ func TestUpdateBlock(t *testing.T) {
 
 	tml, _ := CreateJobTemplate(template)
 	job := client.createJob(tml)
-	hdr, err := job.UpdateHeader(client.ID, submitParams, notifyParams)
-	if err != nil {
-		t.Error(err)
+	jobID, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
+	s := commonShare{
+		ChannelID:   0,
+		JobID:       uint32(jobID),
+		Time:        submitParams.Time,
+		Version:     uint32(job.Version) + submitParams.VersionMask,
+		Nonce:       submitParams.Nonce,
+		Extranonce2: submitParams.Extranonce2,
+		Sequence:    0,
+	}
+	hdr, ok := job.UpdateHeader(client.ID, s, notifyParams)
+	if !ok {
+		t.Error("invalid extranonce2 length")
 		return
 	}
 

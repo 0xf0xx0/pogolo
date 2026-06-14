@@ -641,12 +641,13 @@ func backendRoutine(ctx context.Context) {
 		/// save longpoll id
 		// longpollid = template.LongPollID
 
+		currTemplateLock.Lock()
 		jobTemplate, err := CreateJobTemplate(template)
 		if err != nil {
 			logError(fmt.Sprintf("error making job template: %s", err.Error()))
+			currTemplateLock.Unlock()
 			continue
 		}
-		currTemplateLock.Lock()
 		currTemplate = jobTemplate
 		currTemplateLock.Unlock()
 		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))

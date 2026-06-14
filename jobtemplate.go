@@ -149,23 +149,24 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 }
 
 // like public-pools copyAndUpdateBlock without the copy
-func (job *MiningJob) UpdateHeader(id stratum.ID, share stratum.Share, notif stratum.MiningNotifyParams) (wire.BlockHeader, error) {
-	if len(share.Extranonce2) != int(conf.Pogolo.ExtraNonce2Size) {
-		return wire.BlockHeader{}, errors.New("invalid extranonce2 size " + strconv.Itoa(int(conf.Pogolo.ExtraNonce2Size)))
+func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare, notif stratum.MiningNotifyParams) (wire.BlockHeader, bool) {
+	en2Len := len(share.Extranonce2)
+	if en2Len > 0 && en2Len != int(conf.Pogolo.ExtraNonce2Size) {
+		return wire.BlockHeader{}, false
 	}
 
 	/// mutate the coinbase script with the client id and extranonce2
 	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
 	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
 	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
-		len(sigscript)-(constants.EXTRANONCE_SIZE+int(conf.Pogolo.ExtraNonce2Size)),
+		len(sigscript)-(constants.EXTRANONCE_SIZE+len(share.Extranonce2)),
 		len(sigscript),
 		append(id.Bytes(), share.Extranonce2...)...,
 	)
 
 	/// update the header
 	job.Header.Nonce = share.Nonce
-	job.Header.Version = job.Version + int32(share.VersionMask)
+	job.Header.Version = int32(share.Version)
 	job.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	/// coinbase was changed, thus recalc the root
@@ -175,5 +176,5 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share stratum.Share, notif str
 	branches = append(branches, job.MerkleBranch...)
 	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
-	return job.Header, nil
+	return job.Header, true
 }
