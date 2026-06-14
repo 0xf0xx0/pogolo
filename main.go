@@ -60,7 +60,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/bytedance/sonic"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
@@ -600,7 +599,7 @@ func backendRoutine(ctx context.Context) {
 						client.ID,
 						submission.Share.Extranonce2,
 					))
-					log(fmt.Sprintf("%d %d", seeda, seedb))
+					// log(fmt.Sprintf("%d %d", seeda, seedb))
 
 					/// one day pogolo will win a block, reload, and win a second back to back
 					/// im manifesting it now
@@ -636,8 +635,8 @@ func backendRoutine(ctx context.Context) {
 			continue
 		}
 
-		t, _ := sonic.MarshalString(&template)
-		log(t)
+		// t, _ := sonic.MarshalString(&template)
+		// log(t)
 
 		/// save longpoll id
 		// longpollid = template.LongPollID
