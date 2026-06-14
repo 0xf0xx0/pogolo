@@ -150,16 +150,19 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 
 // like public-pools copyAndUpdateBlock without the copy
 func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare, notif stratum.MiningNotifyParams) (wire.BlockHeader, bool) {
-	en2Len := len(share.Extranonce2)
-	if en2Len > 0 && en2Len != int(conf.Pogolo.ExtraNonce2Size) {
-		return wire.BlockHeader{}, false
+	en2Len := 0
+	if share.Extranonce2 != nil {
+		en2Len = len(share.Extranonce2)
+		if en2Len > 0 && en2Len != int(conf.Pogolo.ExtraNonce2Size) {
+			return wire.BlockHeader{}, false
+		}
 	}
 
 	/// mutate the coinbase script with the client id and extranonce2
 	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
 	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
 	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
-		len(sigscript)-(constants.EXTRANONCE_SIZE+len(share.Extranonce2)),
+		len(sigscript)-(constants.EXTRANONCE_SIZE+en2Len),
 		len(sigscript),
 		append(id.Bytes(), share.Extranonce2...)...,
 	)
