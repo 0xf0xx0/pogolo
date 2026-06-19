@@ -287,11 +287,13 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			}
 		case stratumv2.MethodCloseChannel:
 			{
+				/// TODO: do we care enough to decode?
 				msg := stratumv2.CloseChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logError("error decoding CloseChannel: %s", err)
 					return
 				}
+				client.log("leaving: %s", msg.ReasonCode)
 				return
 			}
 		}
@@ -303,30 +305,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
-}
-
-func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32) (btcutil.Address, bool) {
-	split := strings.Split(userIdentity, ".")
-	if len(split) > 1 {
-		client.Nickname = split[1]
-	}
-	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
-	if err != nil {
-		if defaultMiningAddr == nil {
-			client.logError("failed decoding address: %s", err)
-			client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-				RequestID: requestID,
-				ErrorCode: stratumv2.UnknownUserError,
-			})
-			return nil, true
-		}
-		/// assume just the workername was passed
-		if split[0] != "" {
-			client.Nickname = split[0]
-		}
-		decoded = *defaultMiningAddr
-	}
-	return decoded, false
 }
 
 func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.Scanner) {
@@ -955,6 +933,29 @@ func (client *StratumClient) writeSv2Res(res stratumv2.Codable) error {
 		return err
 	}
 	return client.writeConn(b)
+}
+func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32) (btcutil.Address, bool) {
+	split := strings.Split(userIdentity, ".")
+	if len(split) > 1 {
+		client.Nickname = split[1]
+	}
+	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+	if err != nil {
+		if defaultMiningAddr == nil {
+			client.logError("failed decoding address: %s", err)
+			client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+				RequestID: requestID,
+				ErrorCode: stratumv2.UnknownUserError,
+			})
+			return nil, true
+		}
+		/// assume just the workername was passed
+		if split[0] != "" {
+			client.Nickname = split[0]
+		}
+		decoded = *defaultMiningAddr
+	}
+	return decoded, false
 }
 
 // logging
