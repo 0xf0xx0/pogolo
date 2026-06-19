@@ -236,20 +236,44 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				if channelOpened {
 					client.logError("mining channel already open")
 				}
+
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logError("error decoding OpenExtendedMiningChannel: %s", err)
 					break
 				}
 
-				/// TODO: validate
-				client.SuggestedDifficulty = calcDifficulty(msg.MaxTarget)
-				client.stats.hashrate = float64(msg.NominalHashRate)
+				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
+					client.logError("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
+					break
+				}
+
+				// validate max target
+				// TODO: verify Target1U256 is a valid maximum
+				// maybe "steal" from a different pool lol
+				maxTarget := stratumv2.U256(msg.MaxTarget)
+				if !constants.Target1U256.IsMetBy(&maxTarget) {
+					client.logError("provided max target is out of range")
+					client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+						RequestID: msg.RequestID,
+						ErrorCode: stratumv2.MaxTargetOutOfRangeError,
+					})
+					return
+				}
+
+				// guesstimate target difficulty from hashrate
+				if msg.NominalHashRate > 0 {
+					client.SuggestedDifficulty = calcDiffFromHashrate(float64(msg.NominalHashRate))
+					client.stats.hashrate = float64(msg.NominalHashRate)
+					client.log("guessed initial target of {blue}%d", client.SuggestedDifficulty)
+				}
 
 				split := strings.Split(msg.UserIdentity, ".")
 				if len(split) > 1 {
 					client.Nickname = split[1]
 				}
+				/// TODO: extract func from sv1 and use here
+				// i am NOT duping code
 				decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
 				if err != nil {
 					if defaultMiningAddr == nil {
@@ -653,11 +677,22 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff == client.TargetDifficulty {
 		return nil
 	}
-	setdiff := &stratum.MiningSetDifficultyParams{
-		Difficulty: newDiff,
-	}
-	if err := client.writeNotif(setdiff.ToNotification()); err != nil {
-		return err
+	if client.protocol == 1 {
+		setdiff := &stratum.MiningSetDifficultyParams{
+			Difficulty: newDiff,
+		}
+		if err := client.writeNotif(setdiff.ToNotification()); err != nil {
+			return err
+		}
+	} else if client.protocol == 2 {
+		target := diffToTarget(newDiff)
+		msg := &stratumv2.SetTarget{
+			ChannelID: uint32(client.ID),
+			MaxTarget: target,
+		}
+		if err := client.writeSv2Res(msg); err != nil {
+			return err
+		}
 	}
 	client.TargetDifficulty = newDiff
 	return nil

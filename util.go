@@ -250,6 +250,11 @@ func diffToTarget(d float64) stratumv2.U256 {
 	return out
 }
 
+// estimated target diff from hashrate in h/s, clamped to [constants.MIN_DIFFICULTY]
+func calcDiffFromHashrate(hashrate float64) float64 {
+	return math.Max(hashrate*float64(conf.TargetShareInterval)/float64(2^32), constants.MIN_DIFFICULTY)
+}
+
 func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	root := branches[0]
 	/// optimization: reuse array to store the combined hashes

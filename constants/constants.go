@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 )
 
 const (
@@ -56,4 +57,9 @@ var Target1 = func() *big.Int {
 	t1 := big.Int{}
 	t1.SetString("FFFF0000000000000000000000000000000000000000000000000000", 16)
 	return &t1
+}()
+var Target1U256 = func() *stratumv2.U256 {
+	u := stratumv2.U256{}
+	u.SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	return &u
 }()
