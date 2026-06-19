@@ -42,6 +42,7 @@ type StratumClient struct {
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	stats               *StratumClientStats
 	protocol            uint8
+	extendedChannel     bool
 }
 
 // used for hashrate calc
@@ -284,10 +285,10 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					ExtranonceSize: uint16(conf.Pogolo.ExtraNonce2Size),
 				})
 				channelOpened = true
+				client.extendedChannel = true
 			}
 		case stratumv2.MethodCloseChannel:
 			{
-				/// TODO: do we care enough to decode?
 				msg := stratumv2.CloseChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logError("error decoding CloseChannel: %s", err)
@@ -613,14 +614,15 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			client.calcNextDifficulty()
 		}
 		/// stratum spec applies diff changes to next job, so announce diff before announcing job
-		if client.SuggestedDifficulty > 0 && client.SuggestedDifficulty != client.TargetDifficulty {
-			if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
-				if errors.Is(err, net.ErrClosed) {
-					/// client died and we didnt notice?
-					client.Stop()
-					return
-				}
+
+		if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				/// client died and we didnt notice?
+				client.Stop()
+				return
 			}
+			client.logError("error adjusting difficulty: %s", err)
+		} else {
 			client.log("adjusting share target to {blue}%g", client.SuggestedDifficulty)
 		}
 
@@ -630,7 +632,41 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				client.logError("error sending job: %s", err)
 			}
 		} else {
-			/// TODO: sv2 job submit
+			currJob := client.CurrentJob
+			prevhash := &stratumv2.SetNewPrevHash{
+				ChannelID: uint32(client.ID),
+				JobID:     uint32(currTemplateID),
+				PrevHash:  *currJob.PrevBlockHash,
+				MinTime:   uint32(currJob.MinTime),
+				Bits:      currJob.Header.Bits,
+			}
+			if client.extendedChannel {
+				merklePath := make([]chainhash.Hash, len(client.CurrentJob.MerkleBranch))
+				for i, h := range client.CurrentJob.MerkleBranch {
+					merklePath[i] = *h
+				}
+				job := &stratumv2.NewExtendedMiningJob{
+					ChannelID:             uint32(client.ID),
+					JobID:                 uint32(currTemplateID),
+					MinTime:               []uint32{uint32(client.CurrentJob.MinTime)},
+					Version:               uint32(client.CurrentJob.Version),
+					MerklePath:            merklePath,
+					VersionRollingAllowed: true,
+					CoinbasePrefix:        client.CurrentJob.CoinbasePart1,
+					CoinbaseSuffix:        client.CurrentJob.CoinbasePart2,
+				}
+				client.writeSv2Res(job)
+			} else {
+				job := &stratumv2.NewMiningJob{
+					ChannelID:  uint32(client.ID),
+					JobID:      uint32(currTemplateID),
+					MinTime:    []uint32{uint32(client.CurrentJob.MinTime)},
+					Version:    uint32(client.CurrentJob.Version),
+					MerkleRoot: currJob.Header.MerkleRoot,
+				}
+				client.writeSv2Res(job)
+			}
+			client.writeSv2Res(prevhash)
 		}
 
 		/// reset dupe share map
@@ -658,7 +694,7 @@ func (client *StratumClient) Addr() net.Addr {
 }
 
 func (client *StratumClient) setDifficulty(newDiff float64) error {
-	if newDiff == client.TargetDifficulty {
+	if newDiff <= 0 || newDiff == client.TargetDifficulty {
 		return nil
 	}
 	if client.protocol == 1 {
@@ -697,7 +733,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				client.writeSv2Res(&stratumv2.SubmitSharesError{
 					ChannelID:      uint32(client.ID),
 					SequenceNumber: share.Sequence,
-					ErrorCode:      constants.ERROR_SHARE_BETWEEN_JOBS.Error(),
+					ErrorCode:      constants.ERROR_SHARE_BETWEEN_JOBS.Message,
 				})
 			}
 			client.logError("share submitted during job change")
@@ -716,7 +752,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	if share.ChannelID != 0 && share.ChannelID != uint32(client.ID) {
+	if share.ChannelID != uint32(client.ID) {
 		client.stats.sharesRejected++
 		client.writeSv2Res(&stratumv2.SubmitSharesError{
 			ChannelID:      uint32(client.ID),
@@ -735,7 +771,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			client.writeSv2Res(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
-				ErrorCode:      constants.ERROR_INV_VER_MASK.Error(),
+				ErrorCode:      constants.ERROR_INV_VER_MASK.Message,
 			})
 		}
 		client.logError("share rejected: invalid version mask")
@@ -752,7 +788,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			client.writeSv2Res(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
-				ErrorCode:      constants.ERROR_UNPROCESSABLE.Error(),
+				ErrorCode:      constants.ERROR_UNPROCESSABLE.Message,
 			})
 		}
 		client.logError("invalid extranonce2 length")
@@ -770,7 +806,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			client.writeSv2Res(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
-				ErrorCode:      constants.ERROR_BAD_TIME.Error(),
+				ErrorCode:      constants.ERROR_BAD_TIME.Message,
 			})
 		}
 		client.stats.sharesRejected++
@@ -803,7 +839,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			client.writeSv2Res(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
-				ErrorCode:      constants.ERROR_DUPE_SHARE.Error(),
+				ErrorCode:      constants.ERROR_DUPE_SHARE.Message,
 			})
 		}
 		client.stats.sharesRejected++
