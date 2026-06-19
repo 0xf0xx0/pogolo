@@ -1,14 +1,40 @@
 package main
 
 import (
+	"encoding/hex"
 	"strings"
 	"testing"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 var m = &clientMap{}
 var fakeclient = &StratumClient{ID: 42069}
+
+func TestBLeh(t *testing.T) {
+	h := calcNetworkDifficultyHash(0x1b0404cb)
+	d := calcDifficulty(h)
+	x := diffToTarget(d)
+	z := calcDifficulty(chainhash.Hash(x))
+
+	t.Log(d)
+	t.Log(h)
+	t.Log("00000000000404cb000000000000000000000000000000000000000000000000")
+	t.Log(x)
+	t.Log(z)
+
+	ch := chainhash.Hash{}
+	hx, _ := hex.DecodeString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	ch.SetBytes(hx)
+
+	t.Log(calcDifficulty(ch))
+
+	dd := stratumv2.U256(diffToTarget(1037))
+	ux := stratumv2.U256(x)
+	t.Log(dd.IsMetBy(&ux))
+}
 
 func TestClientMap(t *testing.T) {
 	m.Init()

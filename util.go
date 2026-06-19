@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand/v2"
 	"slices"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 	"sync"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
@@ -28,8 +31,10 @@ import (
 var (
 	seeda = rand.Uint64()
 	seedb = rand.Uint64()
+	rng   = rand.NewPCG(seeda, seedb)
+
+	maxTargetFloat = float64(math.Pow(2, 208) * 65535)
 )
-var rng = rand.NewPCG(seeda, seedb)
 
 // basically typed sync.Map
 type clientMap struct {
@@ -160,7 +165,6 @@ func fillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, p
 // shamelessly stolen from m45core lol
 // faster diff calc
 func calcDifficulty(hash chainhash.Hash) float64 {
-	x := math.Pow(2, 208) * 65535
 	msb := -1
 	for i := len(hash) - 1; i >= 0; i-- {
 		if hash[i] != 0 {
@@ -169,7 +173,7 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 		}
 	}
 	if msb < 0 {
-		return x
+		return maxTargetFloat
 	}
 
 	var top uint64
@@ -182,7 +186,7 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 		top = (top << 8) | uint64(b)
 	}
 	if top == 0 {
-		return x
+		return maxTargetFloat
 	}
 
 	// For msb==31 we used bytes [31..24], leaving 24 bytes below => exponentBits=192.
@@ -191,7 +195,7 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 	// diff = (65535 / top) * 2^(208 - exponentBits)
 	diff := math.Ldexp(65535.0/float64(top), 208-exponentBits)
 	if diff <= 0 || math.IsNaN(diff) {
-		return x
+		return maxTargetFloat
 	}
 	if math.IsInf(diff, 0) {
 		return math.MaxFloat64
@@ -201,13 +205,49 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 
 // port of public-pools calculateNetworkDifficulty
 func calcNetworkDifficulty(nBits uint32) float64 {
-	maxTarget := math.Pow(2, 208) * 65535
 	/// unpack the target from the compact nBits
 	mantissa := float64(nBits & 0x007fffff)
 	exponent := float64((nBits >> 24) & 0xff)
 	target := mantissa * math.Pow(256, float64(exponent-3))
 
-	return maxTarget / target
+	return maxTargetFloat / target
+}
+
+// a * 2**(8*(b-3)), where a is bits[0:3] and b is bits[3]. Returns the target as a big-endian byte array.
+// Note that bits is little-endian, and that the 24th bit, theoretically a sign bit, is ignored as per the spec's suggestion.
+func calcNetworkDifficultyHash(nBits uint32) chainhash.Hash {
+	target := chainhash.Hash{}
+	a := nBits & 0x007fffff // 23-bit mantissa; 24th is sign bit which is ignored
+	b := nBits >> 24 & 0xff
+
+	byte_shift := b - 3 // Original shift is 8 * (b - 3), so b - 3 represents the number of bytes left in the target array to shift a
+
+	binary.LittleEndian.PutUint32(target[byte_shift:], a)
+
+	return target
+}
+
+// TODO: figure out non-bigint version? mafffffff
+// converts a difficulty float to the nearest target hash
+// float will get rounded to the nearest int
+func diffToTarget(d float64) stratumv2.U256 {
+	bigDiff := new(big.Int).SetUint64(uint64(d + 0.5))     // round to nearest integer
+	target := new(big.Int).Div(constants.Target1, bigDiff) // Target1 / difficulty = targetHash
+
+	out := stratumv2.U256{}
+
+	tb := target.Bytes() // big-endian
+	tbLen := len(tb)
+	if tbLen > 32 {
+		panic("target does not fit into 32 bytes")
+	}
+	copy(out[32-tbLen:], tb)
+
+	// convert to little-endian
+	for i := range 16 {
+		out[i], out[31-i] = out[31-i], out[i]
+	}
+	return out
 }
 
 func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {

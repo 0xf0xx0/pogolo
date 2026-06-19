@@ -51,9 +51,9 @@ var (
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}
 )
 
-// used for diff calc
-var TrueDiff1 = func() *big.Float {
-	td1 := big.Int{}
-	td1.SetString("26959535291011309493156476344723991336010898738574164086137773096960", 10)
-	return new(big.Float).SetInt(&td1)
+// used in diffToTarget
+var Target1 = func() *big.Int {
+	t1 := big.Int{}
+	t1.SetString("FFFF0000000000000000000000000000000000000000000000000000", 16)
+	return &t1
 }()
