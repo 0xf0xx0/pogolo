@@ -197,31 +197,31 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					break
 				}
 
-				/// TODO: validate
-				client.SuggestedDifficulty = calcDifficulty(msg.MaxTarget)
-				client.stats.hashrate = float64(msg.NominalHashRate)
+				// validate max target
+				// TODO: verify Target1U256 is a valid maximum
+				// maybe "steal" from a different pool lol
+				maxTarget := stratumv2.U256(msg.MaxTarget)
+				if !constants.Target1U256.IsMetBy(&maxTarget) {
+					client.logError("provided max target is out of range")
+					client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+						RequestID: msg.RequestID,
+						ErrorCode: stratumv2.MaxTargetOutOfRangeError,
+					})
+					return
+				}
 
-				split := strings.Split(msg.UserIdentity, ".")
-				if len(split) > 1 {
-					client.Nickname = split[1]
+				// guesstimate target difficulty from hashrate
+				if msg.NominalHashRate > 0 {
+					client.SuggestedDifficulty = calcDiffFromHashrate(float64(msg.NominalHashRate))
+					client.stats.hashrate = float64(msg.NominalHashRate)
+					client.log("guessed initial target of {blue}%d", client.SuggestedDifficulty)
 				}
-				decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
-				if err != nil {
-					if defaultMiningAddr == nil {
-						client.logError("failed decoding address: %s", err)
-						client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-							RequestID: msg.RequestID,
-							ErrorCode: stratumv2.UnknownUserError,
-						})
-						return
-					}
-					/// assume just the workername was passed
-					if split[0] != "" {
-						client.Nickname = split[0]
-					}
-					decoded = *defaultMiningAddr
+
+				miningAddr, shouldReturn := client.parseSv2Identity(msg.UserIdentity, msg.RequestID)
+				if shouldReturn {
+					return
 				}
-				client.User = decoded
+				client.User = miningAddr
 
 				client.writeSv2Res(&stratumv2.OpenStandardMiningChannelSuccess{
 					RequestID:        msg.RequestID,
@@ -268,29 +268,11 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					client.log("guessed initial target of {blue}%d", client.SuggestedDifficulty)
 				}
 
-				split := strings.Split(msg.UserIdentity, ".")
-				if len(split) > 1 {
-					client.Nickname = split[1]
+				miningAddr, shouldReturn := client.parseSv2Identity(msg.UserIdentity, msg.RequestID)
+				if shouldReturn {
+					return
 				}
-				/// TODO: extract func from sv1 and use here
-				// i am NOT duping code
-				decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
-				if err != nil {
-					if defaultMiningAddr == nil {
-						client.logError("failed decoding address: %s", err)
-						client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-							RequestID: msg.RequestID,
-							ErrorCode: stratumv2.UnknownUserError,
-						})
-						return
-					}
-					/// assume just the workername was passed
-					if split[0] != "" {
-						client.Nickname = split[0]
-					}
-					decoded = *defaultMiningAddr
-				}
-				client.User = decoded
+				client.User = miningAddr
 
 				client.writeSv2Res(&stratumv2.OpenExtendedMiningChannelSuccess{
 					OpenStandardMiningChannelSuccess: stratumv2.OpenStandardMiningChannelSuccess{
@@ -321,6 +303,30 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
+}
+
+func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32) (btcutil.Address, bool) {
+	split := strings.Split(userIdentity, ".")
+	if len(split) > 1 {
+		client.Nickname = split[1]
+	}
+	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+	if err != nil {
+		if defaultMiningAddr == nil {
+			client.logError("failed decoding address: %s", err)
+			client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+				RequestID: requestID,
+				ErrorCode: stratumv2.UnknownUserError,
+			})
+			return nil, true
+		}
+		/// assume just the workername was passed
+		if split[0] != "" {
+			client.Nickname = split[0]
+		}
+		decoded = *defaultMiningAddr
+	}
+	return decoded, false
 }
 
 func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.Scanner) {
