@@ -605,9 +605,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			return
 		}
 
-		client.currentJobMutex.Lock()
-		client.CurrentJob = client.createJob(template)
-		client.currentJobMutex.Unlock()
+		newJob := client.createJob(template)
 
 		/// vardiff
 		if !conf.Pogolo.DisableVarDiff {
@@ -632,37 +630,36 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				client.logError("error sending job: %s", err)
 			}
 		} else {
-			currJob := client.CurrentJob
 			prevhash := &stratumv2.SetNewPrevHash{
 				ChannelID: uint32(client.ID),
 				JobID:     uint32(currTemplateID),
-				PrevHash:  *currJob.PrevBlockHash,
-				MinTime:   uint32(currJob.MinTime),
-				Bits:      currJob.Header.Bits,
+				PrevHash:  *newJob.PrevBlockHash,
+				MinTime:   uint32(newJob.MinTime),
+				Bits:      newJob.Header.Bits,
 			}
 			if client.extendedChannel {
-				merklePath := make([]chainhash.Hash, len(client.CurrentJob.MerkleBranch))
-				for i, h := range client.CurrentJob.MerkleBranch {
+				merklePath := make([]chainhash.Hash, len(newJob.MerkleBranch))
+				for i, h := range newJob.MerkleBranch {
 					merklePath[i] = *h
 				}
 				job := &stratumv2.NewExtendedMiningJob{
 					ChannelID:             uint32(client.ID),
 					JobID:                 uint32(currTemplateID),
-					MinTime:               []uint32{uint32(client.CurrentJob.MinTime)},
-					Version:               uint32(client.CurrentJob.Version),
+					MinTime:               []uint32{uint32(newJob.MinTime)},
+					Version:               uint32(newJob.Version),
 					MerklePath:            merklePath,
 					VersionRollingAllowed: true,
-					CoinbasePrefix:        client.CurrentJob.CoinbasePart1,
-					CoinbaseSuffix:        client.CurrentJob.CoinbasePart2,
+					CoinbasePrefix:        newJob.CoinbasePart1,
+					CoinbaseSuffix:        newJob.CoinbasePart2,
 				}
 				client.writeSv2Res(job)
 			} else {
 				job := &stratumv2.NewMiningJob{
 					ChannelID:  uint32(client.ID),
 					JobID:      uint32(currTemplateID),
-					MinTime:    []uint32{uint32(client.CurrentJob.MinTime)},
-					Version:    uint32(client.CurrentJob.Version),
-					MerkleRoot: currJob.Header.MerkleRoot,
+					MinTime:    []uint32{uint32(newJob.MinTime)},
+					Version:    uint32(newJob.Version),
+					MerkleRoot: newJob.Header.MerkleRoot,
 				}
 				client.writeSv2Res(job)
 			}
@@ -675,6 +672,10 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			delete(client.shareHashes, h)
 		}
 		client.shareHashMutex.Unlock()
+
+		client.currentJobMutex.Lock()
+		client.CurrentJob = newJob
+		client.currentJobMutex.Unlock()
 	}
 }
 
