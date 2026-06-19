@@ -625,7 +625,23 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		}
 
 		if client.protocol == 1 {
-			err := client.writeNotif(client.CurrentJob.ToNotification())
+			merkleBranches := make([][]byte, len(template.MerkleBranch))
+			for i, branch := range template.MerkleBranch {
+				merkleBranches[i] = branch[:]
+			}
+			params := &stratum.MiningNotifyParams{
+				JobID:          strconv.FormatUint(template.ID, 16),
+				PrevBlockHash:  newJob.PrevHash,
+				MerkleBranches: merkleBranches,
+				Version:        uint32(newJob.Version),
+				Bits:           template.Bits,
+				Timestamp:      newJob.Timestamp,
+				CoinbasePart1:  newJob.CoinbasePart1,
+				CoinbasePart2:  newJob.CoinbasePart2,
+				Clean:          true,
+			}
+			newJob.MiningNotifyParams = *params
+			err := client.writeNotif(params.ToNotification())
 			if err != nil {
 				client.logError("error sending job: %s", err)
 			}
@@ -633,8 +649,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			prevhash := &stratumv2.SetNewPrevHash{
 				ChannelID: uint32(client.ID),
 				JobID:     uint32(currTemplateID),
-				PrevHash:  *newJob.PrevBlockHash,
-				MinTime:   uint32(newJob.MinTime),
+				PrevHash:  *newJob.PrevHash,
+				MinTime:   uint32(newJob.Timestamp.Unix()), /// should be equiv to Clean=true
 				Bits:      newJob.Header.Bits,
 			}
 			if client.extendedChannel {
@@ -753,7 +769,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	if share.ChannelID != uint32(client.ID) {
+	if client.protocol == 2 && share.ChannelID != uint32(client.ID) {
 		client.stats.sharesRejected++
 		client.writeSv2Res(&stratumv2.SubmitSharesError{
 			ChannelID:      uint32(client.ID),
@@ -894,11 +910,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	block := btcutil.NewBlock(template.MsgBlock.Copy())
 	blockHeader := block.MsgBlock().Header
 
-	merkleBranches := make([][]byte, len(template.MerkleBranch))
-	for i, branch := range template.MerkleBranch {
-		merkleBranches[i] = branch[:]
-	}
-
 	coinbaseTx := fillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
@@ -912,25 +923,19 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	return MiningJob{
-		Header:       blockHeader,
-		CoinbaseTx:   coinbaseTx,
-		Version:      blockHeader.Version,
-		MerkleBranch: template.MerkleBranch,
-		MinTime:      template.MinTime,
-		MaxTime:      template.MaxTime,
-		NetworkDiff:  template.NetworkDiff,
-		MiningNotifyParams: stratum.MiningNotifyParams{
-			JobID:          template.ID,
-			PrevBlockHash:  &blockHeader.PrevBlock,
-			MerkleBranches: merkleBranches,
-			Version:        uint32(blockHeader.Version),
-			Bits:           template.Bits,
-			Timestamp:      blockHeader.Timestamp,
-			/// we wanna lop off the extranonce padding
-			CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
-			CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
-			Clean:         true, /// we don't support multiple active jobs
-		},
+		JobIDInt:      template.ID,
+		Header:        blockHeader,
+		CoinbaseTx:    coinbaseTx,
+		Version:       blockHeader.Version,
+		MerkleBranch:  template.MerkleBranch,
+		MinTime:       template.MinTime,
+		MaxTime:       template.MaxTime,
+		NetworkDiff:   template.NetworkDiff,
+		PrevHash:      &blockHeader.PrevBlock,
+		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
+		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
+		Timestamp:     blockHeader.Timestamp,
+		Bits:          template.Bits,
 	}
 }
 

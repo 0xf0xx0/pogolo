@@ -650,7 +650,7 @@ func backendRoutine(ctx context.Context) {
 		}
 		currTemplate = jobTemplate
 		currTemplateLock.Unlock()
-		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", strconv.FormatUint(currTemplate.ID, 16), len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go notifyClients() /// this might take a while
 	}

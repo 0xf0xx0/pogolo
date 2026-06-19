@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"slices"
-	"strconv"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -26,7 +25,7 @@ type JobTemplate struct {
 	MsgBlock     wire.MsgBlock
 	Bits         []byte
 	MerkleBranch []*chainhash.Hash
-	ID           string
+	ID           uint64
 	NetworkDiff  float64
 	Subsidy      int64
 	Height       int64
@@ -34,14 +33,20 @@ type JobTemplate struct {
 	MaxTime      int64
 }
 type MiningJob struct {
-	stratum.MiningNotifyParams
-	Header       wire.BlockHeader
-	CoinbaseTx   *btcutil.Tx
-	MerkleBranch []*chainhash.Hash
-	NetworkDiff  float64
-	Version      int32
-	MinTime      int64
-	MaxTime      int64
+	JobIDInt           uint64
+	Header             wire.BlockHeader
+	CoinbaseTx         *btcutil.Tx
+	MerkleBranch       []*chainhash.Hash
+	NetworkDiff        float64
+	Version            int32
+	MinTime            int64
+	MaxTime            int64
+	PrevHash           *chainhash.Hash
+	CoinbasePart1      []byte
+	CoinbasePart2      []byte
+	Timestamp          time.Time
+	Bits               []byte
+	MiningNotifyParams stratum.MiningNotifyParams // for sv1
 }
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {
@@ -134,7 +139,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 
 	currTemplateID++
 	job := &JobTemplate{
-		ID:           strconv.FormatUint(currTemplateID, 16),
+		ID:           currTemplateID,
 		MsgBlock:     block,
 		MerkleBranch: merkleBranch,
 		Bits:         bits,

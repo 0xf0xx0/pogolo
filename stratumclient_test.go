@@ -117,7 +117,7 @@ func TestInitSequence(t *testing.T) {
 	/// WHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 	time.Sleep(time.Millisecond)
 
-	if client.CurrentJob.PrevBlockHash == nil {
+	if client.CurrentJob.PrevHash == nil {
 		t.Fatal("job wasnt created, did init fail?")
 	}
 	client.Stop()
