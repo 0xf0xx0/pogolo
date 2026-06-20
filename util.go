@@ -364,6 +364,9 @@ func parseUserAgent(ua string) string {
 
 // pretty-print difficulty
 func formatDifficulty(value float64) string {
+	sb := strings.Builder{}
+	sb.Grow(8)
+	sb.WriteString(strconv.FormatFloat(value, 'g', 3, 64))
 	unit := ""
 	if value >= 1e15 {
 		unit = "P"
@@ -382,11 +385,16 @@ func formatDifficulty(value float64) string {
 		value /= 1000
 	}
 
-	return strconv.FormatFloat(value, 'g', 3, 64) + unit
+	sb.WriteString(unit)
+	return sb.String()
 }
 
 // takes MH/s
 func formatHashrate(value float64) string {
+	sb := strings.Builder{}
+	sb.Grow(16)
+	sb.WriteString(strconv.FormatFloat(value, 'g', 5, 64))
+
 	unit := "M"
 	if value > 1e9 {
 		value /= 1e9
@@ -398,7 +406,11 @@ func formatHashrate(value float64) string {
 		value /= 1000
 		unit = "G"
 	}
-	return strconv.FormatFloat(value, 'g', 5, 64) + " " + unit + "H/s"
+
+	sb.WriteRune(' ')
+	sb.WriteString(unit)
+	sb.WriteString("H/s")
+	return sb.String()
 }
 
 func log(s string) {

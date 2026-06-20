@@ -178,9 +178,9 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare, notif strat
 	job.Header.Timestamp = time.Unix(int64(share.Time), 0)
 
 	/// coinbase was changed, thus recalc the root
-	coinbaseTx := btcutil.NewTx(coinbaseMsgTx)
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-	branches[0] = coinbaseTx.Hash()
+	coinbaseTxHash := coinbaseMsgTx.TxHash()
+	branches[0] = &coinbaseTxHash
 	branches = append(branches, job.MerkleBranch...)
 	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
 

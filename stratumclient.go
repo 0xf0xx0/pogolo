@@ -84,9 +84,11 @@ func (client *StratumClient) Run(ctx context.Context) {
 	}
 	// sv1 always starts with '{' and might start with whitespace
 	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
+		r = nil
 		client.protocol = 1
 		client.processSv1Loop(ctx, s)
 	} else {
+		s = nil
 		client.protocol = 2
 		client.processSv2Loop(ctx, r)
 	}
@@ -98,6 +100,9 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 	stratumInited := false
 	setupCompleted := false
 	channelOpened := false
+	/// this is allocated when a standard channel is opened
+	/// and is used to pad the extranonce2 field for the coinbase
+	var emptyExtranonce []byte
 	for {
 		select {
 		case <-ctx.Done():
@@ -142,12 +147,13 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					break
 				}
 				s := commonShare{
-					ChannelID: share.ChannelID,
-					JobID:     share.JobID,
-					Time:      share.Time,
-					Version:   share.Version,
-					Nonce:     share.Nonce,
-					Sequence:  share.Sequence,
+					ChannelID:   share.ChannelID,
+					JobID:       share.JobID,
+					Time:        share.Time,
+					Version:     share.Version,
+					Nonce:       share.Nonce,
+					Extranonce2: emptyExtranonce,
+					Sequence:    share.Sequence,
 				}
 				client.validateShareSubmission(s, nil)
 			}
@@ -230,6 +236,8 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					Target:           msg.MaxTarget,
 					ExtranoncePrefix: client.ID.Bytes(),
 				})
+				// alloc padding
+				emptyExtranonce = make([]byte, conf.ExtraNonce2Size)
 				channelOpened = true
 			}
 		case stratumv2.MethodOpenExtendedMiningChannel:
@@ -737,13 +745,11 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 
 func (client *StratumClient) validateShareSubmission(share commonShare, m *stratum.Request) {
 	client.currentJobMutex.RLock()
-	currTemplateLock.RLock()
 	defer client.currentJobMutex.RUnlock()
-	defer currTemplateLock.RUnlock()
 
-	if share.JobID != uint32(currTemplateID) {
+	if share.JobID != uint32(client.CurrentJob.JobIDInt) {
 		client.stats.sharesRejected++
-		if share.JobID == uint32(currTemplateID-1) {
+		if share.JobID == uint32(client.CurrentJob.JobIDInt-1) {
 			if m != nil {
 				client.writeRes(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
 			} else {
@@ -848,25 +854,25 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	// client.shareHashMutex.Lock()
-	// defer client.shareHashMutex.Unlock()
-	// /// check if share is dupe
-	// if _, ok := client.shareHashes[shareHash]; ok {
-	// 	if m != nil {
-	// 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
-	// 	} else {
-	// 		client.writeSv2Res(&stratumv2.SubmitSharesError{
-	// 			ChannelID:      uint32(client.ID),
-	// 			SequenceNumber: share.Sequence,
-	// 			ErrorCode:      constants.ERROR_DUPE_SHARE.Message,
-	// 		})
-	// 	}
-	// 	client.stats.sharesRejected++
-	// 	client.logError("share rejected: duplicate")
-	// 	return
-	// }
-	// /// add to dupe map
-	// client.shareHashes[shareHash] = struct{}{}
+	client.shareHashMutex.Lock()
+	defer client.shareHashMutex.Unlock()
+	/// check if share is dupe
+	if _, ok := client.shareHashes[shareHash]; ok {
+		if m != nil {
+			client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
+		} else {
+			client.writeSv2Res(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      constants.ERROR_DUPE_SHARE.Message,
+			})
+		}
+		client.stats.sharesRejected++
+		client.logError("share rejected: duplicate")
+		return
+	}
+	/// add to dupe map
+	client.shareHashes[shareHash] = struct{}{}
 
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
