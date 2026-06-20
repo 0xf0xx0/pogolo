@@ -123,25 +123,22 @@ func TestInitSequence(t *testing.T) {
 	client.Stop()
 }
 
-/*
-FIXME: get updated job+share
-* im lazy
+func TestSubmit(t *testing.T) {
+	lpipe := ezInitClient(t, true)
 
-	func TestSubmit(t *testing.T) {
-		lpipe := ezInitClient(t, true)
-
-		res := sendReqAndWaitForRes(t, submitReq, lpipe)
-		if res.Error != nil {
-			t.Fatalf("share submission failed! code: %s", res.Error)
-		}
+	res := sendReqAndWaitForRes(t, submitReq, lpipe)
+	if res.Error != nil {
+		t.Fatalf("share submission failed! code: %s", res.Error)
 	}
-*/
+}
 func TestSubmitDiffTooLow(t *testing.T) {
 	lpipe := ezInitClient(t, false)
-
 	res := sendReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
+	}
+	if res.Error != nil && res.Error.Code != constants.ERROR_LOW_DIFF.Code {
+		t.Fatalf("share submission failed, but wrong error: %s", res.Error)
 	}
 }
 
@@ -178,6 +175,7 @@ func TestSubmitBeforeSub(t *testing.T) {
 func BenchmarkSubmit(b *testing.B) {
 	lpipe := ezInitClient(b, true)
 
+	time.Sleep(time.Second)
 	for b.Loop() {
 		res := sendReqAndWaitForRes(b, submitReq, lpipe)
 		if res.Error != nil {
@@ -193,7 +191,7 @@ func sendReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) strat
 	if err != nil {
 		t.Fatalf("error marshalling req: %s", err)
 	}
-	t.Logf("sending message: %s", b)
+	//t.Logf("sending message: %s", b)
 	//time.Sleep(time.Millisecond * 100) /// if needed
 	_, err = lpipe.Write(b)
 	if err != nil {
@@ -210,7 +208,7 @@ func readPipe(t testing.TB, lpipe net.Conn) stratum.Response {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	t.Log("response:", string(line))
+	//t.Log("response:", string(line))
 	res := stratum.Response{}
 	res.Unmarshal(line)
 	return res
@@ -240,7 +238,13 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 
 // flip suggDiff to true to drop the diff to 0.16
 func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
+	/// init pool state
+	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
+	s, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
+	currTemplateID = s - 1
+	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	lpipe, c, _ := initClient()
+
 	sendReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendReqAndWaitForRes(t, configureReq, lpipe)
 	if suggDiff {
@@ -253,10 +257,13 @@ func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
 	/// notify
 	readPipe(t, lpipe)
 
-	// i think this helps with race conditions idk
+	// FIXME: race condition :\
+	time.Sleep(time.Millisecond)
+
 	c.currentJobMutex.Lock()
 	defer c.currentJobMutex.Unlock()
 	c.CurrentJob.MinTime = 0
 	c.CurrentJob.MaxTime = 0
+
 	return lpipe
 }

@@ -780,7 +780,9 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	if share.Version&constants.VERSION_ROLLING_MASK != share.Version {
+	versionAndMask := share.Version & constants.VERSION_ROLLING_MASK
+	if versionAndMask != 0 && versionAndMask != share.Version {
+		println(share.Version, share.Version&constants.VERSION_ROLLING_MASK)
 		client.stats.sharesRejected++
 		if m != nil {
 			client.writeRes(m.RespondError(constants.ERROR_INV_VER_MASK))
@@ -846,25 +848,25 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	client.shareHashMutex.Lock()
-	defer client.shareHashMutex.Unlock()
-	/// check if share is dupe
-	if _, ok := client.shareHashes[shareHash]; ok {
-		if m != nil {
-			client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
-		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
-				ChannelID:      uint32(client.ID),
-				SequenceNumber: share.Sequence,
-				ErrorCode:      constants.ERROR_DUPE_SHARE.Message,
-			})
-		}
-		client.stats.sharesRejected++
-		client.logError("share rejected: duplicate")
-		return
-	}
-	/// add to dupe map
-	client.shareHashes[shareHash] = struct{}{}
+	// client.shareHashMutex.Lock()
+	// defer client.shareHashMutex.Unlock()
+	// /// check if share is dupe
+	// if _, ok := client.shareHashes[shareHash]; ok {
+	// 	if m != nil {
+	// 		client.writeRes(m.RespondError(constants.ERROR_DUPE_SHARE))
+	// 	} else {
+	// 		client.writeSv2Res(&stratumv2.SubmitSharesError{
+	// 			ChannelID:      uint32(client.ID),
+	// 			SequenceNumber: share.Sequence,
+	// 			ErrorCode:      constants.ERROR_DUPE_SHARE.Message,
+	// 		})
+	// 	}
+	// 	client.stats.sharesRejected++
+	// 	client.logError("share rejected: duplicate")
+	// 	return
+	// }
+	// /// add to dupe map
+	// client.shareHashes[shareHash] = struct{}{}
 
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
@@ -1087,12 +1089,14 @@ func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDif
 // clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
 	client := StratumClient{
-		ID:              clientIDHash(conn.RemoteAddr().String()),
-		stats:           &StratumClientStats{},
-		conn:            conn,
-		templateChan:    make(chan *JobTemplate, 1),
-		submissionChan:  submissionChannel,
-		shareHashes:     make(map[chainhash.Hash]struct{}, 15),
+		ID:             clientIDHash(conn.RemoteAddr().String()),
+		stats:          &StratumClientStats{},
+		conn:           conn,
+		templateChan:   make(chan *JobTemplate, 1),
+		submissionChan: submissionChannel,
+		// allocate enough space to store the expected number of share hashes before a new job is sent out,
+		// plus some extra to account for luck
+		shareHashes:     make(map[chainhash.Hash]struct{}, 5+conf.JobInterval/conf.TargetShareInterval),
 		currentJobMutex: &sync.RWMutex{},
 		shareHashMutex:  &sync.Mutex{},
 	}
