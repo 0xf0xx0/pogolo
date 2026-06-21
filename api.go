@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // api server
@@ -43,10 +47,26 @@ type getInfoRes struct {
 	BlocksFound   []string         `json:"blocksFound"`
 }
 
+type pogoloMetrics struct {
+	TotalWorkers  prometheus.Gauge
+	TotalHashrate prometheus.Gauge
+	BestDiff      prometheus.Counter
+	Uptime        prometheus.Counter
+	BlockHeight   prometheus.Counter
+	BlocksFound   prometheus.Counter
+}
+
 func initAPI() {
 	pfx := fmt.Sprintf("GET %s/v%d", API_PFX, API_VER)
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	http.Handle("GET /metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
 	/// default handlers
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {
