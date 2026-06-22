@@ -100,8 +100,8 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 	stratumInited := false
 	setupCompleted := false
 	channelOpened := false
-	/// this is allocated when a standard channel is opened
-	/// and is used to pad the extranonce2 field for the coinbase
+	/// this is allocated when a standard channel is opened and
+	/// is used to pad the extranonce2 field for the coinbase
 	var emptyExtranonce []byte
 	for {
 		select {
@@ -111,7 +111,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		}
 
 		frame := stratumv2.Frame{}
-		println("loop")
 		switch err := frame.DecodeFromReader(reader); err {
 		case io.ErrClosedPipe:
 		case io.EOF:
@@ -160,7 +159,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			}
 		case stratumv2.MethodSetupConnection:
 			{
-				println("setup")
 				if setupCompleted {
 					client.logError("already set up")
 					break
@@ -173,7 +171,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 
 				if msg.MaxVersion != 2 || msg.MinVersion != 2 {
 					client.writeSv2Res(&stratumv2.SetupConnectionError{
-						Flags:     0,
 						ErrorCode: stratumv2.ProtocolVersionMismatchError,
 					}, stratumv2.MethodSetupConnectionError)
 					client.logError("invalid SV2 version")
@@ -181,18 +178,27 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				}
 				if msg.Protocol != stratumv2.MiningProtocol {
 					client.writeSv2Res(&stratumv2.SetupConnectionError{
-						Flags:     0,
 						ErrorCode: stratumv2.UnsupportedProtocolError,
 					}, stratumv2.MethodSetupConnectionError)
 					client.logError("wrong SV2 protocol")
 					return
 				}
+
+				// validate flags
+				if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
+					client.writeSv2Res(&stratumv2.SetupConnectionError{
+						// TODO: extract into an UNSUPPORTED_FLAGS constant
+						Flags:     stratumv2.RequiresWorkSelectionFlag,
+						ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
+					}, stratumv2.MethodSetupConnectionError)
+					client.logError("unsupported feature flags")
+					return
+				}
+
 				/// TODO: figure out sv2 uas
 				client.UserAgent = parseUserAgent(msg.DeviceVendor)
 
-				client.writeSv2Res(&stratumv2.SetupConnectionSuccess{
-					Flags: msg.Flags,
-				}, stratumv2.MethodSetupConnectionSuccess)
+				client.writeSv2Res(&stratumv2.SetupConnectionSuccess{UsedVersion: 2}, stratumv2.MethodSetupConnectionSuccess)
 				setupCompleted = true
 			}
 		case stratumv2.MethodOpenStandardMiningChannel:

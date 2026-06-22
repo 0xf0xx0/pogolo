@@ -140,7 +140,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 		RejectedShares:  worker.stats.sharesRejected,
 		Uptime:          worker.stats.Uptime(),
 		AvgShareTime:    worker.stats.avgSubmissionDelta,
-		ProtocolVersion: 1,
+		ProtocolVersion: worker.protocol,
 	}
 	marshalAndWrite(res, info)
 }
