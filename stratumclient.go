@@ -76,8 +76,9 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 	/// peek to determine protocol
+	/// reader for sv2, scanner for sv1
 	r := bufio.NewReader(client.conn)
-	s := bufio.NewScanner(r)
+	s := bufio.NewScanner(client.conn)
 	b, err := r.Peek(1)
 	if err != nil {
 		return
@@ -88,22 +89,183 @@ func (client *StratumClient) Run(ctx context.Context) {
 		client.protocol = 1
 		client.processSv1Loop(ctx, s)
 	} else {
+		/// 1. handle SetupConnection
+		frame := stratumv2.Frame{}
+		if err := frame.DecodeFromReader(r); err != nil {
+			return
+		}
+		if frame.MessageType != stratumv2.MethodSetupConnection {
+			return
+		}
+		msg := stratumv2.SetupConnection{}
+		if err = msg.Decode(frame.Payload); err != nil {
+			client.logError("error decoding SetupConnection: %s", err)
+			return
+		}
+
+		if msg.MaxVersion != 2 || msg.MinVersion != 2 {
+			client.writeSv2Res(&stratumv2.SetupConnectionError{
+				ErrorCode: stratumv2.ProtocolVersionMismatchError,
+			}, stratumv2.MethodSetupConnectionError)
+			client.logError("invalid SV2 version")
+			return
+		}
+		if msg.Protocol != stratumv2.MiningProtocol {
+			client.writeSv2Res(&stratumv2.SetupConnectionError{
+				ErrorCode: stratumv2.UnsupportedProtocolError,
+			}, stratumv2.MethodSetupConnectionError)
+			client.logError("wrong SV2 protocol")
+			return
+		}
+		// validate flags
+		if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
+			client.writeSv2Res(&stratumv2.SetupConnectionError{
+				// TODO: extract into an UNSUPPORTED_FLAGS constant
+				Flags:     stratumv2.RequiresWorkSelectionFlag,
+				ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
+			}, stratumv2.MethodSetupConnectionError)
+			client.logError("unsupported feature flags")
+			return
+		}
+		/// TODO: figure out sv2 uas
+		client.UserAgent = parseUserAgent(msg.DeviceVendor)
+
+		/// write success
+		client.writeSv2Res(&stratumv2.SetupConnectionSuccess{UsedVersion: 2}, stratumv2.MethodSetupConnectionSuccess)
+
+		/// 2. handle channel open
+		if err := frame.DecodeFromReader(r); err != nil {
+			return
+		}
+		switch frame.MessageType {
+		case stratumv2.MethodOpenStandardMiningChannel:
+			{
+				msg := stratumv2.OpenStandardMiningChannel{}
+				if err = msg.Decode(frame.Payload); err != nil {
+					client.logError("error decoding OpenStandardMiningChannel: %s", err)
+					break
+				}
+
+				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
+					return
+				}
+				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID) {
+					return
+				}
+
+				client.writeSv2Res(&stratumv2.OpenStandardMiningChannelSuccess{
+					RequestID:        msg.RequestID,
+					ChannelID:        uint32(client.ID),
+					Target:           msg.MaxTarget,
+					ExtranoncePrefix: client.ID.Bytes(),
+				}, stratumv2.MethodOpenStandardMiningChannelSuccess)
+			}
+		case stratumv2.MethodOpenExtendedMiningChannel:
+			{
+				msg := stratumv2.OpenExtendedMiningChannel{}
+				if err = msg.Decode(frame.Payload); err != nil {
+					client.logError("error decoding OpenExtendedMiningChannel: %s", err)
+					break
+				}
+
+				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
+					client.logError("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
+					break
+				}
+				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
+					return
+				}
+				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID) {
+					return
+				}
+				client.extendedChannel = true
+
+				client.writeSv2Res(&stratumv2.OpenExtendedMiningChannelSuccess{
+					OpenStandardMiningChannelSuccess: stratumv2.OpenStandardMiningChannelSuccess{
+						RequestID:        msg.RequestID,
+						ChannelID:        uint32(client.ID),
+						Target:           msg.MaxTarget,
+						ExtranoncePrefix: client.ID.Bytes(),
+					},
+					ExtranonceSize: uint16(conf.ExtraNonce2Size),
+				}, stratumv2.MethodOpenExtendedMiningChannelSuccess)
+			}
+		default:
+			client.logError("second message wasn't a channel open")
+			return
+		}
+
 		s = nil
 		client.protocol = 2
-		// TODO: split init sequence out of loop
+		client.startMining()
 		client.processSv2Loop(ctx, r)
+	}
+}
+func (client *StratumClient) startMining() {
+	log(fmt.Sprintf(
+		/// dig, cause gophers, get it?
+		"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
+		client.Name(), client.ID, client.Addr(),
+	))
+
+	if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+		client.log("{yellow}mining to pool address")
+	}
+	if client.VersionRollingMask > 0 {
+		client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
+	}
+	/// the client may have suggested a difficulty before fully initialized
+	/// if they haven't, we alert them to our default diff here
+	if client.SuggestedDifficulty == 0 {
+		if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
+			/// use the hardcoded min
+			client.setDifficulty(constants.MIN_DIFFICULTY)
+		} else {
+			client.setDifficulty(conf.Pogolo.DefaultDifficulty)
+		}
+	}
+
+	/// i dont think the order matters, but lets send the current template
+	/// before adding to the client map, just in case notifyClients gets
+	/// called in between (and rapid-fires jobs)
+	if currTemplate != nil {
+		client.TemplateChannel() <- currTemplate
+	}
+	clients.Add(client)
+	client.stats.startTime = time.Now()
+}
+func (client *StratumClient) Stop() {
+	if client.templateChan == nil {
+		return
+	}
+	close(client.templateChan)
+	/// nil because receive-side closure
+	client.templateChan = nil
+
+	/// remove ourselves from the client map
+	if client.ID != 0 {
+		clients.Delete(client.ID)
+		log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
+	}
+
+	client.conn.Close()
+
+	if conf.Benchmarking {
+		sharesPS := float64(client.stats.sharesAccepted+client.stats.sharesRejected) / float64(client.stats.Uptime())
+		totalSharesPerSec += sharesPS
+		println(fmt.Sprintf("shares/s: %f", sharesPS))
 	}
 }
 
 func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.Reader) {
 	var err error
-
-	stratumInited := false
-	setupCompleted := false
-	channelOpened := false
 	/// this is allocated when a standard channel is opened and
 	/// is used to pad the extranonce2 field for the coinbase
 	var emptyExtranonce []byte
+	if !client.extendedChannel {
+		// alloc padding
+		emptyExtranonce = make([]byte, conf.ExtraNonce2Size)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -112,7 +274,14 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		}
 
 		frame := stratumv2.Frame{}
-		switch err := frame.DecodeFromReader(reader); err {
+		if conf.Sv2Encryption {
+			noised := stratumv2.NoiseFrame{}
+			err = noised.DecodeFromReader(reader)
+			frame = noised.Frame
+		} else {
+			err = frame.DecodeFromReader(reader)
+		}
+		switch err {
 		case io.ErrClosedPipe:
 		case io.EOF:
 			return
@@ -124,6 +293,10 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		switch frame.MessageType {
 		case stratumv2.MethodSubmitSharesExtended:
 			{
+				if !client.extendedChannel {
+					client.logError("extended share submitted on standard channel")
+					break
+				}
 				share := stratumv2.SubmitSharesExtended{}
 				if err = share.Decode(frame.Payload); err != nil {
 					client.logError("error decoding SubmitSharesExtended: %s", err)
@@ -142,6 +315,10 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			}
 		case stratumv2.MethodSubmitSharesStandard:
 			{
+				if client.extendedChannel {
+					client.logError("standard share submitted on extended channel")
+					break
+				}
 				share := stratumv2.SubmitSharesStandard{}
 				if err = share.Decode(frame.Payload); err != nil {
 					client.logError("error decoding SubmitSharesStandard: %s", err)
@@ -158,151 +335,14 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				}
 				client.validateShareSubmission(s, nil)
 			}
-		case stratumv2.MethodSetupConnection:
+		case stratumv2.MethodUpdateChannel:
 			{
-				if setupCompleted {
-					client.logError("already set up")
-					break
-				}
-				msg := stratumv2.SetupConnection{}
+				msg := stratumv2.UpdateChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding SetupConnection: %s", err)
-					break
-				}
-
-				if msg.MaxVersion != 2 || msg.MinVersion != 2 {
-					client.writeSv2Res(&stratumv2.SetupConnectionError{
-						ErrorCode: stratumv2.ProtocolVersionMismatchError,
-					}, stratumv2.MethodSetupConnectionError)
-					client.logError("invalid SV2 version")
+					client.logError("error decoding UpdateChannel: %s", err)
 					return
 				}
-				if msg.Protocol != stratumv2.MiningProtocol {
-					client.writeSv2Res(&stratumv2.SetupConnectionError{
-						ErrorCode: stratumv2.UnsupportedProtocolError,
-					}, stratumv2.MethodSetupConnectionError)
-					client.logError("wrong SV2 protocol")
-					return
-				}
-
-				// validate flags
-				if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
-					client.writeSv2Res(&stratumv2.SetupConnectionError{
-						// TODO: extract into an UNSUPPORTED_FLAGS constant
-						Flags:     stratumv2.RequiresWorkSelectionFlag,
-						ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
-					}, stratumv2.MethodSetupConnectionError)
-					client.logError("unsupported feature flags")
-					return
-				}
-
-				/// TODO: figure out sv2 uas
-				client.UserAgent = parseUserAgent(msg.DeviceVendor)
-
-				client.writeSv2Res(&stratumv2.SetupConnectionSuccess{UsedVersion: 2}, stratumv2.MethodSetupConnectionSuccess)
-				setupCompleted = true
-			}
-		case stratumv2.MethodOpenStandardMiningChannel:
-			{
-				if channelOpened {
-					client.logError("mining channel already open")
-				}
-				msg := stratumv2.OpenStandardMiningChannel{}
-				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding OpenStandardMiningChannel: %s", err)
-					break
-				}
-
-				// validate max target
-				// TODO: verify Target1U256 is a valid maximum
-				// maybe "steal" from a different pool lol
-				maxTarget := stratumv2.U256(msg.MaxTarget)
-				if !constants.Target1U256.IsMetBy(&maxTarget) {
-					client.logError("provided max target is out of range")
-					client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-						RequestID: msg.RequestID,
-						ErrorCode: stratumv2.MaxTargetOutOfRangeError,
-					}, stratumv2.MethodOpenMiningChannelError)
-					return
-				}
-
-				// guesstimate target difficulty from hashrate
-				if msg.NominalHashRate > 0 {
-					client.SuggestedDifficulty = calcDiffFromHashrate(float64(msg.NominalHashRate))
-					client.stats.hashrate = float64(msg.NominalHashRate)
-					client.log("guessed initial target of {blue}%d", client.SuggestedDifficulty)
-				}
-
-				miningAddr, shouldReturn := client.parseSv2Identity(msg.UserIdentity, msg.RequestID)
-				if shouldReturn {
-					return
-				}
-				client.User = miningAddr
-
-				client.writeSv2Res(&stratumv2.OpenStandardMiningChannelSuccess{
-					RequestID:        msg.RequestID,
-					ChannelID:        uint32(client.ID),
-					Target:           msg.MaxTarget,
-					ExtranoncePrefix: client.ID.Bytes(),
-				}, stratumv2.MethodOpenStandardMiningChannelSuccess)
-				// alloc padding
-				emptyExtranonce = make([]byte, conf.ExtraNonce2Size)
-				channelOpened = true
-			}
-		case stratumv2.MethodOpenExtendedMiningChannel:
-			{
-				if channelOpened {
-					client.logError("mining channel already open")
-				}
-
-				msg := stratumv2.OpenExtendedMiningChannel{}
-				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding OpenExtendedMiningChannel: %s", err)
-					break
-				}
-
-				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
-					client.logError("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
-					break
-				}
-
-				// validate max target
-				// TODO: verify Target1U256 is a valid maximum
-				// maybe "steal" from a different pool lol
-				maxTarget := stratumv2.U256(msg.MaxTarget)
-				if !constants.Target1U256.IsMetBy(&maxTarget) {
-					client.logError("provided max target is out of range")
-					client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-						RequestID: msg.RequestID,
-						ErrorCode: stratumv2.MaxTargetOutOfRangeError,
-					}, stratumv2.MethodOpenMiningChannelError)
-					return
-				}
-
-				// guesstimate target difficulty from hashrate
-				if msg.NominalHashRate > 0 {
-					client.SuggestedDifficulty = calcDiffFromHashrate(float64(msg.NominalHashRate))
-					client.stats.hashrate = float64(msg.NominalHashRate)
-					client.log("guessed initial target of {blue}%g", client.SuggestedDifficulty)
-				}
-
-				miningAddr, shouldReturn := client.parseSv2Identity(msg.UserIdentity, msg.RequestID)
-				if shouldReturn {
-					return
-				}
-				client.User = miningAddr
-
-				client.writeSv2Res(&stratumv2.OpenExtendedMiningChannelSuccess{
-					OpenStandardMiningChannelSuccess: stratumv2.OpenStandardMiningChannelSuccess{
-						RequestID:        msg.RequestID,
-						ChannelID:        uint32(client.ID),
-						Target:           msg.MaxTarget,
-						ExtranoncePrefix: client.ID.Bytes(),
-					},
-					ExtranonceSize: uint16(conf.Pogolo.ExtraNonce2Size),
-				}, stratumv2.MethodOpenExtendedMiningChannelSuccess)
-				channelOpened = true
-				client.extendedChannel = true
+				/// TODO
 			}
 		case stratumv2.MethodCloseChannel:
 			{
@@ -314,20 +354,22 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				client.log("leaving: %s", msg.ReasonCode)
 				return
 			}
-		default:
-			client.logError("unknown method: %d", frame.MessageType)
-			continue
-		}
 
-		if !stratumInited && setupCompleted && channelOpened {
-			stratumInited = true
-			client.startMining()
+		// ignored
+		case stratumv2.MethodSetupConnection:
+		case stratumv2.MethodOpenStandardMiningChannel:
+		case stratumv2.MethodOpenExtendedMiningChannel:
+			{
+				break
+			}
+		default:
+			client.logError("unknown method: %x", frame.MessageType)
+			continue
 		}
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 }
-
 func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.Scanner) {
 	stratumInited := false
 	isAuthed := false
@@ -532,66 +574,6 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.
 	}
 }
 
-func (client *StratumClient) startMining() {
-	log(fmt.Sprintf(
-		/// dig, cause gophers, get it?
-		"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
-		client.Name(), client.ID, client.Addr(),
-	))
-
-	if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
-		client.log("{yellow}mining to pool address")
-	}
-	if client.VersionRollingMask > 0 {
-		client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
-	}
-	/// the client may have suggested a difficulty before fully initialized
-	/// if they haven't, we alert them to our default diff here
-	if client.SuggestedDifficulty == 0 {
-		if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
-			if conf.Benchmarking {
-				client.setDifficulty(0.000001) /// lowest diff before cpuminer deadlocks
-			} else {
-				/// use the hardcoded min
-				client.setDifficulty(constants.MIN_DIFFICULTY)
-			}
-		} else {
-			client.setDifficulty(conf.Pogolo.DefaultDifficulty)
-		}
-	}
-
-	/// i dont think the order matters, but lets send the current template
-	/// before adding to the client map, just in case notifyClients gets
-	/// called in between (and rapid-fires jobs)
-	if currTemplate != nil {
-		client.TemplateChannel() <- currTemplate
-	}
-	clients.Add(client)
-	client.stats.startTime = time.Now()
-}
-func (client *StratumClient) Stop() {
-	if client.templateChan == nil {
-		return
-	}
-	close(client.templateChan)
-	/// nil because receive-side closure
-	client.templateChan = nil
-
-	/// remove ourselves from the client map
-	if client.ID != 0 {
-		clients.Delete(client.ID)
-		log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
-	}
-
-	client.conn.Close()
-
-	if conf.Benchmarking {
-		sharesPS := float64(client.stats.sharesAccepted) / float64(client.stats.Uptime())
-		totalSharesPerSec += sharesPS
-		println(fmt.Sprintf("shares/s: %f", sharesPS))
-	}
-}
-
 // aims for the .TargetShareInterval
 func (client *StratumClient) calcNextDifficulty() {
 	if client.stats.avgSubmissionDelta == 0 {
@@ -616,7 +598,65 @@ func (client *StratumClient) calcNextDifficulty() {
 	client.SuggestedDifficulty = newDiff
 	client.log("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
+func (client *StratumClient) setDifficulty(newDiff float64) error {
+	if newDiff <= 0 || newDiff == client.TargetDifficulty {
+		return nil
+	}
+	if client.protocol == 1 {
+		setdiff := &stratum.MiningSetDifficultyParams{
+			Difficulty: newDiff,
+		}
+		if err := client.writeSv1Msg(setdiff.ToNotification()); err != nil {
+			return err
+		}
+	} else if client.protocol == 2 {
+		target := diffToTarget(newDiff)
+		msg := &stratumv2.SetTarget{
+			ChannelID: uint32(client.ID),
+			MaxTarget: target,
+		}
+		if err := client.writeSv2Res(msg, stratumv2.MethodSetTarget); err != nil {
+			return err
+		}
+	}
+	client.TargetDifficulty = newDiff
+	return nil
+}
+func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
+	block := btcutil.NewBlock(template.MsgBlock.Copy())
+	blockHeader := block.MsgBlock().Header
 
+	coinbaseTx := fillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
+	/// serialized without the witness, we handle that on submission
+	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
+
+	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
+	/// find the split point, right after the input
+	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
+	if partOneIndex < 0 {
+		panic("partOneIndex shoudnt be below 0")
+	}
+	partOneIndex += len(inputScript)
+
+	return MiningJob{
+		JobIDInt:      template.ID,
+		Header:        blockHeader,
+		CoinbaseTx:    coinbaseTx,
+		Version:       blockHeader.Version,
+		MerkleBranch:  template.MerkleBranch,
+		MinTime:       template.MinTime,
+		MaxTime:       template.MaxTime,
+		NetworkDiff:   template.NetworkDiff,
+		PrevHash:      &blockHeader.PrevBlock,
+		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
+		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
+		Timestamp:     blockHeader.Timestamp,
+		Bits:          template.Bits,
+	}
+}
+func (client *StratumClient) submitBlock(block blockSubmission) {
+	client.submissionChan <- block
+}
 func (client *StratumClient) readTemplateChanRoutine() {
 	for {
 		template, ok := <-client.templateChan
@@ -669,14 +709,14 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			prevhash := &stratumv2.SetNewPrevHash{
 				ChannelID: uint32(client.ID),
 				JobID:     uint32(currTemplateID),
-				PrevHash:  *newJob.PrevHash,
+				PrevHash:  stratumv2.U256(*newJob.PrevHash),
 				MinTime:   uint32(newJob.Timestamp.Unix()), /// should be equiv to Clean=true
 				Bits:      newJob.Header.Bits,
 			}
 			if client.extendedChannel {
-				merklePath := make([]chainhash.Hash, len(newJob.MerkleBranch))
+				merklePath := make([]stratumv2.U256, len(newJob.MerkleBranch))
 				for i, h := range newJob.MerkleBranch {
-					merklePath[i] = *h
+					merklePath[i] = stratumv2.U256(*h)
 				}
 				job := &stratumv2.NewExtendedMiningJob{
 					ChannelID:             uint32(client.ID),
@@ -695,7 +735,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 					JobID:      uint32(currTemplateID),
 					MinTime:    []uint32{uint32(newJob.MinTime)},
 					Version:    uint32(newJob.Version),
-					MerkleRoot: newJob.Header.MerkleRoot,
+					MerkleRoot: stratumv2.U256(newJob.Header.MerkleRoot),
 				}
 				client.writeSv2Res(job, stratumv2.MethodNewMiningJob)
 			}
@@ -709,12 +749,14 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		}
 		client.shareHashMutex.Unlock()
 
+		/// NOTE: update job after everything to give the new job some time to be sent and switched to
+		/// (reduces the chance of shares being submitted mid-job change)
+		/// MAYBE: guess RTT and sleep for half?
 		client.currentJobMutex.Lock()
 		client.CurrentJob = newJob
 		client.currentJobMutex.Unlock()
 	}
 }
-
 func (client *StratumClient) TemplateChannel() chan<- *JobTemplate {
 	return client.templateChan
 }
@@ -730,31 +772,53 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 
-func (client *StratumClient) setDifficulty(newDiff float64) error {
-	if newDiff <= 0 || newDiff == client.TargetDifficulty {
-		return nil
+// TODO: refactor sv1 module and remove initial splitting to use here
+func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32) bool {
+	split := strings.Split(userIdentity, ".")
+	if len(split) > 1 {
+		client.Nickname = split[1]
 	}
-	if client.protocol == 1 {
-		setdiff := &stratum.MiningSetDifficultyParams{
-			Difficulty: newDiff,
+	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+	if err != nil {
+		if defaultMiningAddr == nil {
+			client.logError("failed decoding address: %s", err)
+			client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+				RequestID: requestID,
+				ErrorCode: stratumv2.UnknownUserError,
+			}, stratumv2.MethodOpenMiningChannelError)
+			return true
 		}
-		if err := client.writeSv1Msg(setdiff.ToNotification()); err != nil {
-			return err
+		/// assume just the workername was passed
+		if split[0] != "" {
+			client.Nickname = split[0]
 		}
-	} else if client.protocol == 2 {
-		target := diffToTarget(newDiff)
-		msg := &stratumv2.SetTarget{
-			ChannelID: uint32(client.ID),
-			MaxTarget: target,
-		}
-		if err := client.writeSv2Res(msg, stratumv2.MethodSetTarget); err != nil {
-			return err
-		}
+		decoded = *defaultMiningAddr
 	}
-	client.TargetDifficulty = newDiff
-	return nil
+	client.User = decoded
+	return false
 }
+func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget stratumv2.U256, nominalHashRate float32) bool {
+	// validate max target
+	// TODO: verify Target1U256 is a valid maximum
+	// maybe "steal" from a different pool lol
+	if !constants.Target1U256.IsMetBy(&maxTarget) {
+		client.logError("provided max target is out of range")
+		client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+			RequestID: requestID,
+			ErrorCode: stratumv2.MaxTargetOutOfRangeError,
+		}, stratumv2.MethodOpenMiningChannelError)
+		return false
+	}
 
+	// guesstimate target difficulty from hashrate
+	if nominalHashRate > 0 {
+		cast := float64(nominalHashRate)
+		client.SuggestedDifficulty = calcDiffFromHashrate(cast)
+		client.stats.hashrate = cast
+		client.log("guessed initial difficulty {blue}%d", client.SuggestedDifficulty)
+	}
+	return true
+}
 func (client *StratumClient) validateShareSubmission(share commonShare, m *stratum.Request) {
 	client.currentJobMutex.RLock()
 	defer client.currentJobMutex.RUnlock()
@@ -832,10 +896,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	shareHash := updatedHeader.BlockHash()
-	shareDiff := calcDifficulty(shareHash)
 	ntime := updatedHeader.Timestamp.Unix()
-
 	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_BAD_TIME))
@@ -851,6 +912,8 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
+	shareHash := updatedHeader.BlockHash()
+	shareDiff := calcDifficulty(shareHash)
 	if shareDiff < client.TargetDifficulty {
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_LOW_DIFF))
@@ -886,7 +949,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 	/// add to dupe map
 	client.shareHashes[shareHash] = struct{}{}
 
-	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
+	if shareDiff >= client.CurrentJob.NetworkDiff {
 		/// !!! block! dont say ANYTHING until after submitted
 		submission := blockSubmission{
 			ClientID: client.ID,
@@ -926,55 +989,20 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		formatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
 }
 
-func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	block := btcutil.NewBlock(template.MsgBlock.Copy())
-	blockHeader := block.MsgBlock().Header
-
-	coinbaseTx := fillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
-	/// serialized without the witness, we handle that on submission
-	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
-
-	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
-	/// find the split point, right after the input
-	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
-	if partOneIndex < 0 {
-		panic("partOneIndex shoudnt be below 0")
-	}
-	partOneIndex += len(inputScript)
-
-	return MiningJob{
-		JobIDInt:      template.ID,
-		Header:        blockHeader,
-		CoinbaseTx:    coinbaseTx,
-		Version:       blockHeader.Version,
-		MerkleBranch:  template.MerkleBranch,
-		MinTime:       template.MinTime,
-		MaxTime:       template.MaxTime,
-		NetworkDiff:   template.NetworkDiff,
-		PrevHash:      &blockHeader.PrevBlock,
-		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
-		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
-		Timestamp:     blockHeader.Timestamp,
-		Bits:          template.Bits,
-	}
-}
-
 // chatter
-func (client *StratumClient) submitBlock(block blockSubmission) {
-	client.submissionChan <- block
-}
 func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
-	bytes, err := msg.Marshal()
+	b, err := msg.Marshal()
 	if err != nil {
 		client.logError("failed to marshal message: %s", err)
 		return err
 	}
 
-	return client.writeConn(bytes)
+	return client.writeConn(b)
 }
-func (client *StratumClient) writeSv2Res(res stratumv2.Codable, method stratumv2.Method) error {
-	b, err := res.Encode()
+func (client *StratumClient) writeSv2Res(payload stratumv2.Codable, method stratumv2.Method) error {
+	b, err := payload.Encode()
 	if err != nil {
+		client.logError("failed to encode payload: %s", err)
 		return err
 	}
 	frame := stratumv2.Frame{
@@ -989,12 +1017,14 @@ func (client *StratumClient) writeSv2Res(res stratumv2.Codable, method stratumv2
 		}
 		f, err := noiseFrame.Encode()
 		if err != nil {
+			client.logError("failed to encode encrypted frame: %s", err)
 			return err
 		}
 		return client.writeConn(f)
 	}
 	f, err := frame.Encode()
 	if err != nil {
+		client.logError("failed to encode frame: %s", err)
 		return err
 	}
 	// client.log("TX: %x", f)
@@ -1003,31 +1033,6 @@ func (client *StratumClient) writeSv2Res(res stratumv2.Codable, method stratumv2
 func (client *StratumClient) writeConn(b []byte) error {
 	_, err := client.conn.Write(b)
 	return err
-}
-
-// TODO: refactor sv1 module and remove initial splitting to use here
-func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32) (btcutil.Address, bool) {
-	split := strings.Split(userIdentity, ".")
-	if len(split) > 1 {
-		client.Nickname = split[1]
-	}
-	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
-	if err != nil {
-		if defaultMiningAddr == nil {
-			client.logError("failed decoding address: %s", err)
-			client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-				RequestID: requestID,
-				ErrorCode: stratumv2.UnknownUserError,
-			}, stratumv2.MethodOpenMiningChannelError)
-			return nil, true
-		}
-		/// assume just the workername was passed
-		if split[0] != "" {
-			client.Nickname = split[0]
-		}
-		decoded = *defaultMiningAddr
-	}
-	return decoded, false
 }
 
 // logging

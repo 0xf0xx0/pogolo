@@ -257,7 +257,7 @@ func main() {
 				conf.DisableVarDiff = true
 				conf.IgnoreSuggDiff = true
 				log("{bold}{yellow}==<<!>=<<!>=<<!>>=<benchmarking>=<<!>=<<!>=<<!>>==")
-				log("{yellow}connect with cpuminer to start")
+				log("{yellow}connect with a client to start")
 			}
 
 			/// init backend

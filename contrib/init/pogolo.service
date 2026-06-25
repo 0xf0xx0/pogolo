@@ -6,7 +6,7 @@ StartLimitBurst=5
 
 [Service]
 Group=bitcoin
-EnvironmentFile=/etc/conf.d/pogolo
+#EnvironmentFile=/etc/conf.d/pogolo
 ExecStart=pogolo --conf /etc/pogolo/pogolo.toml $POGOLO_ARGS
 TimeoutStopSec=5
 Restart=on-failure

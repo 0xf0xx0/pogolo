@@ -79,9 +79,9 @@ func LoadConfig(path string, conf *Config) error {
 func WriteDefaultConfig(path string) error {
 	/// done here to not fuck up runtime
 	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
-	DEFAULT_CONFIG.Backend.Rpcauth = "bitty:axxy"
-	DEFAULT_CONFIG.Pogolo.Interface = "lo"
-	DEFAULT_CONFIG.Pogolo.Host = "[::1]"
+	DEFAULT_CONFIG.Backend.Rpcauth = "bitte:axtuh"
+	DEFAULT_CONFIG.Pogolo.Interface = ""
+	DEFAULT_CONFIG.Pogolo.Host = "[::]"
 
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
