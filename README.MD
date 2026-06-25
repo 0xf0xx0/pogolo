@@ -29,7 +29,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 - colorful and detailed logs (respects NO_COLOR)
 - read-only api (see api.go and swagger spec)
 
-## supported BIPs
+## implemented BIPs
 
 - 34
 - 41 (probably)
@@ -54,7 +54,7 @@ pogolo has no tls support.
 
 - miners requiring extranonce.subscribe
 - luckyminers/other non-foss axe clones
-- stratum v2
+- stratum v2 (temporarily)
 
 # install
 
