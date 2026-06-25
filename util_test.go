@@ -51,7 +51,7 @@ func TestClientMap(t *testing.T) {
 	}
 
 	m.Delete(42069)
-	if get, ok = m.Get(42069); ok {
+	if _, ok = m.Get(42069); ok {
 		t.Fatal("client still exists in map after delete")
 	}
 	m = nil

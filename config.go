@@ -45,6 +45,7 @@ type Pogolo struct {
 	DisableVarDiff      bool    `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 	Benchmarking        bool    `toml:"benchmark,omitempty"`
 	LogFile             string  `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
+	Sv2Encryption       bool    `toml:"sv2_encryption,commented" comment:"enable sv2 noise encryption"`
 }
 
 var DEFAULT_CONFIG = Config{
