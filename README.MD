@@ -77,7 +77,7 @@ docker (+compose) files exist and work but likely need tweaks, theyre also under
 
 ### environment overrides
 
-for easy config, eg umbrel
+for easy config
 
 ```yaml
 POGOLO_HOST: # overrides [pogolo].host

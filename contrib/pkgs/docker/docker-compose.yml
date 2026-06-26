@@ -15,5 +15,5 @@ services:
       POGOLO_HOST: "0.0.0.0"
       POGOLO_BACKEND_HOST: "host:port" # adjust
       POGOLO_BACKEND_RPCAUTH: "user:pass" # adjust
-      # colorful logs
+      # comment to disable colors
       FORCE_COLOR: 1

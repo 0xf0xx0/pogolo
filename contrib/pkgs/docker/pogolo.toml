@@ -21,7 +21,7 @@ http_port = 5662
 # will be replaced by default tag if too long (about 86 chars)
 # customize it! add your swarm stats, like
 # '/pogolo - gamma x1 - decentralize or die/'
-tag = '/pogolo - decentralize or die/'
+tag = '/pogolo on Docker - decentralize or die/'
 # default on-chain address to mine to if not provided by client
 # pool_address = ''
 # minimum 0.16

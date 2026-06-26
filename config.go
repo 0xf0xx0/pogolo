@@ -33,7 +33,7 @@ type Pogolo struct {
 	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)\noverridden by POGOLO_HOST"`
 	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
 	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
-	Password            string  `toml:"password,commented" comment:"optional, required from clients if set"`
+	Sv1Password         string  `toml:"password,commented" comment:"optional, required from sv1 clients if set"`
 	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)\ncustomize it! add your swarm stats, like\n'/pogolo - gamma x1 - decentralize or die/'"`
 	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.16"`
