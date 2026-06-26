@@ -74,13 +74,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
+
 	/// peek to determine protocol
-	/// reader for sv2, scanner for sv1
 	r := bufio.NewReader(client.conn)
 	b, err := r.Peek(1)
 	if err != nil {
 		return
 	}
+
 	// sv1 always starts with '{' and might start with whitespace
 	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
 		client.protocol = 1
@@ -100,6 +101,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 
+		/// validate message
 		if msg.MaxVersion != 2 || msg.MinVersion != 2 {
 			client.writeSv2Res(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.ProtocolVersionMismatchError,
@@ -114,7 +116,6 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.logError("wrong SV2 protocol")
 			return
 		}
-		// validate flags
 		if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
 			client.writeSv2Res(&stratumv2.SetupConnectionError{
 				// TODO: extract into an UNSUPPORTED_FLAGS constant
@@ -146,7 +147,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
 				}
-				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID, nil) {
+				if !client.parseIdentity(msg.UserIdentity, msg.RequestID, nil) {
 					return
 				}
 
@@ -172,7 +173,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
 				}
-				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID, nil) {
+				if !client.parseIdentity(msg.UserIdentity, msg.RequestID, nil) {
 					return
 				}
 				client.extendedChannel = true
@@ -204,7 +205,7 @@ func (client *StratumClient) startMining() {
 		client.Name(), client.ID, client.Addr(),
 	))
 
-	if defaultMiningAddr != nil && client.User.EncodeAddress() == (*defaultMiningAddr).EncodeAddress() {
+	if defaultMiningAddr != nil && client.User.EncodeAddress() == defaultMiningAddr.EncodeAddress() {
 		client.log("{yellow}mining to pool address")
 	}
 	if client.VersionRollingMask > 0 {
@@ -464,21 +465,10 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					return
 				}
 
-				decoded, err := btcutil.DecodeAddress(params.Username, backendChainParams)
-				if err != nil {
-					if defaultMiningAddr == nil {
-						client.logError("failed decoding address: %s", err)
-						client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-						return
-					}
-					/// assume just the workername was passed
-					if params.Username != "" {
-						params.Worker = params.Username
-					}
-					decoded = *defaultMiningAddr
+				if !client.parseIdentity(params.WorkerName, 0, m) {
+					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
+					break
 				}
-				client.User = decoded
-				client.Nickname = params.Worker
 
 				client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 				isAuthed = true
@@ -770,8 +760,8 @@ func (client *StratumClient) Addr() net.Addr {
 	return client.conn.RemoteAddr()
 }
 
-// TODO: refactor sv1 module and remove initial splitting to use here
-func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32, msg *stratum.Request) bool {
+// parses `addr[.workername]` into client.User and client.Nickname
+func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32, msg *stratum.Request) (ok bool) {
 	split := strings.Split(userIdentity, ".")
 	if len(split) > 1 {
 		client.Nickname = split[1]
@@ -788,16 +778,16 @@ func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uin
 					ErrorCode: stratumv2.UnknownUserError,
 				}, stratumv2.MessageOpenMiningChannelError)
 			}
-			return true
+			return false
 		}
 		/// assume just the workername was passed
 		if split[0] != "" {
 			client.Nickname = split[0]
 		}
-		decoded = *defaultMiningAddr
+		decoded = defaultMiningAddr
 	}
 	client.User = decoded
-	return false
+	return true
 }
 func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget stratumv2.U256, nominalHashRate float32) bool {
 	// validate max target

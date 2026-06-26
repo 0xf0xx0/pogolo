@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"strconv"
 	"testing"
@@ -99,7 +98,7 @@ func TestUpdateBlock(t *testing.T) {
 		return
 	}
 
-	fmt.Printf("%+v\n", hdr)
+	t.Logf("%+v\n", hdr)
 	shareDiff := calcDifficulty(hdr.BlockHash())
 	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
 		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)

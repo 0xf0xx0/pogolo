@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
@@ -22,6 +24,9 @@ func TestMain(t *testing.T) {
 	/// CreateJobTemplate increments the template id, and mock job could be at any number
 	currTemplateID = uint64(jobid) - 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
+	backendChainParams = &chaincfg.RegressionNetParams
+	b, _ := hex.DecodeString("8033d13ee81500afe03a9f48ed142b15724816dd9247c9cf55ae447a5b867449")
+	defaultMiningAddr, _ = btcutil.NewAddressTaproot(b, backendChainParams)
 	disableLogs = true
 }
 
@@ -173,10 +178,47 @@ func TestSubmitBeforeSub(t *testing.T) {
 	}
 }
 
-func TestParseSv2Identity(t *testing.T) {
-	userIdentity := ""
-	if parseSv2Identity(userIdentity) {
+func TestParseIdentity(t *testing.T) {
+	var nickname string
+	var addr btcutil.Address
+	var ok bool
+
+	// empty
+	if _, _, ok := parseSv2Identity("", t); ok {
 		t.Fatal("parseSv2Identity should return false for empty string")
+	}
+
+	// addr + nickname
+	if nickname, addr, ok = parseSv2Identity(authorizeParams.WorkerName, t); !ok {
+		t.Fatal("parseSv2Identity errored during parse")
+	}
+	if addr.EncodeAddress() != authorizeParams.Username {
+		t.Fatalf("parseSv2Identity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+	}
+	if nickname != authorizeParams.Worker {
+		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+	}
+
+	// just addr
+	if nickname, addr, ok = parseSv2Identity(authorizeParams.Username, t); !ok {
+		t.Fatal("parseSv2Identity errored during parse")
+	}
+	if addr.EncodeAddress() != authorizeParams.Username {
+		t.Fatalf("parseSv2Identity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+	}
+	if nickname != "" {
+		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+	}
+
+	// just nickname
+	if nickname, addr, ok = parseSv2Identity(authorizeParams.Worker, t); !ok {
+		t.Fatal("parseSv2Identity errored during parse")
+	}
+	if addr.EncodeAddress() != defaultMiningAddr.EncodeAddress() {
+		t.Fatalf("parseSv2Identity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+	}
+	if nickname != authorizeParams.Worker {
+		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
 	}
 }
 
@@ -195,25 +237,27 @@ func BenchmarkSubmit(b *testing.B) {
 
 // util
 
-func parseSv2Identity(userIdentity string) bool {
+func parseSv2Identity(userIdentity string, t *testing.T) (nickname string, decoded btcutil.Address, ok bool) {
+	if userIdentity == "" {
+		return "", nil, false
+	}
 	split := strings.Split(userIdentity, ".")
-	nickname := ""
 	if len(split) > 1 {
 		nickname = split[1]
 	}
 	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
 	if err != nil {
 		if defaultMiningAddr == nil {
-			return true
+			return "", nil, false
 		}
 		/// assume just the workername was passed
 		if split[0] != "" {
 			nickname = split[0]
 		}
-		decoded = *defaultMiningAddr
+		decoded = defaultMiningAddr
 	}
-	println("nickname:", nickname, "\tdecoded:", decoded)
-	return false
+	t.Logf("address: %s\tnickname: %s", decoded.EncodeAddress(), nickname)
+	return nickname, decoded, true
 }
 
 func sendReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {

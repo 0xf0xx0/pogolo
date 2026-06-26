@@ -87,7 +87,7 @@ var (
 	conf               Config
 	backend            *rpcclient.Client
 	backendChainParams *chaincfg.Params
-	defaultMiningAddr  *btcutil.Address
+	defaultMiningAddr  btcutil.Address
 	clients            = &clientMap{} // map of active client ids to clients
 	currTemplateID     uint64
 	currTemplate       *JobTemplate
@@ -335,7 +335,7 @@ func main() {
 				if err != nil {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
-				defaultMiningAddr = &addr
+				defaultMiningAddr = addr
 				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.Pogolo.PoolAddress))
 			}
 
