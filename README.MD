@@ -23,7 +23,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 
 # features
 
-- up to 160k shares/sec/client
+- up to 160k shares/sec
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - btcd websocket support
 - colorful and detailed logs (respects NO_COLOR)
