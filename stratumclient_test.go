@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
+	"github.com/btcsuite/btcd/btcutil"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
@@ -171,6 +173,13 @@ func TestSubmitBeforeSub(t *testing.T) {
 	}
 }
 
+func TestParseSv2Identity(t *testing.T) {
+	userIdentity := ""
+	if parseSv2Identity(userIdentity) {
+		t.Fatal("parseSv2Identity should return false for empty string")
+	}
+}
+
 // kinda pointless but eh
 func BenchmarkSubmit(b *testing.B) {
 	lpipe := ezInitClient(b, true)
@@ -186,12 +195,33 @@ func BenchmarkSubmit(b *testing.B) {
 
 // util
 
+func parseSv2Identity(userIdentity string) bool {
+	split := strings.Split(userIdentity, ".")
+	nickname := ""
+	if len(split) > 1 {
+		nickname = split[1]
+	}
+	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+	if err != nil {
+		if defaultMiningAddr == nil {
+			return true
+		}
+		/// assume just the workername was passed
+		if split[0] != "" {
+			nickname = split[0]
+		}
+		decoded = *defaultMiningAddr
+	}
+	println("nickname:", nickname, "\tdecoded:", decoded)
+	return false
+}
+
 func sendReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {
 	b, err := r.Marshal()
 	if err != nil {
 		t.Fatalf("error marshalling req: %s", err)
 	}
-	//t.Logf("sending message: %s", b)
+	t.Logf("sending message: %s", b)
 	//time.Sleep(time.Millisecond * 100) /// if needed
 	_, err = lpipe.Write(b)
 	if err != nil {

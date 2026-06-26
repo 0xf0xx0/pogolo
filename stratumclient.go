@@ -29,7 +29,6 @@ type StratumClient struct {
 	CurrentJob          MiningJob
 	conn                net.Conn
 	User                btcutil.Address
-	Password            string
 	Nickname            string
 	UserAgent           string
 	TargetDifficulty    float64
@@ -78,16 +77,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// peek to determine protocol
 	/// reader for sv2, scanner for sv1
 	r := bufio.NewReader(client.conn)
-	s := bufio.NewScanner(client.conn)
 	b, err := r.Peek(1)
 	if err != nil {
 		return
 	}
 	// sv1 always starts with '{' and might start with whitespace
 	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
-		r = nil
 		client.protocol = 1
-		client.processSv1Loop(ctx, s)
+		client.processSv1Loop(ctx, r)
 	} else {
 		/// 1. handle SetupConnection
 		frame := stratumv2.Frame{}
@@ -149,7 +146,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
 				}
-				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID) {
+				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID, nil) {
 					return
 				}
 
@@ -175,7 +172,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
 				}
-				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID) {
+				if !client.parseSv2Identity(msg.UserIdentity, msg.RequestID, nil) {
 					return
 				}
 				client.extendedChannel = true
@@ -195,7 +192,6 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 
-		s = nil
 		client.protocol = 2
 		client.startMining()
 		client.processSv2Loop(ctx, r)
@@ -370,7 +366,8 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 }
-func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.Scanner) {
+func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.Reader) {
+	scanner := bufio.NewScanner(reader)
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
@@ -466,6 +463,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNAUTHORIZED))
 					return
 				}
+
 				decoded, err := btcutil.DecodeAddress(params.Username, backendChainParams)
 				if err != nil {
 					if defaultMiningAddr == nil {
@@ -481,7 +479,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, scanner *bufio.
 				}
 				client.User = decoded
 				client.Nickname = params.Worker
-				client.Password = params.Password
+
 				client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 				isAuthed = true
 			}
@@ -773,7 +771,7 @@ func (client *StratumClient) Addr() net.Addr {
 }
 
 // TODO: refactor sv1 module and remove initial splitting to use here
-func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32) bool {
+func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uint32, msg *stratum.Request) bool {
 	split := strings.Split(userIdentity, ".")
 	if len(split) > 1 {
 		client.Nickname = split[1]
@@ -782,10 +780,14 @@ func (client *StratumClient) parseSv2Identity(userIdentity string, requestID uin
 	if err != nil {
 		if defaultMiningAddr == nil {
 			client.logError("failed decoding address: %s", err)
-			client.writeSv2Res(&stratumv2.OpenMiningChannelError{
-				RequestID: requestID,
-				ErrorCode: stratumv2.UnknownUserError,
-			}, stratumv2.MessageOpenMiningChannelError)
+			if msg != nil {
+				client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
+			} else {
+				client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+					RequestID: requestID,
+					ErrorCode: stratumv2.UnknownUserError,
+				}, stratumv2.MessageOpenMiningChannelError)
+			}
 			return true
 		}
 		/// assume just the workername was passed
