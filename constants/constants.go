@@ -39,6 +39,7 @@ var (
 	// submission before subscription
 	ERROR_NOT_SUBBED   = stratum.Error{Code: 401, Message: "Not subscribed"}
 	ERROR_UNAUTHORIZED = stratum.Error{Code: 403, Message: "Unauthorized"}
+	ERROR_INV_CHAN_ID  = stratum.Error{Code: 404, Message: "Invalid channel ID"}
 	// for data we understand but will ignore, optionally disconnecting
 	ERROR_NOT_ACCEPTED = stratum.Error{Code: 406, Message: "Not accepted"}
 	// normal mining errors

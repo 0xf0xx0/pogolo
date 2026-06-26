@@ -32,8 +32,8 @@ type StratumClient struct {
 	Nickname            string
 	UserAgent           string
 	TargetDifficulty    float64
-	SuggestedDifficulty float64 // overloaded, initially set by client (optional) then used by diff adjust
-	ID                  stratum.ID
+	SuggestedDifficulty float64    // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID // used for the extranonce1 (sv1) and channel ID (sv2)
 	VersionRollingMask  uint32
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
@@ -339,7 +339,37 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					client.logError("error decoding UpdateChannel: %s", err)
 					return
 				}
-				/// TODO
+
+				if msg.ChannelID != uint32(client.ID) {
+					client.writeSv2Res(&stratumv2.UpdateChannelError{
+						ChannelID: msg.ChannelID,
+						ErrorCode: constants.ERROR_INV_CHAN_ID.Message,
+					}, stratumv2.MessageUpdateChannelError)
+					break
+				}
+				newTargetIsOld := constants.Target1U256.IsEqual(&msg.MaxTarget)
+				newTargetMeetsMin := constants.Target1U256.IsMetBy(&msg.MaxTarget)
+				if newTargetIsOld {
+					/// calc the new difficulty from the new hashrate and switch immediately
+					if msg.NominalHashRate > 0 {
+						client.setDifficulty(calcDiffFromHashrate(float64(msg.NominalHashRate)))
+					}
+					break
+				}
+				/// if its too large, error
+				if !newTargetMeetsMin {
+					client.logError("new target difficulty too low")
+					client.writeSv2Res(&stratumv2.UpdateChannelError{
+						ChannelID: msg.ChannelID,
+						ErrorCode: constants.ERROR_LOW_DIFF.Message,
+					}, stratumv2.MessageUpdateChannelError)
+					break
+				}
+
+				/// "When maximum_target is smaller than currently used maximum target
+				///  for the channel, upstream node MUST reflect the client’s request
+				///  (and send appropriate SetTarget message)."
+				client.setDifficulty(calcDifficulty(chainhash.Hash(msg.MaxTarget)))
 			}
 		case stratumv2.MessageCloseChannel:
 			{
