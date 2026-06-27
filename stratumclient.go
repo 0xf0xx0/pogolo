@@ -312,7 +312,9 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					Extranonce2: share.Extranonce,
 					Sequence:    share.Sequence,
 				}
+				client.currentJobMutex.RLock()
 				client.validateShareSubmission(s, nil)
+				client.currentJobMutex.RUnlock()
 			}
 		case stratumv2.MessageSubmitSharesStandard:
 			{
@@ -334,7 +336,9 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					Extranonce2: emptyExtranonce,
 					Sequence:    share.Sequence,
 				}
+				client.currentJobMutex.RLock()
 				client.validateShareSubmission(s, nil)
+				client.currentJobMutex.RUnlock()
 			}
 		case stratumv2.MessageUpdateChannel:
 			{
@@ -444,6 +448,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					break
 				}
 				jobID, _ := strconv.ParseUint(share.JobID, 16, 64)
+
 				client.currentJobMutex.RLock()
 				s := commonShare{
 					JobID:       uint32(jobID),
@@ -452,8 +457,8 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					Nonce:       share.Nonce,
 					Extranonce2: share.Extranonce2,
 				}
-				client.currentJobMutex.RUnlock()
 				client.validateShareSubmission(s, m)
+				client.currentJobMutex.RUnlock()
 			}
 		case stratum.MethodMiningConfigure:
 			{
@@ -848,9 +853,6 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	return true
 }
 func (client *StratumClient) validateShareSubmission(share commonShare, m *stratum.Request) {
-	client.currentJobMutex.RLock()
-	defer client.currentJobMutex.RUnlock()
-
 	if share.JobID != uint32(client.CurrentJob.JobIDInt) {
 		client.stats.sharesRejected++
 		if share.JobID == uint32(client.CurrentJob.JobIDInt-1) {
