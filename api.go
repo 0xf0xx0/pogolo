@@ -16,7 +16,7 @@ import (
 
 const API_PFX = "/api"
 const API_VER = 1
-const METRICS_PFX = "pogolo_"
+const METRICS_NAMESPACE = "pogolo"
 
 type detailedWorkerInfo struct {
 	Address         string  `json:"address"`
@@ -71,57 +71,59 @@ func initAPI() {
 	)
 	metrics := &pogoloMetrics{
 		TotalWorkers: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
-			Name: METRICS_PFX + "total_workers",
-			Help: "Total number of gophers connected to the pool",
+			Namespace: METRICS_NAMESPACE,
+			Name:      "total_workers",
+			Help:      "Total number of gophers connected to the pool",
 		}),
 		TotalHashrate: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
-			Name: METRICS_PFX + "total_hashrate",
-			Help: "Total hash rate of all gophers connected to the pool",
+			Namespace: METRICS_NAMESPACE,
+			Name:      "total_hashrate",
+			Help:      "Total hash rate of all gophers connected to the pool",
 		}),
 		BestDiff: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
-			Name: METRICS_PFX + "best_diff",
-			Help: "Best difficulty achieved by a gopher",
+			Namespace: METRICS_NAMESPACE,
+			Name:      "best_diff",
+			Help:      "Best difficulty achieved by a gopher",
 		}),
 		Uptime: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
-			Name: METRICS_PFX + "uptime",
-			Help: "Total uptime of the pool",
+			Namespace: METRICS_NAMESPACE,
+			Name:      "uptime",
+			Help:      "Total uptime of the pool",
 		}),
 		TemplateHeight: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
-			Name: METRICS_PFX + "template_height",
-			Help: "Current template height",
+			Namespace: METRICS_NAMESPACE,
+			Name:      "template_height",
+			Help:      "Current template height",
 		}),
 		BlocksFound: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
-			Name: METRICS_PFX + "blocks_found",
-			Help: "Total number of blocks found",
+			Namespace: METRICS_NAMESPACE,
+			Name:      "blocks_found",
+			Help:      "Total number of blocks found",
 		}),
 	}
 	// TODO: figure out how to update metrics without creating races and/or bogging down everything else
-	_ = metrics
-	/*go func() {
-		for {
-			allClients := clients.AllStats()
-			allClientsLen := clients.Len()
-			hashrateSum := float64(0)
-			bestDiff := float64(0)
-			for _, stats := range allClients {
-				bestDiff = max(bestDiff, stats.bestDiff)
-				hashrateSum += stats.HashrateH()
-			}
-
-			metrics.Uptime.Set(time.Since(serverStartTime).Seconds())
-			metrics.TotalWorkers.Set(float64(allClientsLen))
-			metrics.TotalHashrate.Set(hashrateSum)
-			metrics.BestDiff.Set(bestDiff)
-			metrics.BlocksFound.Set(float64(len(foundBlocks)))
-
-			time.Sleep(time.Millisecond * 500)
-		}
-	}()*/
 
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
+	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
 
-	http.Handle("GET /metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	http.HandleFunc("GET /metrics", func(res http.ResponseWriter, req *http.Request) {
+		allClients := clients.AllStats()
+		allClientsLen := clients.Len()
+		hashrateSum := float64(0)
+		bestDiff := float64(0)
+		for _, stats := range allClients {
+			bestDiff = max(bestDiff, stats.bestDiff)
+			hashrateSum += stats.HashrateH()
+		}
+
+		metrics.Uptime.Set(time.Since(serverStartTime).Seconds())
+		metrics.TotalWorkers.Set(float64(allClientsLen))
+		metrics.TotalHashrate.Set(hashrateSum)
+		metrics.BestDiff.Set(bestDiff)
+		metrics.BlocksFound.Set(float64(len(foundBlocks)))
+		promHandler.ServeHTTP(res, req)
+	})
 
 	/// default handlers
 	http.HandleFunc("GET /", func(res http.ResponseWriter, _ *http.Request) {

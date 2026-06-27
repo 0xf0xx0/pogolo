@@ -79,7 +79,18 @@ func (m *clientMap) AllStats() []StratumClientStats {
 	defer m.lock.RUnlock()
 	ret := make([]StratumClientStats, 0, len(m.idMap))
 	for _, client := range m.idMap {
-		ret = append(ret, *client.stats)
+		stats := StratumClientStats{
+			lastTimeSlot:       client.stats.lastTimeSlot,
+			currTimeSlot:       client.stats.currTimeSlot,
+			startTime:          client.stats.startTime,
+			lastSubmission:     client.stats.lastSubmission,
+			sharesAccepted:     client.stats.sharesAccepted,
+			sharesRejected:     client.stats.sharesRejected,
+			avgSubmissionDelta: client.stats.avgSubmissionDelta,
+			bestDiff:           client.stats.bestDiff,
+			hashrate:           client.stats.hashrate,
+		}
+		ret = append(ret, stats)
 	}
 	return ret
 }

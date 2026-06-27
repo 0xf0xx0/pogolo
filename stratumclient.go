@@ -233,12 +233,14 @@ func (client *StratumClient) startMining() {
 	client.stats.startTime = time.Now()
 }
 func (client *StratumClient) Stop() {
-	if client.templateChan == nil {
-		return
+	select {
+	/// we've already stopped, avoid a panic
+	case _, ok := <-client.templateChan:
+		if !ok {
+			return
+		}
+	default:
 	}
-	// if _, ok := <-client.templateChan; !ok {
-	// 	return
-	// }
 	close(client.templateChan)
 
 	/// remove ourselves from the client map
@@ -248,7 +250,6 @@ func (client *StratumClient) Stop() {
 	}
 
 	client.conn.Close()
-	client.templateChan = nil
 
 	if conf.Benchmarking {
 		sharesPS := float64(client.stats.sharesAccepted+client.stats.sharesRejected) / float64(client.stats.Uptime())
