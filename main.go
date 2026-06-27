@@ -471,7 +471,8 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 	}()
 
 	go http.ListenAndServe(httpAddr, nil)
-	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green} (api port: {green}%d{/green})", listener.Addr(), conf.HTTPPort))
+	// log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green} (api port: {green}%d{/green})", listener.Addr(), conf.HTTPPort))
+	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green}\napi listening on {green}http://%s", listener.Addr(), httpAddr))
 	// log(fmt.Sprintf("api listening on {green}http://%s", httpAddr))
 
 	for {
@@ -578,7 +579,8 @@ func backendRoutine(ctx context.Context) {
 		socket, err := NewZMQ(conf.ZMQHost, ctx)
 		if err != nil {
 			logError(fmt.Sprintf("failed to make zmq socket: %s", err))
-			return
+			logError("{yellow}falling back to polling")
+			go getBlockCountPoll()
 		}
 
 		log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
