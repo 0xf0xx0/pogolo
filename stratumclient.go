@@ -232,12 +232,10 @@ func (client *StratumClient) startMining() {
 	client.stats.startTime = time.Now()
 }
 func (client *StratumClient) Stop() {
-	if client.templateChan == nil {
+	if _, ok := <-client.templateChan; !ok {
 		return
 	}
 	close(client.templateChan)
-	/// nil because receive-side closure
-	client.templateChan = nil
 
 	/// remove ourselves from the client map
 	if client.ID != 0 {
