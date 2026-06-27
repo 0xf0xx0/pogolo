@@ -1144,7 +1144,7 @@ func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDif
 // clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
 	client := StratumClient{
-		ID:             clientIDHash(conn.RemoteAddr().String()),
+		ID:             clientIDHash(conn.LocalAddr().String() + conn.RemoteAddr().String()),
 		stats:          &StratumClientStats{},
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate, 1),
