@@ -84,19 +84,23 @@ Home page: <https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}>
 
 // global state
 var (
+	// config stuffs
 	conf               Config
 	backend            *rpcclient.Client
 	backendChainParams *chaincfg.Params
 	defaultMiningAddr  btcutil.Address
-	clients            = &clientMap{} // map of active client ids to clients
-	currTemplateID     uint64
-	currTemplate       *JobTemplate
-	currTemplateLock   sync.RWMutex
-	submissionChan     = make(chan blockSubmission, 3) // global cause it gets passed around :\
-	triggerGBT         = make(chan struct{}, 1)        // ditto cause of websocket
-	foundBlocks        = make([]string, 0, 3)          // not gonna bother mutexing this unless it becomes an issue
-	serverStartTime    time.Time
-	logFile            *os.File
+
+	// runtime state
+	clients          = &clientMap{} // map of active client ids to clients
+	currTemplate     *JobTemplate
+	currTemplateID   uint64
+	currTemplateLock sync.RWMutex
+	submissionChan   = make(chan blockSubmission, 3) // global cause it gets passed around :\
+	triggerGBT       = make(chan struct{}, 1)        // ditto cause of websocket
+	foundBlocks      = make([]string, 0, 3)          // not gonna bother mutexing this unless it becomes an issue
+	serverStartTime  time.Time
+	logFile          *os.File
+
 	/// debug shit
 	totalSharesPerSec = float64(0)
 	disableLogs       = false /// used for tests
@@ -460,9 +464,9 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 		listener.Close()
 	}()
 
-	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s", listener.Addr()))
 	go http.ListenAndServe(httpAddr, nil)
-	log(fmt.Sprintf("api listening on {green}http://%s", httpAddr))
+	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green} (api port: {green}%d{/green})", listener.Addr(), conf.HTTPPort))
+	// log(fmt.Sprintf("api listening on {green}http://%s", httpAddr))
 
 	for {
 		conn, err := listener.Accept()
@@ -560,6 +564,21 @@ func backendRoutine(ctx context.Context) {
 			logError("{yellow}falling back to polling")
 			go getBlockCountPoll()
 		}
+	} else if conf.ZMQEndpoint != "" {
+		// implicitly add tcp:// as required by zmq4
+		if !strings.HasPrefix(conf.ZMQEndpoint, "tcp://") {
+			conf.ZMQEndpoint = "tcp://" + conf.ZMQEndpoint
+		}
+
+		socket, err := NewZMQ(conf.ZMQEndpoint, ctx)
+		if err != nil {
+			logError(fmt.Sprintf("failed to make zmq socket: %s", err))
+			return
+		}
+
+		log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQEndpoint))
+		/// go, my zmq
+		go zmqListener(socket)
 	} else {
 		/// poll getblockcount
 		go getBlockCountPoll()
