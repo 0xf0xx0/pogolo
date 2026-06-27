@@ -440,6 +440,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					break
 				}
 				jobID, _ := strconv.ParseUint(share.JobID, 16, 64)
+				client.currentJobMutex.RLock()
 				s := commonShare{
 					JobID:       uint32(jobID),
 					Time:        share.Time,
@@ -447,6 +448,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					Nonce:       share.Nonce,
 					Extranonce2: share.Extranonce2,
 				}
+				client.currentJobMutex.RUnlock()
 				client.validateShareSubmission(s, m)
 			}
 		case stratum.MethodMiningConfigure:
