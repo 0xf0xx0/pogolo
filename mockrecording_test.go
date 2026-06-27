@@ -3,13 +3,14 @@ package main
 // this file is just for storing the data as variables
 import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/btcutil/v2"
 
 	"encoding/json"
 	"os"
 
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/v2"
 )
 
 // recorded from/with pogolo!
@@ -109,8 +110,8 @@ func notiFrom(r string) *stratum.Notification {
 	req.Unmarshal([]byte(r))
 	return &req
 }
-func getAddr() btcutil.Address {
-	addr, _ := btcutil.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
+func getAddr() address.Address {
+	addr, _ := address.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
 	return addr
 }
 func getCoinbaseTx() *btcutil.Tx {

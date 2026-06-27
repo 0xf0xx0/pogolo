@@ -7,7 +7,7 @@ import (
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/chainhash/v2"
 )
 
 var m = &clientMap{}

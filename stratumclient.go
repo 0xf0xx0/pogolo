@@ -18,9 +18,10 @@ import (
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
+	"github.com/btcsuite/btcd/wire/v2"
 )
 
 // aka gopher
@@ -28,7 +29,7 @@ type StratumClient struct {
 	currentJobMutex     *sync.RWMutex
 	CurrentJob          MiningJob
 	conn                net.Conn
-	User                btcutil.Address
+	User                address.Address
 	Nickname            string
 	UserAgent           string
 	TargetDifficulty    float64
@@ -232,9 +233,12 @@ func (client *StratumClient) startMining() {
 	client.stats.startTime = time.Now()
 }
 func (client *StratumClient) Stop() {
-	if _, ok := <-client.templateChan; !ok {
+	if client.templateChan == nil {
 		return
 	}
+	// if _, ok := <-client.templateChan; !ok {
+	// 	return
+	// }
 	close(client.templateChan)
 
 	/// remove ourselves from the client map
@@ -244,6 +248,7 @@ func (client *StratumClient) Stop() {
 	}
 
 	client.conn.Close()
+	client.templateChan = nil
 
 	if conf.Benchmarking {
 		sharesPS := float64(client.stats.sharesAccepted+client.stats.sharesRejected) / float64(client.stats.Uptime())
@@ -495,7 +500,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					return
 				}
 
-				if !client.parseIdentity(params.WorkerName, 0, m) {
+				if !client.parseIdentity(params.Username, 0, m) {
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
@@ -796,7 +801,7 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 	if len(split) > 1 {
 		client.Nickname = split[1]
 	}
-	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+	decoded, err := address.DecodeAddress(split[0], backendChainParams)
 	if err != nil {
 		if defaultMiningAddr == nil {
 			client.logError("failed decoding address: %s", err)

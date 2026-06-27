@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
@@ -26,7 +26,7 @@ func TestMain(t *testing.T) {
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	backendChainParams = &chaincfg.RegressionNetParams
 	b, _ := hex.DecodeString("8033d13ee81500afe03a9f48ed142b15724816dd9247c9cf55ae447a5b867449")
-	defaultMiningAddr, _ = btcutil.NewAddressTaproot(b, backendChainParams)
+	defaultMiningAddr, _ = address.NewAddressTaproot(b, backendChainParams)
 	disableLogs = true
 }
 
@@ -57,8 +57,8 @@ func TestAuthorize(t *testing.T) {
 	}
 	t.Logf("user: %q, worker: %q", client.User, client.Nickname)
 	rebuiltUser := fmt.Sprintf("%s.%s", client.User, client.Nickname)
-	if rebuiltUser != params.Username+"."+params.Worker {
-		t.Errorf("username mismatch: expected %q, got %q", params.Username+"."+params.Worker, rebuiltUser)
+	if rebuiltUser != params.Username {
+		t.Errorf("username mismatch: expected %q, got %q", params.Username, rebuiltUser)
 	}
 }
 
@@ -180,7 +180,7 @@ func TestSubmitBeforeSub(t *testing.T) {
 
 func TestParseIdentity(t *testing.T) {
 	var nickname string
-	var addr btcutil.Address
+	var addr address.Address
 	var ok bool
 
 	// empty
@@ -189,25 +189,25 @@ func TestParseIdentity(t *testing.T) {
 	}
 
 	// addr + nickname
-	if nickname, addr, ok = parseSv2Identity(authorizeParams.WorkerName, t); !ok {
+	if nickname, addr, ok = parseSv2Identity(authorizeParams.Username, t); !ok {
 		t.Fatal("parseSv2Identity errored during parse")
 	}
-	if addr.EncodeAddress() != authorizeParams.Username {
-		t.Fatalf("parseSv2Identity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+	if addr.EncodeAddress() != authorizeParams.Address {
+		t.Fatalf("parseSv2Identity failed to parse address: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
 	}
 	if nickname != authorizeParams.Worker {
 		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
 	}
 
 	// just addr
-	if nickname, addr, ok = parseSv2Identity(authorizeParams.Username, t); !ok {
+	if nickname, addr, ok = parseSv2Identity(authorizeParams.Address, t); !ok {
 		t.Fatal("parseSv2Identity errored during parse")
 	}
-	if addr.EncodeAddress() != authorizeParams.Username {
-		t.Fatalf("parseSv2Identity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+	if addr.EncodeAddress() != authorizeParams.Address {
+		t.Fatalf("parseSv2Identity failed to parse address: expected %s, got %s", authorizeParams.Address, addr.EncodeAddress())
 	}
 	if nickname != "" {
-		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+		t.Fatalf("parseSv2Identity failed to parse worker name: expected empty, got %s", nickname)
 	}
 
 	// just nickname
@@ -237,7 +237,7 @@ func BenchmarkSubmit(b *testing.B) {
 
 // util
 
-func parseSv2Identity(userIdentity string, t *testing.T) (nickname string, decoded btcutil.Address, ok bool) {
+func parseSv2Identity(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
 	if userIdentity == "" {
 		return "", nil, false
 	}
@@ -245,7 +245,7 @@ func parseSv2Identity(userIdentity string, t *testing.T) (nickname string, decod
 	if len(split) > 1 {
 		nickname = split[1]
 	}
-	decoded, err := btcutil.DecodeAddress(split[0], backendChainParams)
+	decoded, err := address.DecodeAddress(split[0], backendChainParams)
 	if err != nil {
 		if defaultMiningAddr == nil {
 			return "", nil, false

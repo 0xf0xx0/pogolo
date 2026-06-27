@@ -17,14 +17,15 @@ import (
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
+	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/mining"
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/txscript/v2"
+	"github.com/btcsuite/btcd/wire/v2"
 	"github.com/zeebo/xxh3"
 )
 
@@ -161,7 +162,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
-func fillCoinbaseTx(addr btcutil.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
+func fillCoinbaseTx(addr address.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
 

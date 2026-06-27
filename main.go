@@ -55,11 +55,12 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
+	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/wire/v2"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
@@ -88,7 +89,7 @@ var (
 	conf               Config
 	backend            *rpcclient.Client
 	backendChainParams *chaincfg.Params
-	defaultMiningAddr  btcutil.Address
+	defaultMiningAddr  address.Address
 
 	// runtime state
 	clients          = &clientMap{} // map of active client ids to clients
@@ -343,7 +344,7 @@ func main() {
 
 			/// decode the default mining address
 			if conf.Pogolo.PoolAddress != "" {
-				addr, err := btcutil.DecodeAddress(conf.Pogolo.PoolAddress, backendChainParams)
+				addr, err := address.DecodeAddress(conf.Pogolo.PoolAddress, backendChainParams)
 				if err != nil {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
