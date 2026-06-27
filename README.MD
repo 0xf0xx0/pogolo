@@ -26,7 +26,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - colorful and detailed logs (respects NO_COLOR)
 - read-only api (see api.go and swagger spec)
-- btcd websocket support
+- zmq and btcd websocket support
 - up to 160k shares/sec
 
 ## implemented BIPs
@@ -49,6 +49,7 @@ pogolo has no tls support.
 
 - JSON-RPC (core, knots, etc)
 - btcd websocket
+- ZMQ (`hashblock` topic)
 
 ## unsupported
 
