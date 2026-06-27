@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -15,6 +16,7 @@ import (
 
 const API_PFX = "/api"
 const API_VER = 1
+const METRICS_PFX = "pogolo_"
 
 type detailedWorkerInfo struct {
 	Address         string  `json:"address"`
@@ -48,19 +50,16 @@ type getInfoRes struct {
 }
 
 type pogoloMetrics struct {
-	TotalWorkers  prometheus.Gauge
-	TotalHashrate prometheus.Gauge
-	BestDiff      prometheus.Counter
-	Uptime        prometheus.Counter
-	BlockHeight   prometheus.Counter
-	BlocksFound   prometheus.Counter
+	TotalWorkers   prometheus.Gauge
+	TotalHashrate  prometheus.Gauge
+	BestDiff       prometheus.Gauge
+	Uptime         prometheus.Gauge
+	TemplateHeight prometheus.Gauge
+	BlocksFound    prometheus.Gauge
 }
 
 func initAPI() {
 	pfx := fmt.Sprintf("GET %s/v%d", API_PFX, API_VER)
-	http.HandleFunc(pfx+"/info", getInfo)
-	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
-
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
 		collectors.NewGoCollector(collectors.WithGoCollectorRuntimeMetrics(
@@ -70,6 +69,58 @@ func initAPI() {
 		)),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{Namespace: "pogolo"}),
 	)
+	metrics := &pogoloMetrics{
+		TotalWorkers: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+			Name: METRICS_PFX + "total_workers",
+			Help: "Total number of gophers connected to the pool",
+		}),
+		TotalHashrate: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+			Name: METRICS_PFX + "total_hashrate",
+			Help: "Total hash rate of all gophers connected to the pool",
+		}),
+		BestDiff: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+			Name: METRICS_PFX + "best_diff",
+			Help: "Best difficulty achieved by a gopher",
+		}),
+		Uptime: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+			Name: METRICS_PFX + "uptime",
+			Help: "Total uptime of the pool",
+		}),
+		TemplateHeight: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+			Name: METRICS_PFX + "template_height",
+			Help: "Current template height",
+		}),
+		BlocksFound: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+			Name: METRICS_PFX + "blocks_found",
+			Help: "Total number of blocks found",
+		}),
+	}
+	// TODO: figure out how to update metrics without creating races and/or bogging down everything else
+	_ = metrics
+	/*go func() {
+		for {
+			allClients := clients.AllStats()
+			allClientsLen := clients.Len()
+			hashrateSum := float64(0)
+			bestDiff := float64(0)
+			for _, stats := range allClients {
+				bestDiff = max(bestDiff, stats.bestDiff)
+				hashrateSum += stats.HashrateH()
+			}
+
+			metrics.Uptime.Set(time.Since(serverStartTime).Seconds())
+			metrics.TotalWorkers.Set(float64(allClientsLen))
+			metrics.TotalHashrate.Set(hashrateSum)
+			metrics.BestDiff.Set(bestDiff)
+			metrics.BlocksFound.Set(float64(len(foundBlocks)))
+
+			time.Sleep(time.Millisecond * 500)
+		}
+	}()*/
+
+	http.HandleFunc(pfx+"/info", getInfo)
+	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
+
 	http.Handle("GET /metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
 	/// default handlers

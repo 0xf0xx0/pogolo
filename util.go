@@ -40,6 +40,7 @@ var (
 type clientMap struct {
 	lock  sync.RWMutex
 	idMap map[stratum.ID]*StratumClient
+	len   int
 }
 
 func (m *clientMap) Init() {
@@ -47,28 +48,44 @@ func (m *clientMap) Init() {
 }
 func (m *clientMap) Add(client *StratumClient) {
 	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.idMap[client.ID] = client
-	m.lock.Unlock()
+	m.len++
 }
 func (m *clientMap) Delete(id stratum.ID) {
 	m.lock.Lock()
+	defer m.lock.Unlock()
 	delete(m.idMap, id)
-	m.lock.Unlock()
+	m.len--
 }
 func (m *clientMap) Get(id stratum.ID) (*StratumClient, bool) {
 	m.lock.RLock()
+	defer m.lock.RUnlock()
 	ret, ok := m.idMap[id]
-	m.lock.RUnlock()
 	return ret, ok
 }
 func (m *clientMap) All() []*StratumClient {
 	m.lock.RLock()
+	defer m.lock.RUnlock()
 	ret := make([]*StratumClient, 0, len(m.idMap))
 	for _, client := range m.idMap {
 		ret = append(ret, client)
 	}
-	m.lock.RUnlock()
 	return ret
+}
+func (m *clientMap) AllStats() []StratumClientStats {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	ret := make([]StratumClientStats, 0, len(m.idMap))
+	for _, client := range m.idMap {
+		ret = append(ret, *client.stats)
+	}
+	return ret
+}
+func (m *clientMap) Len() int {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	return m.len
 }
 
 func decodeStratumMessage(msg []byte) (*stratum.Request, error) {
