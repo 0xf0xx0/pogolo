@@ -155,9 +155,7 @@ to reproduce shares/s result:
 - link stratum and mining docs  
    waiting for bip 41  
    https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
-- completion (urfave is bugged)
 - option to add workername to coinbase scriptsig?
-- zmq for block notifs?
 - prometheus metrics
     - block submission metrics
 - aur packages (needs a maintainer)

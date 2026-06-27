@@ -63,8 +63,12 @@ func initAPI() {
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
-		collectors.NewGoCollector(),
-		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(collectors.WithGoCollectorRuntimeMetrics(
+			collectors.MetricsGC,
+			collectors.MetricsMemory,
+			collectors.MetricsScheduler,
+		)),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{Namespace: "pogolo"}),
 	)
 	http.Handle("GET /metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
@@ -99,7 +103,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		marshalAndWrite(res, getInfoRes{
 			Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 			Workers:       workerStats,
-			Tag:           conf.Pogolo.Tag,
+			Tag:           conf.Tag,
 			TotalHashrate: hashrateSum / 1e6,
 			BestDiff:      bestDiff,
 			TotalWorkers:  uint64(len(allClients)),
@@ -107,9 +111,10 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	marshalAndWrite(res, getInfoRes{
+		/// NOTE: compiling with -race mistakenly calls this a race condition
 		Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 		Workers:       workerStats,
-		Tag:           conf.Pogolo.Tag,
+		Tag:           conf.Tag,
 		TotalHashrate: hashrateSum / 1e6,
 		BestDiff:      bestDiff,
 		TotalWorkers:  uint64(len(allClients)),

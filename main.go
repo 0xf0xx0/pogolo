@@ -388,6 +388,7 @@ func startup(rootCtx context.Context) error {
 	initAPI()
 
 	wg.Go(func() { backendRoutine(ctx) })
+	wg.Go(func() { connectionRoutine(conns, ctx) })
 
 	/// start listening on configured interface or ip
 	if conf.Pogolo.Interface != "" {
@@ -448,9 +449,6 @@ func startup(rootCtx context.Context) error {
 			wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
 		}
 	}
-
-	/// connections
-	wg.Go(func() { connectionRoutine(conns, ctx) })
 
 	serverStartTime = time.Now()
 
