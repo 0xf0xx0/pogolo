@@ -103,21 +103,21 @@ func (client *StratumClient) Run(ctx context.Context) {
 
 		/// validate message
 		if msg.MaxVersion != 2 || msg.MinVersion != 2 {
-			client.writeSv2Res(&stratumv2.SetupConnectionError{
+			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.ProtocolVersionMismatchError,
 			}, stratumv2.MessageSetupConnectionError)
 			client.logError("invalid SV2 version")
 			return
 		}
 		if msg.Protocol != stratumv2.MiningProtocol {
-			client.writeSv2Res(&stratumv2.SetupConnectionError{
+			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.UnsupportedProtocolError,
 			}, stratumv2.MessageSetupConnectionError)
 			client.logError("wrong SV2 protocol")
 			return
 		}
 		if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
-			client.writeSv2Res(&stratumv2.SetupConnectionError{
+			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				// TODO: extract into an UNSUPPORTED_FLAGS constant
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
 				ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
@@ -129,7 +129,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		client.UserAgent = parseUserAgent(msg.DeviceVendor)
 
 		/// write success
-		client.writeSv2Res(&stratumv2.SetupConnectionSuccess{UsedVersion: 2}, stratumv2.MessageSetupConnectionSuccess)
+		client.writeSv2Msg(&stratumv2.SetupConnectionSuccess{UsedVersion: 2}, stratumv2.MessageSetupConnectionSuccess)
 
 		/// 2. handle channel open
 		if err := frame.DecodeFromReader(r); err != nil {
@@ -151,7 +151,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 					return
 				}
 
-				client.writeSv2Res(&stratumv2.OpenStandardMiningChannelSuccess{
+				client.writeSv2Msg(&stratumv2.OpenStandardMiningChannelSuccess{
 					RequestID:        msg.RequestID,
 					ChannelID:        uint32(client.ID),
 					Target:           msg.MaxTarget,
@@ -178,7 +178,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				}
 				client.extendedChannel = true
 
-				client.writeSv2Res(&stratumv2.OpenExtendedMiningChannelSuccess{
+				client.writeSv2Msg(&stratumv2.OpenExtendedMiningChannelSuccess{
 					OpenStandardMiningChannelSuccess: stratumv2.OpenStandardMiningChannelSuccess{
 						RequestID:        msg.RequestID,
 						ChannelID:        uint32(client.ID),
@@ -339,7 +339,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				}
 
 				if msg.ChannelID != uint32(client.ID) {
-					client.writeSv2Res(&stratumv2.UpdateChannelError{
+					client.writeSv2Msg(&stratumv2.UpdateChannelError{
 						ChannelID: msg.ChannelID,
 						ErrorCode: constants.ERROR_INV_CHAN_ID.Message,
 					}, stratumv2.MessageUpdateChannelError)
@@ -357,7 +357,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				/// if its too large, error
 				if !newTargetMeetsMin {
 					client.logError("new target difficulty too low")
-					client.writeSv2Res(&stratumv2.UpdateChannelError{
+					client.writeSv2Msg(&stratumv2.UpdateChannelError{
 						ChannelID: msg.ChannelID,
 						ErrorCode: constants.ERROR_LOW_DIFF.Message,
 					}, stratumv2.MessageUpdateChannelError)
@@ -627,13 +627,13 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		if err := client.writeSv1Msg(setdiff.ToNotification()); err != nil {
 			return err
 		}
-	} else if client.protocol == 2 {
+	} else {
 		target := diffToTarget(newDiff)
 		msg := &stratumv2.SetTarget{
 			ChannelID: uint32(client.ID),
 			MaxTarget: target,
 		}
-		if err := client.writeSv2Res(msg, stratumv2.MessageSetTarget); err != nil {
+		if err := client.writeSv2Msg(msg, stratumv2.MessageSetTarget); err != nil {
 			return err
 		}
 	}
@@ -746,7 +746,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 					CoinbasePrefix:        newJob.CoinbasePart1,
 					CoinbaseSuffix:        newJob.CoinbasePart2,
 				}
-				client.writeSv2Res(job, stratumv2.MessageNewExtendedMiningJob)
+				client.writeSv2Msg(job, stratumv2.MessageNewExtendedMiningJob)
 			} else {
 				job := &stratumv2.NewMiningJob{
 					ChannelID:  uint32(client.ID),
@@ -755,9 +755,9 @@ func (client *StratumClient) readTemplateChanRoutine() {
 					Version:    uint32(newJob.Version),
 					MerkleRoot: stratumv2.U256(newJob.Header.MerkleRoot),
 				}
-				client.writeSv2Res(job, stratumv2.MessageNewMiningJob)
+				client.writeSv2Msg(job, stratumv2.MessageNewMiningJob)
 			}
-			client.writeSv2Res(prevhash, stratumv2.MessageSetNewPrevHash)
+			client.writeSv2Msg(prevhash, stratumv2.MessageSetNewPrevHash)
 		}
 
 		/// reset dupe share map
@@ -803,7 +803,7 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 			if msg != nil {
 				client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
 			} else {
-				client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+				client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 					RequestID: requestID,
 					ErrorCode: stratumv2.UnknownUserError,
 				}, stratumv2.MessageOpenMiningChannelError)
@@ -825,7 +825,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	// maybe "steal" from a different pool lol
 	if !constants.Target1U256.IsMetBy(&maxTarget) {
 		client.logError("provided max target is out of range")
-		client.writeSv2Res(&stratumv2.OpenMiningChannelError{
+		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 			RequestID: requestID,
 			ErrorCode: stratumv2.MaxTargetOutOfRangeError,
 		}, stratumv2.MessageOpenMiningChannelError)
@@ -851,7 +851,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			if m != nil {
 				client.writeSv1Msg(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
 			} else {
-				client.writeSv2Res(&stratumv2.SubmitSharesError{
+				client.writeSv2Msg(&stratumv2.SubmitSharesError{
 					ChannelID:      uint32(client.ID),
 					SequenceNumber: share.Sequence,
 					ErrorCode:      stratumv2.Error(constants.ERROR_SHARE_BETWEEN_JOBS.Message),
@@ -863,7 +863,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_STALE))
 		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
 				ErrorCode:      stratumv2.StaleShareError,
@@ -875,7 +875,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 
 	if client.protocol == 2 && share.ChannelID != uint32(client.ID) {
 		client.stats.sharesRejected++
-		client.writeSv2Res(&stratumv2.SubmitSharesError{
+		client.writeSv2Msg(&stratumv2.SubmitSharesError{
 			ChannelID:      uint32(client.ID),
 			SequenceNumber: share.Sequence,
 			ErrorCode:      stratumv2.InvalidChannelIDError,
@@ -891,7 +891,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_INV_VER_MASK))
 		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
 				ErrorCode:      stratumv2.Error(constants.ERROR_INV_VER_MASK.Message),
@@ -908,7 +908,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
 				ErrorCode:      stratumv2.Error(constants.ERROR_UNPROCESSABLE.Message),
@@ -923,7 +923,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_BAD_TIME))
 		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
 				ErrorCode:      stratumv2.Error(constants.ERROR_BAD_TIME.Message),
@@ -940,7 +940,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_LOW_DIFF))
 		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
 				ErrorCode:      stratumv2.DifficultyTooLowError,
@@ -958,7 +958,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_DUPE_SHARE))
 		} else {
-			client.writeSv2Res(&stratumv2.SubmitSharesError{
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
 				ChannelID:      uint32(client.ID),
 				SequenceNumber: share.Sequence,
 				ErrorCode:      stratumv2.Error(constants.ERROR_DUPE_SHARE.Message),
@@ -988,7 +988,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		/// TODO: figure out batching
-		client.writeSv2Res(&stratumv2.SubmitSharesSuccess{
+		client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
 			ChannelID:               share.ChannelID,
 			LastSequenceNumber:      share.Sequence,
 			NewSubmitsAcceptedCount: 1,
@@ -1021,7 +1021,7 @@ func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 
 	return client.writeConn(b)
 }
-func (client *StratumClient) writeSv2Res(payload stratumv2.Codable, messageType stratumv2.MessageType) error {
+func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType stratumv2.MessageType) error {
 	b, err := payload.Encode()
 	if err != nil {
 		client.logError("failed to encode payload: %s", err)
