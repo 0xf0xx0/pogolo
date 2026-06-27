@@ -169,6 +169,11 @@ func main() {
 				Sources: cli.EnvVars("POGOLO_BACKEND_RPCAUTH"),
 				Hidden:  true,
 			},
+			&cli.StringFlag{
+				Name:    "BACKEND_ZMQHOST",
+				Sources: cli.EnvVars("POGOLO_BACKEND_ZMQHOST"),
+				Hidden:  true,
+			},
 		},
 		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
 			logError(err.Error())
@@ -229,6 +234,9 @@ func main() {
 			}
 			if host := cmd.String("POGOLO_HOST"); host != "" {
 				conf.Pogolo.Host = host
+			}
+			if zmq := cmd.String("BACKEND_ZMQHOST"); zmq != "" {
+				conf.ZMQHost = zmq
 			}
 
 			/// conf loading
@@ -564,19 +572,18 @@ func backendRoutine(ctx context.Context) {
 			logError("{yellow}falling back to polling")
 			go getBlockCountPoll()
 		}
-	} else if conf.ZMQEndpoint != "" {
+	} else if conf.ZMQHost != "" {
 		// implicitly add tcp:// as required by zmq4
-		if !strings.HasPrefix(conf.ZMQEndpoint, "tcp://") {
-			conf.ZMQEndpoint = "tcp://" + conf.ZMQEndpoint
+		if !strings.HasPrefix(conf.ZMQHost, "tcp://") {
+			conf.ZMQHost = "tcp://" + conf.ZMQHost
 		}
-
-		socket, err := NewZMQ(conf.ZMQEndpoint, ctx)
+		socket, err := NewZMQ(conf.ZMQHost, ctx)
 		if err != nil {
 			logError(fmt.Sprintf("failed to make zmq socket: %s", err))
 			return
 		}
 
-		log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQEndpoint))
+		log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
 		/// go, my zmq
 		go zmqListener(socket)
 	} else {

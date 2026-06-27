@@ -25,9 +25,9 @@ type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port, overridden by POGOLO_BACKEND_HOST"`
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported (takes precedence over rpcauth)"`
 	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)\noverridden by POGOLO_BACKEND_RPCAUTH"`
-	ZMQEndpoint  string `toml:"zmq_endpoint,commented" comment:"ZMQ endpoint to subscribe to 'hashblock' events"`
+	ZMQHost      string `toml:"zmq_host,commented" comment:"ZMQ endpoint to subscribe to 'hashblock' events\noverridden by POGOLO_BACKEND_ZMQHOST"`
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
-	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using zmq or websocket"`
+	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using websocket, and used for the connection retry interval with zmq"`
 }
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`

@@ -83,6 +83,7 @@ for easy config
 POGOLO_HOST: # overrides [pogolo].host
 POGOLO_BACKEND_HOST: # overrides [backend].host
 POGOLO_BACKEND_RPCAUTH: # overrides [backend].rpcauth
+POGOLO_BACKEND_ZMQHOST: # overrides [backend].zmq_host
 ```
 
 ## go

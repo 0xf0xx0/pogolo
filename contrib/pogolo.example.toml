@@ -1,26 +1,31 @@
 [backend]
-# RPC host:port
+# RPC host:port, overridden by POGOLO_BACKEND_HOST
 host = '[::1]:8332'
 # RPC cookie path, relative is supported (takes precedence over rpcauth)
 # cookie = '~/.bitcoin/.cookie'
 # RPC user:pass (ignored if cookie is set)
-# rpcauth = 'bitty:axxy'
+# overridden by POGOLO_BACKEND_RPCAUTH
+# rpcauth = 'bitte:axtuh'
+# ZMQ endpoint to subscribe to 'hashblock' events
+# overridden by POGOLO_BACKEND_ZMQHOST
+# zmq_host = ''
 # whether to use the btcd websocket interface
 # websocket = false
 # how quickly to poll for block updates, in milliseconds
-# ignored if websocket is true
+# ignored if using websocket, and used for the connection retry interval with zmq
 poll_interval = 500
 
 [pogolo]
 # will listen on all interface ips (takes precedence over ip)
-interface = 'lo'
+interface = ''
 # ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)
-# host = '[::1]'
+# overridden by POGOLO_HOST
+# host = '[::]'
 # use 0 to pick a random port
 port = 5661
 # port for the api
 http_port = 5662
-# optional, required from clients if set
+# optional, required from sv1 clients if set
 # password = ''
 # will be replaced by default tag if too long (about 86 chars)
 # customize it! add your swarm stats, like
@@ -36,7 +41,13 @@ job_interval = 60
 target_share_interval = 5
 # extranonce2 size in bytes, usually shouldnt be touched
 # extranonce2_size = 4
+# version bits as int32, ORed with the template version
+# bip_version_bits = 0
 # ignore the client-suggested difficulty
 # ignore_suggested_difficulty = false
 # disable automatic difficulty adjustment
 # disable_vardiff = false
+# file to log to (path resolution same as cookie)
+# log_file = ''
+# enable sv2 noise encryption
+# sv2_encryption = false
