@@ -364,14 +364,14 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
-	ctx, cancel := context.WithCancel(rootCtx)
-	defer cancel()
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
+
+	ctx, cancel := context.WithCancel(rootCtx)
+	defer cancel()
 
 	/// ws shutdown handler
 	if conf.Backend.Websocket {
@@ -382,7 +382,7 @@ func startup(rootCtx context.Context) error {
 		}()
 	}
 
-	conns := make(chan net.Conn, 5)
+	conns := make(chan net.Conn)
 
 	/// init
 	clients.Init()
