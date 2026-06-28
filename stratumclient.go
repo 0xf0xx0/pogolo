@@ -962,38 +962,38 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	// client.shareHashMutex.Lock()
-	// defer client.shareHashMutex.Unlock()
-	// /// check if share is dupe
-	// if _, ok := client.shareHashes[shareHash]; ok {
-	// 	if m != nil {
-	// 		client.writeSv1Msg(m.RespondError(constants.ERROR_DUPE_SHARE))
-	// 	} else {
-	// 		client.writeSv2Msg(&stratumv2.SubmitSharesError{
-	// 			ChannelID:      uint32(client.ID),
-	// 			SequenceNumber: share.Sequence,
-	// 			ErrorCode:      stratumv2.Error(constants.ERROR_DUPE_SHARE.Message),
-	// 		}, stratumv2.MessageSubmitSharesError)
-	// 	}
-	// 	client.stats.sharesRejected++
-	// 	client.logError("share rejected: duplicate")
-	// 	return
-	// }
-	// /// add to dupe map
-	// client.shareHashes[shareHash] = struct{}{}
+	client.shareHashMutex.Lock()
+	defer client.shareHashMutex.Unlock()
+	/// check if share is dupe
+	if _, ok := client.shareHashes[shareHash]; ok {
+		if m != nil {
+			client.writeSv1Msg(m.RespondError(constants.ERROR_DUPE_SHARE))
+		} else {
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      stratumv2.Error(constants.ERROR_DUPE_SHARE.Message),
+			}, stratumv2.MessageSubmitSharesError)
+		}
+		client.stats.sharesRejected++
+		client.logError("share rejected: duplicate")
+		return
+	}
+	/// add to dupe map
+	client.shareHashes[shareHash] = struct{}{}
 
-	// if shareDiff >= client.CurrentJob.NetworkDiff {
-	// 	/// !!! block! dont say ANYTHING until after submitted
-	// 	submission := blockSubmission{
-	// 		ClientID: client.ID,
-	// 		Header:   updatedHeader,
-	// 		Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
-	// 		Share:    &share,
-	// 	}
+	if shareDiff >= client.CurrentJob.NetworkDiff {
+		/// !!! block! dont say ANYTHING until after submitted
+		submission := blockSubmission{
+			ClientID: client.ID,
+			Header:   updatedHeader,
+			Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
+			Share:    &share,
+		}
 
-	// 	client.submitBlock(submission)
-	// 	client.log("{yellow}block candidate submitted")
-	// }
+		client.submitBlock(submission)
+		client.log("{yellow}block candidate submitted")
+	}
 
 	if m != nil {
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
