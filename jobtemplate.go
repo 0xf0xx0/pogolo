@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -171,6 +172,7 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare, notif strat
 		len(sigscript),
 		append(id.Bytes(), share.Extranonce2...)...,
 	)
+	fmt.Printf("%x\n", serializeCoinbaseTx(coinbaseMsgTx))
 
 	/// update the header
 	job.Header.Nonce = share.Nonce

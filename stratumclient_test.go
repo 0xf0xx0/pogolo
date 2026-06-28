@@ -346,6 +346,7 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
 	return lpipe
 }
 
+// TODO
 func ezInitSv2Client(t testing.TB) net.Conn {
 	lpipe, c, _ := initClient()
 	/// reset rng

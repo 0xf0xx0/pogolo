@@ -257,12 +257,22 @@ func calcNetworkDifficultyHash(nBits uint32) chainhash.Hash {
 }
 
 // TODO: figure out non-bigint version? mafffffff
-// converts a difficulty float to the nearest target hash
-// float will get rounded to the nearest int
+// converts a difficulty float to a target hash
+// copied from public-pool
 func diffToTarget(d float64) stratumv2.U256 {
-	bigDiff := new(big.Int).SetUint64(uint64(d + 0.5))     // round to nearest integer
-	target := new(big.Int).Div(constants.Target1, bigDiff) // Target1 / difficulty = targetHash
+	if d <= 0 {
+		return *constants.Target1U256
+	}
+	scale := float64(1000000)
+	bigScale := big.NewInt(1000000)
+	rounded := int64(math.Round(d * scale))
+	if rounded <= 0 {
+		return *constants.Target1U256
+	}
+	bigRound := big.NewInt(rounded)
 
+	target := new(big.Int).Mul(constants.Target1, bigScale)
+	target = target.Quo(target, bigRound)
 	out := stratumv2.U256{}
 
 	tb := target.Bytes() // big-endian

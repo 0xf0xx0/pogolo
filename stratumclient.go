@@ -179,11 +179,17 @@ func (client *StratumClient) Run(ctx context.Context) {
 				}
 				client.extendedChannel = true
 
+				initialTarget := stratumv2.U256{}
+				if client.SuggestedDifficulty > 0 {
+					initialTarget = diffToTarget(client.SuggestedDifficulty)
+				} else {
+					initialTarget = diffToTarget(conf.Pogolo.DefaultDifficulty)
+				}
 				client.writeSv2Msg(&stratumv2.OpenExtendedMiningChannelSuccess{
 					OpenStandardMiningChannelSuccess: stratumv2.OpenStandardMiningChannelSuccess{
 						RequestID:        msg.RequestID,
 						ChannelID:        uint32(client.ID),
-						Target:           msg.MaxTarget,
+						Target:           initialTarget,
 						ExtranoncePrefix: client.ID.Bytes(),
 					},
 					ExtranonceSize: uint16(conf.ExtraNonce2Size),
@@ -217,7 +223,6 @@ func (client *StratumClient) startMining() {
 	if client.SuggestedDifficulty == 0 {
 		if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
 			/// use the hardcoded min
-			// client.setDifficulty(0.0001)
 			client.setDifficulty(constants.MIN_DIFFICULTY)
 		} else {
 			client.setDifficulty(conf.Pogolo.DefaultDifficulty)
@@ -275,6 +280,9 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			return
 		default:
 		}
+
+		/// deadline is a minute + 10x target share interval
+		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 
 		frame := stratumv2.Frame{}
 		if conf.Sv2Encryption {
@@ -403,8 +411,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			client.logError("unknown method: %x", frame.MessageType)
 			continue
 		}
-		/// deadline is a minute + 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 }
 func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.Reader) {
@@ -744,14 +750,14 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				Bits:      newJob.Header.Bits,
 			}
 			if client.extendedChannel {
-				merklePath := make([]stratumv2.U256, len(newJob.MerkleBranch))
-				for i, h := range newJob.MerkleBranch {
+				merklePath := make([]stratumv2.U256, len(template.MerkleBranch))
+				for i, h := range template.MerkleBranch {
 					merklePath[i] = stratumv2.U256(*h)
 				}
 				job := &stratumv2.NewExtendedMiningJob{
 					ChannelID:             uint32(client.ID),
 					JobID:                 uint32(currTemplateID),
-					MinTime:               []uint32{uint32(newJob.MinTime)},
+					MinTime:               []uint32{ /* empty,provided by setprevhash */ },
 					Version:               uint32(newJob.Version),
 					MerklePath:            merklePath,
 					VersionRollingAllowed: true,
@@ -763,7 +769,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				job := &stratumv2.NewMiningJob{
 					ChannelID:  uint32(client.ID),
 					JobID:      uint32(currTemplateID),
-					MinTime:    []uint32{uint32(newJob.MinTime)},
+					MinTime:    []uint32{ /* provided by setprevhash */ },
 					Version:    uint32(newJob.Version),
 					MerkleRoot: stratumv2.U256(newJob.Header.MerkleRoot),
 				}
@@ -897,8 +903,8 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 	currJobVer := uint32(client.CurrentJob.Version)
 	if share.Version != currJobVer &&
 		// version rolling means we NAND the share version with the version mask
-		// if the result is not equal to the original version its invalid
-		(share.Version & ^constants.VERSION_ROLLING_MASK) != currJobVer {
+		// if the result is not equal to the base block version its invalid
+		(share.Version & ^constants.VERSION_ROLLING_MASK) != 0x20000000 {
 		println(client.CurrentJob.Version, share.Version, share.Version&^constants.VERSION_ROLLING_MASK)
 		client.stats.sharesRejected++
 		if m != nil {
