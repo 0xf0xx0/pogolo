@@ -2,10 +2,14 @@ package main
 
 // this file is just for storing the data as variables
 import (
+	"testing"
+
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/btcutil/v2"
 
+	"encoding/hex"
 	"encoding/json"
 	"os"
 
@@ -119,4 +123,34 @@ func getCoinbaseTx() *btcutil.Tx {
 	job, _ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	tx := fillCoinbaseTx(addr, btcutil.NewBlock(&job.MsgBlock), job.Subsidy, MOCK_CHAIN)
 	return tx
+}
+func hexDec(s string) []byte {
+	x, _ := hex.DecodeString(s)
+	return x
+}
+
+var (
+	MOCK_SETUPCONNECTION = func() *stratumv2.SetupConnection {
+		p := &stratumv2.SetupConnection{}
+		p.Decode(hexDec(""))
+		return p
+	}()
+	MOCK_OPENEXTENDEDCHANNEL = func() *stratumv2.OpenExtendedMiningChannel {
+		p := &stratumv2.OpenExtendedMiningChannel{}
+		p.Decode(hexDec(""))
+		return p
+	}()
+	MOCK_SV2_SUBMIT = func() *stratumv2.SubmitSharesExtended {
+		p := &stratumv2.SubmitSharesExtended{}
+		p.Decode(hexDec(""))
+		return p
+	}()
+)
+
+func encodeSv2(s stratumv2.Codable, t testing.TB) []byte {
+	b, err := s.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }

@@ -33,7 +33,7 @@ func TestMain(t *testing.T) {
 /// stratum chatter
 
 func TestSv1Configure(t *testing.T) {
-	lpipe, client, _ := initSv1Client()
+	lpipe, client, _ := initClient()
 	params := configureParams
 	req := configureReq
 	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
@@ -45,7 +45,7 @@ func TestSv1Configure(t *testing.T) {
 }
 
 func TestSv1Authorize(t *testing.T) {
-	lpipe, client, _ := initSv1Client()
+	lpipe, client, _ := initClient()
 	params := authorizeParams
 	req := authorizeReq
 	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
@@ -63,7 +63,7 @@ func TestSv1Authorize(t *testing.T) {
 }
 
 func TestSv1Subscribe(t *testing.T) {
-	lpipe, client, _ := initSv1Client()
+	lpipe, client, _ := initClient()
 
 	req := subscribeReq
 	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
@@ -86,7 +86,7 @@ func TestSv1Subscribe(t *testing.T) {
 }
 
 func TestSv1SuggestDifficulty(t *testing.T) {
-	lpipe, client, _ := initSv1Client()
+	lpipe, client, _ := initClient()
 	res := sendSv1ReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
 	validateSv1Res(suggestDifficultyReq, res, t)
 	if client.SuggestedDifficulty != suggestDiffParams.Difficulty {
@@ -95,7 +95,7 @@ func TestSv1SuggestDifficulty(t *testing.T) {
 }
 
 func TestSv1UnimplementedMethod(t *testing.T) {
-	lpipe, _, _ := initSv1Client()
+	lpipe, _, _ := initClient()
 	res := sendSv1ReqAndWaitForRes(t, stratum.NewRequest(29, stratum.MethodClientGetVersion, []any{}), lpipe)
 	if res.Error.Code != constants.ERROR_UNK_METHOD.Code {
 		t.Fatalf("expected code %d, got code %d",
@@ -105,7 +105,7 @@ func TestSv1UnimplementedMethod(t *testing.T) {
 }
 
 func TestSv1InitSequence(t *testing.T) {
-	lpipe, client, _ := initSv1Client()
+	lpipe, client, _ := initClient()
 
 	res := sendSv1ReqAndWaitForRes(t, authorizeReq, lpipe)
 	validateSv1Res(authorizeReq, res, t)
@@ -164,7 +164,7 @@ func TestSv1SubmitUnkJob(t *testing.T) {
 	}
 }
 func TestSv1SubmitBeforeSub(t *testing.T) {
-	lpipe, _, _ := initSv1Client()
+	lpipe, _, _ := initClient()
 
 	share := submitParams
 	share.JobID = ""
@@ -235,6 +235,10 @@ func BenchmarkSv1Submit(b *testing.B) {
 	}
 }
 
+// sv2 tests
+func TestSv2SetupConnection(t *testing.T) {
+}
+
 // util
 
 func parseIdentity(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
@@ -295,7 +299,7 @@ func validateSv1Res(req *stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initSv1Client() (net.Conn, *StratumClient, chan blockSubmission) {
+func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	submissionChan := make(chan blockSubmission, 8)
 	clientPipe, poolPipe := net.Pipe()
 	client := CreateClient(poolPipe, submissionChan)
@@ -317,7 +321,7 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
 	s, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
 	currTemplateID = s - 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	lpipe, c, _ := initSv1Client()
+	lpipe, c, _ := initClient()
 
 	sendSv1ReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendSv1ReqAndWaitForRes(t, configureReq, lpipe)
@@ -339,5 +343,13 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
 	c.CurrentJob.MinTime = 0
 	c.CurrentJob.MaxTime = 0
 
+	return lpipe
+}
+
+func ezInitSv2Client(t testing.TB) net.Conn {
+	lpipe, c, _ := initClient()
+	/// reset rng
+	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
+	lpipe.Write(encodeSv2(MOCK_SETUPCONNECTION, t))
 	return lpipe
 }
