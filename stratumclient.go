@@ -652,6 +652,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		}
 	}
 	client.TargetDifficulty = newDiff
+	client.log("adjusting share target to {blue}%g", newDiff)
 	return nil
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
@@ -703,7 +704,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		if !conf.Pogolo.DisableVarDiff {
 			client.calcNextDifficulty()
 		}
-		/// stratum spec applies diff changes to next job, so announce diff before announcing job
+		/// both stratum specs apply diff changes to next job, so announce diff before announcing job
 
 		if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
 			if errors.Is(err, net.ErrClosed) {
@@ -712,8 +713,6 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				return
 			}
 			client.logError("error adjusting difficulty: %s", err)
-		} else {
-			client.log("adjusting share target to {blue}%g", client.SuggestedDifficulty)
 		}
 
 		if client.protocol == 1 {
@@ -915,7 +914,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		client.logError("share rejected: invalid version mask")
 		return
 	}
-	println(client.CurrentJob.Version, share.Version)
+
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
