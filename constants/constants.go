@@ -56,11 +56,13 @@ var (
 // used in diffToTarget
 var Target1 = func() *big.Int {
 	t1 := big.Int{}
-	t1.SetString("FFFF0000000000000000000000000000000000000000000000000000", 16)
+	t1.SetString("00000000FFFF0000000000000000000000000000000000000000000000000000", 16)
 	return &t1
 }()
 var Target1U256 = func() *stratumv2.U256 {
 	u := stratumv2.U256{}
-	u.SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	// source: https://en.bitcoin.it/wiki/Difficulty#How_is_difficulty_calculated?_What_is_the_difference_between_bdiff_and_pdiff?
+	// we wanna use the truncated one to stick to bdiff
+	u.SetString("00000000FFFF0000000000000000000000000000000000000000000000000000")
 	return &u
 }()

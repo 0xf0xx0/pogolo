@@ -32,24 +32,24 @@ func TestMain(t *testing.T) {
 
 /// stratum chatter
 
-func TestConfigure(t *testing.T) {
-	lpipe, client, _ := initClient()
+func TestSv1Configure(t *testing.T) {
+	lpipe, client, _ := initSv1Client()
 	params := configureParams
 	req := configureReq
-	res := sendReqAndWaitForRes(t, req, lpipe)
-	validateRes(req, res, t)
+	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
+	validateSv1Res(req, res, t)
 	t.Logf("ver rolling mask: %x, supported: %v", client.VersionRollingMask, params.Supported)
 	if client.VersionRollingMask == 0 {
 		t.Error("version rolling is wrong")
 	}
 }
 
-func TestAuthorize(t *testing.T) {
-	lpipe, client, _ := initClient()
+func TestSv1Authorize(t *testing.T) {
+	lpipe, client, _ := initSv1Client()
 	params := authorizeParams
 	req := authorizeReq
-	res := sendReqAndWaitForRes(t, req, lpipe)
-	validateRes(req, res, t)
+	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
+	validateSv1Res(req, res, t)
 	resp := stratum.BooleanResult{}
 	resp.FromResponse(&res)
 	if resp.Result == false {
@@ -62,11 +62,11 @@ func TestAuthorize(t *testing.T) {
 	}
 }
 
-func TestSubscribe(t *testing.T) {
-	lpipe, client, _ := initClient()
+func TestSv1Subscribe(t *testing.T) {
+	lpipe, client, _ := initSv1Client()
 
 	req := subscribeReq
-	res := sendReqAndWaitForRes(t, req, lpipe)
+	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
 	r := stratum.MiningSubscribeResult{}
 	err := r.FromResponse(&res)
 	if err != nil {
@@ -82,21 +82,21 @@ func TestSubscribe(t *testing.T) {
 		t.Errorf("extranonce2 size mismatch: expected %d, got %d",
 			constants.EXTRANONCE_SIZE, r.Extranonce2Size)
 	}
-	validateRes(req, res, t)
+	validateSv1Res(req, res, t)
 }
 
-func TestSuggestDifficulty(t *testing.T) {
-	lpipe, client, _ := initClient()
-	res := sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
-	validateRes(suggestDifficultyReq, res, t)
+func TestSv1SuggestDifficulty(t *testing.T) {
+	lpipe, client, _ := initSv1Client()
+	res := sendSv1ReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+	validateSv1Res(suggestDifficultyReq, res, t)
 	if client.SuggestedDifficulty != suggestDiffParams.Difficulty {
 		t.Error("failed to store suggested diff")
 	}
 }
 
-func TestUnimplementedMethod(t *testing.T) {
-	lpipe, _, _ := initClient()
-	res := sendReqAndWaitForRes(t, stratum.NewRequest(29, stratum.MethodClientGetVersion, []any{}), lpipe)
+func TestSv1UnimplementedMethod(t *testing.T) {
+	lpipe, _, _ := initSv1Client()
+	res := sendSv1ReqAndWaitForRes(t, stratum.NewRequest(29, stratum.MethodClientGetVersion, []any{}), lpipe)
 	if res.Error.Code != constants.ERROR_UNK_METHOD.Code {
 		t.Fatalf("expected code %d, got code %d",
 			constants.ERROR_UNK_METHOD.Code, res.Error.Code,
@@ -104,22 +104,22 @@ func TestUnimplementedMethod(t *testing.T) {
 	}
 }
 
-func TestInitSequence(t *testing.T) {
-	lpipe, client, _ := initClient()
+func TestSv1InitSequence(t *testing.T) {
+	lpipe, client, _ := initSv1Client()
 
-	res := sendReqAndWaitForRes(t, authorizeReq, lpipe)
-	validateRes(authorizeReq, res, t)
+	res := sendSv1ReqAndWaitForRes(t, authorizeReq, lpipe)
+	validateSv1Res(authorizeReq, res, t)
 
-	res = sendReqAndWaitForRes(t, configureReq, lpipe)
-	validateRes(configureReq, res, t)
+	res = sendSv1ReqAndWaitForRes(t, configureReq, lpipe)
+	validateSv1Res(configureReq, res, t)
 
-	res = sendReqAndWaitForRes(t, subscribeReq, lpipe)
-	validateRes(subscribeReq, res, t)
+	res = sendSv1ReqAndWaitForRes(t, subscribeReq, lpipe)
+	validateSv1Res(subscribeReq, res, t)
 
 	/// set diff
-	readPipe(t, lpipe)
+	readSv1Pipe(t, lpipe)
 	/// notify
-	readPipe(t, lpipe)
+	readSv1Pipe(t, lpipe)
 
 	/// WHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 	time.Sleep(time.Millisecond)
@@ -130,17 +130,17 @@ func TestInitSequence(t *testing.T) {
 	client.Stop()
 }
 
-func TestSubmit(t *testing.T) {
-	lpipe := ezInitClient(t, true)
+func TestSv1Submit(t *testing.T) {
+	lpipe := ezInitSv1Client(t, true)
 
-	res := sendReqAndWaitForRes(t, submitReq, lpipe)
+	res := sendSv1ReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error != nil {
 		t.Fatalf("share submission failed! code: %s", res.Error)
 	}
 }
-func TestSubmitDiffTooLow(t *testing.T) {
-	lpipe := ezInitClient(t, false)
-	res := sendReqAndWaitForRes(t, submitReq, lpipe)
+func TestSv1SubmitDiffTooLow(t *testing.T) {
+	lpipe := ezInitSv1Client(t, false)
+	res := sendSv1ReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
 	}
@@ -149,13 +149,13 @@ func TestSubmitDiffTooLow(t *testing.T) {
 	}
 }
 
-func TestSubmitUnkJob(t *testing.T) {
-	lpipe := ezInitClient(t, false)
+func TestSv1SubmitUnkJob(t *testing.T) {
+	lpipe := ezInitSv1Client(t, false)
 
 	share := submitParams
 	share.JobID = "fffffff"
 	req := share.ToRequest(9)
-	res := sendReqAndWaitForRes(t, req, lpipe)
+	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
 	}
@@ -163,13 +163,13 @@ func TestSubmitUnkJob(t *testing.T) {
 		t.Fatalf("share submission failed, but wrong error: %s", res.Error)
 	}
 }
-func TestSubmitBeforeSub(t *testing.T) {
-	lpipe, _, _ := initClient()
+func TestSv1SubmitBeforeSub(t *testing.T) {
+	lpipe, _, _ := initSv1Client()
 
 	share := submitParams
 	share.JobID = ""
 	req := share.ToRequest(9)
-	res := sendReqAndWaitForRes(t, req, lpipe)
+	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
 	}
@@ -178,18 +178,18 @@ func TestSubmitBeforeSub(t *testing.T) {
 	}
 }
 
-func TestParseIdentity(t *testing.T) {
+func TestSv1ParseIdentity(t *testing.T) {
 	var nickname string
 	var addr address.Address
 	var ok bool
 
 	// empty
-	if _, _, ok := parseSv2Identity("", t); ok {
+	if _, _, ok := parseIdentity("", t); ok {
 		t.Fatal("parseSv2Identity should return false for empty string")
 	}
 
 	// addr + nickname
-	if nickname, addr, ok = parseSv2Identity(authorizeParams.Username, t); !ok {
+	if nickname, addr, ok = parseIdentity(authorizeParams.Username, t); !ok {
 		t.Fatal("parseSv2Identity errored during parse")
 	}
 	if addr.EncodeAddress() != authorizeParams.Address {
@@ -200,7 +200,7 @@ func TestParseIdentity(t *testing.T) {
 	}
 
 	// just addr
-	if nickname, addr, ok = parseSv2Identity(authorizeParams.Address, t); !ok {
+	if nickname, addr, ok = parseIdentity(authorizeParams.Address, t); !ok {
 		t.Fatal("parseSv2Identity errored during parse")
 	}
 	if addr.EncodeAddress() != authorizeParams.Address {
@@ -211,7 +211,7 @@ func TestParseIdentity(t *testing.T) {
 	}
 
 	// just nickname
-	if nickname, addr, ok = parseSv2Identity(authorizeParams.Worker, t); !ok {
+	if nickname, addr, ok = parseIdentity(authorizeParams.Worker, t); !ok {
 		t.Fatal("parseSv2Identity errored during parse")
 	}
 	if addr.EncodeAddress() != defaultMiningAddr.EncodeAddress() {
@@ -223,12 +223,12 @@ func TestParseIdentity(t *testing.T) {
 }
 
 // kinda pointless but eh
-func BenchmarkSubmit(b *testing.B) {
-	lpipe := ezInitClient(b, true)
+func BenchmarkSv1Submit(b *testing.B) {
+	lpipe := ezInitSv1Client(b, true)
 
 	time.Sleep(time.Second)
 	for b.Loop() {
-		res := sendReqAndWaitForRes(b, submitReq, lpipe)
+		res := sendSv1ReqAndWaitForRes(b, submitReq, lpipe)
 		if res.Error != nil {
 			b.Fatalf("share submission failed! code: %s", res.Error)
 		}
@@ -237,7 +237,7 @@ func BenchmarkSubmit(b *testing.B) {
 
 // util
 
-func parseSv2Identity(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
+func parseIdentity(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
 	if userIdentity == "" {
 		return "", nil, false
 	}
@@ -256,11 +256,11 @@ func parseSv2Identity(userIdentity string, t *testing.T) (nickname string, decod
 		}
 		decoded = defaultMiningAddr
 	}
-	t.Logf("address: %s\tnickname: %s", decoded.EncodeAddress(), nickname)
+	t.Logf("address: %q\tnickname: %q", decoded.EncodeAddress(), nickname)
 	return nickname, decoded, true
 }
 
-func sendReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {
+func sendSv1ReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {
 	b, err := r.Marshal()
 	if err != nil {
 		t.Fatalf("error marshalling req: %s", err)
@@ -272,11 +272,11 @@ func sendReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) strat
 		t.Fatal(err.Error())
 	}
 
-	res := readPipe(t, lpipe)
+	res := readSv1Pipe(t, lpipe)
 	return res
 }
 
-func readPipe(t testing.TB, lpipe net.Conn) stratum.Response {
+func readSv1Pipe(t testing.TB, lpipe net.Conn) stratum.Response {
 	reader := bufio.NewReader(lpipe)
 	line, err := reader.ReadBytes('\n')
 	if err != nil {
@@ -287,7 +287,7 @@ func readPipe(t testing.TB, lpipe net.Conn) stratum.Response {
 	res.Unmarshal(line)
 	return res
 }
-func validateRes(req *stratum.Request, res stratum.Response, t *testing.T) {
+func validateSv1Res(req *stratum.Request, res stratum.Response, t *testing.T) {
 	if req.MessageID != res.MessageID {
 		t.Errorf("Message ID mismatch: expected %d, got %d", req.MessageID, res.MessageID)
 	}
@@ -295,7 +295,7 @@ func validateRes(req *stratum.Request, res stratum.Response, t *testing.T) {
 		t.Errorf("Error in response: %s", res.Error.Message)
 	}
 }
-func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
+func initSv1Client() (net.Conn, *StratumClient, chan blockSubmission) {
 	submissionChan := make(chan blockSubmission, 8)
 	clientPipe, poolPipe := net.Pipe()
 	client := CreateClient(poolPipe, submissionChan)
@@ -311,25 +311,25 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 }
 
 // flip suggDiff to true to drop the diff to 0.16
-func ezInitClient(t testing.TB, suggDiff bool) net.Conn {
+func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
 	/// init pool state
 	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	s, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
 	currTemplateID = s - 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	lpipe, c, _ := initClient()
+	lpipe, c, _ := initSv1Client()
 
-	sendReqAndWaitForRes(t, authorizeReq, lpipe)
-	sendReqAndWaitForRes(t, configureReq, lpipe)
+	sendSv1ReqAndWaitForRes(t, authorizeReq, lpipe)
+	sendSv1ReqAndWaitForRes(t, configureReq, lpipe)
 	if suggDiff {
-		sendReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
+		sendSv1ReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
 	}
-	sendReqAndWaitForRes(t, subscribeReq, lpipe)
+	sendSv1ReqAndWaitForRes(t, subscribeReq, lpipe)
 
 	/// set diff
-	readPipe(t, lpipe)
+	readSv1Pipe(t, lpipe)
 	/// notify
-	readPipe(t, lpipe)
+	readSv1Pipe(t, lpipe)
 
 	// FIXME: race condition :\
 	time.Sleep(time.Millisecond)

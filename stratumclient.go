@@ -560,7 +560,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		case stratum.MethodMiningSuggestDifficulty:
 			{
 				/// only accept a suggested difficulty if we haven't got one before
-				if conf.Pogolo.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
+				if conf.IgnoreSuggDiff || client.SuggestedDifficulty > 0 {
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_ACCEPTED))
 					break
 				}
@@ -575,11 +575,11 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 				if suggestedDiff >= constants.MIN_DIFFICULTY {
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
-					client.log("suggested difficulty {blue}%g", suggestedDiff)
 					client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
+					client.log("accepted suggested difficulty {blue}%g", suggestedDiff)
 				} else {
-					client.logError("rejected suggested difficulty")
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_ACCEPTED))
+					client.logError("rejected suggested difficulty")
 				}
 			}
 		case stratum.MethodMiningExtranonceSubscribe:
@@ -601,9 +601,8 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		}
 
 		/// deadline is a minute + 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
+		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 	}
-
 }
 
 // aims for the .TargetShareInterval
@@ -613,7 +612,7 @@ func (client *StratumClient) calcNextDifficulty() {
 	}
 	/// negative = running slow, positive = running fast
 	/// round it to avoid floating point madness
-	difference := math.Round(float64(conf.Pogolo.TargetShareInterval) - client.stats.avgSubmissionDelta/1000)
+	difference := math.Round(float64(conf.TargetShareInterval) - client.stats.avgSubmissionDelta/1000)
 	absDifference := math.Abs(difference)
 	/// natural variance is +- 1-3s, this adjustment routine seems to consistently
 	/// tighten it to +-1s
@@ -701,7 +700,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		newJob := client.createJob(template)
 
 		/// vardiff
-		if !conf.Pogolo.DisableVarDiff {
+		if !conf.DisableVarDiff {
 			client.calcNextDifficulty()
 		}
 		/// both stratum specs apply diff changes to next job, so announce diff before announcing job
