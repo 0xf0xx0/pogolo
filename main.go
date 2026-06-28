@@ -582,11 +582,11 @@ func backendRoutine(ctx context.Context) {
 			logError(fmt.Sprintf("failed to make zmq socket: %s", err))
 			logError("{yellow}falling back to polling")
 			go getBlockCountPoll()
+		} else {
+			log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
+			/// go, my zmq
+			go zmqListener(socket)
 		}
-
-		log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
-		/// go, my zmq
-		go zmqListener(socket)
 	} else {
 		/// poll getblockcount
 		go getBlockCountPoll()

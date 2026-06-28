@@ -77,7 +77,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 
 	/// peek to determine protocol
-	r := bufio.NewReaderSize(client.conn, 256)
+	r := bufio.NewReaderSize(client.conn, 512) // 512 bytes, we dont need much more
 	b, err := r.Peek(1)
 	if err != nil {
 		return
@@ -217,8 +217,8 @@ func (client *StratumClient) startMining() {
 	if client.SuggestedDifficulty == 0 {
 		if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
 			/// use the hardcoded min
-			client.setDifficulty(0.0001)
-			// client.setDifficulty(constants.MIN_DIFFICULTY)
+			// client.setDifficulty(0.0001)
+			client.setDifficulty(constants.MIN_DIFFICULTY)
 		} else {
 			client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 		}
@@ -895,8 +895,12 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	versionAndMask := share.Version & constants.VERSION_ROLLING_MASK
-	if share.Version != uint32(client.CurrentJob.Version) && versionAndMask != 0 && versionAndMask != share.Version {
+	/// no version rolling means the version is left untouched, its already valid
+	currJobVer := uint32(client.CurrentJob.Version)
+	if share.Version != currJobVer &&
+		// version rolling means we NAND the share version with the version mask
+		// if the result is not equal to the original version its invalid
+		(share.Version & ^constants.VERSION_ROLLING_MASK) != currJobVer {
 		println(client.CurrentJob.Version, share.Version, share.Version&^constants.VERSION_ROLLING_MASK)
 		client.stats.sharesRejected++
 		if m != nil {
@@ -911,6 +915,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		client.logError("share rejected: invalid version mask")
 		return
 	}
+	println(client.CurrentJob.Version, share.Version)
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
