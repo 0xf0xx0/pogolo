@@ -77,7 +77,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 
 	/// peek to determine protocol
-	r := bufio.NewReader(client.conn)
+	r := bufio.NewReaderSize(client.conn, 256)
 	b, err := r.Peek(1)
 	if err != nil {
 		return
