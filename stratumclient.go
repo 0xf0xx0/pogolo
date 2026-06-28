@@ -142,7 +142,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				msg := stratumv2.OpenStandardMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logError("error decoding OpenStandardMiningChannel: %s", err)
-					break
+					return
 				}
 
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
@@ -164,12 +164,12 @@ func (client *StratumClient) Run(ctx context.Context) {
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logError("error decoding OpenExtendedMiningChannel: %s", err)
-					break
+					return
 				}
 
 				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
 					client.logError("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
-					break
+					return
 				}
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
@@ -849,7 +849,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 		cast := float64(nominalHashRate)
 		client.SuggestedDifficulty = calcDiffFromHashrate(cast)
 		client.stats.hashrate = cast
-		client.log("guessed initial difficulty {blue}%d", client.SuggestedDifficulty)
+		client.log("guessed initial difficulty {blue}%s", formatDifficulty(client.SuggestedDifficulty))
 	}
 	return true
 }
