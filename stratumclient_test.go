@@ -307,7 +307,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 			<-submissionChan
 		}
 	}()
-	return clientPipe, &client, submissionChan
+	return clientPipe, client, submissionChan
 }
 
 // flip suggDiff to true to drop the diff to 0.16

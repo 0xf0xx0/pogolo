@@ -26,7 +26,7 @@ import (
 
 // aka gopher
 type StratumClient struct {
-	currentJobMutex     *sync.RWMutex
+	currentJobMutex     sync.RWMutex
 	CurrentJob          MiningJob
 	conn                net.Conn
 	User                address.Address
@@ -38,9 +38,9 @@ type StratumClient struct {
 	VersionRollingMask  uint32
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
-	shareHashMutex      *sync.Mutex
+	shareHashMutex      sync.Mutex
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
-	stats               *StratumClientStats
+	stats               StratumClientStats
 	protocol            uint8
 	extendedChannel     bool
 }
@@ -217,7 +217,8 @@ func (client *StratumClient) startMining() {
 	if client.SuggestedDifficulty == 0 {
 		if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
 			/// use the hardcoded min
-			client.setDifficulty(constants.MIN_DIFFICULTY)
+			client.setDifficulty(0.0001)
+			// client.setDifficulty(constants.MIN_DIFFICULTY)
 		} else {
 			client.setDifficulty(conf.Pogolo.DefaultDifficulty)
 		}
@@ -256,6 +257,7 @@ func (client *StratumClient) Stop() {
 		totalSharesPerSec += sharesPS
 		println(fmt.Sprintf("shares/s: %f", sharesPS))
 	}
+	client = nil
 }
 
 func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.Reader) {
@@ -406,7 +408,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 	}
 }
 func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.Reader) {
-	scanner := bufio.NewScanner(reader)
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
@@ -416,7 +417,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 	/// 1) it complicates shutdown and
 	/// 2) theres no point imo, everything gets handled in order anyway
 	/// its fast enough
-	for scanner.Scan() {
+	for {
 		select {
 		case <-ctx.Done():
 			return
@@ -424,7 +425,19 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		}
 
 		/// messages are newline separated (either lf or crlf)
-		line := bytes.TrimSpace(scanner.Bytes())
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			switch err {
+			case io.ErrClosedPipe:
+			case io.EOF:
+			case err.(*net.OpError):
+				ne := err.(*net.OpError)
+				client.logError("%s", ne.Err)
+			default:
+				client.logError("read error: %s", err)
+			}
+			return
+		}
 
 		/// process the message
 		m, err := decodeStratumMessage(line)
@@ -591,16 +604,6 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
 	}
 
-	switch err := scanner.Err(); err {
-	case nil:
-	case io.ErrClosedPipe:
-	case io.EOF:
-	case err.(*net.OpError):
-		ne := err.(*net.OpError)
-		client.logError("%s", ne.Err)
-	default:
-		client.logError("%s", err)
-	}
 }
 
 // aims for the .TargetShareInterval
@@ -893,8 +896,8 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 	}
 
 	versionAndMask := share.Version & constants.VERSION_ROLLING_MASK
-	if versionAndMask != 0 && versionAndMask != share.Version {
-		println(share.Version, share.Version&constants.VERSION_ROLLING_MASK)
+	if share.Version != uint32(client.CurrentJob.Version) && versionAndMask != 0 && versionAndMask != share.Version {
+		println(client.CurrentJob.Version, share.Version, share.Version&^constants.VERSION_ROLLING_MASK)
 		client.stats.sharesRejected++
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_INV_VER_MASK))
@@ -959,38 +962,38 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	client.shareHashMutex.Lock()
-	defer client.shareHashMutex.Unlock()
-	/// check if share is dupe
-	if _, ok := client.shareHashes[shareHash]; ok {
-		if m != nil {
-			client.writeSv1Msg(m.RespondError(constants.ERROR_DUPE_SHARE))
-		} else {
-			client.writeSv2Msg(&stratumv2.SubmitSharesError{
-				ChannelID:      uint32(client.ID),
-				SequenceNumber: share.Sequence,
-				ErrorCode:      stratumv2.Error(constants.ERROR_DUPE_SHARE.Message),
-			}, stratumv2.MessageSubmitSharesError)
-		}
-		client.stats.sharesRejected++
-		client.logError("share rejected: duplicate")
-		return
-	}
-	/// add to dupe map
-	client.shareHashes[shareHash] = struct{}{}
+	// client.shareHashMutex.Lock()
+	// defer client.shareHashMutex.Unlock()
+	// /// check if share is dupe
+	// if _, ok := client.shareHashes[shareHash]; ok {
+	// 	if m != nil {
+	// 		client.writeSv1Msg(m.RespondError(constants.ERROR_DUPE_SHARE))
+	// 	} else {
+	// 		client.writeSv2Msg(&stratumv2.SubmitSharesError{
+	// 			ChannelID:      uint32(client.ID),
+	// 			SequenceNumber: share.Sequence,
+	// 			ErrorCode:      stratumv2.Error(constants.ERROR_DUPE_SHARE.Message),
+	// 		}, stratumv2.MessageSubmitSharesError)
+	// 	}
+	// 	client.stats.sharesRejected++
+	// 	client.logError("share rejected: duplicate")
+	// 	return
+	// }
+	// /// add to dupe map
+	// client.shareHashes[shareHash] = struct{}{}
 
-	if shareDiff >= client.CurrentJob.NetworkDiff {
-		/// !!! block! dont say ANYTHING until after submitted
-		submission := blockSubmission{
-			ClientID: client.ID,
-			Header:   updatedHeader,
-			Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
-			Share:    &share,
-		}
+	// if shareDiff >= client.CurrentJob.NetworkDiff {
+	// 	/// !!! block! dont say ANYTHING until after submitted
+	// 	submission := blockSubmission{
+	// 		ClientID: client.ID,
+	// 		Header:   updatedHeader,
+	// 		Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
+	// 		Share:    &share,
+	// 	}
 
-		client.submitBlock(submission)
-		client.log("{yellow}block candidate submitted")
-	}
+	// 	client.submitBlock(submission)
+	// 	client.log("{yellow}block candidate submitted")
+	// }
 
 	if m != nil {
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
@@ -1150,18 +1153,16 @@ func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDif
 }
 
 // clients are given an id, a job, and a channel to submit blocks on
-func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) StratumClient {
-	client := StratumClient{
+func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) *StratumClient {
+	client := &StratumClient{
 		ID:             clientIDHash(conn.LocalAddr().String() + conn.RemoteAddr().String()),
-		stats:          &StratumClientStats{},
+		stats:          StratumClientStats{},
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate, 1),
 		submissionChan: submissionChannel,
 		// allocate enough space to store the expected number of share hashes before a new job is sent out,
 		// plus some extra to account for luck
-		shareHashes:     make(map[chainhash.Hash]struct{}, 5+conf.JobInterval/conf.TargetShareInterval),
-		currentJobMutex: &sync.RWMutex{},
-		shareHashMutex:  &sync.Mutex{},
+		shareHashes: make(map[chainhash.Hash]struct{}, 5+conf.JobInterval/conf.TargetShareInterval),
 	}
 	return client
 }
