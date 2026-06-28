@@ -347,10 +347,10 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
 }
 
 // TODO
-func ezInitSv2Client(t testing.TB) net.Conn {
-	lpipe, c, _ := initClient()
-	/// reset rng
-	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
-	lpipe.Write(encodeSv2(MOCK_SETUPCONNECTION, t))
-	return lpipe
-}
+// func ezInitSv2Client(t testing.TB) net.Conn {
+// 	lpipe, c, _ := initClient()
+// 	/// reset rng
+// 	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
+// 	lpipe.Write(encodeSv2(MOCK_SETUPCONNECTION, t))
+// 	return lpipe
+// }
