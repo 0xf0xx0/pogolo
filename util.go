@@ -414,7 +414,7 @@ func formatDifficulty(value float64) string {
 		value /= 1000
 	}
 
-	sb.WriteString(strconv.FormatFloat(value, 'g', -1, 64))
+	sb.WriteString(strconv.FormatFloat(value, 'g', 3, 64))
 	sb.WriteString(unit)
 	return sb.String()
 }
@@ -436,7 +436,7 @@ func formatHashrate(value float64) string {
 		unit = "G"
 	}
 
-	sb.WriteString(strconv.FormatFloat(value, 'g', -1, 64))
+	sb.WriteString(strconv.FormatFloat(value, 'g', 5, 64))
 	sb.WriteRune(' ')
 	sb.WriteString(unit)
 	sb.WriteString("H/s")
