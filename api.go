@@ -35,8 +35,9 @@ type detailedWorkerInfo struct {
 
 // only the neccesary details
 type miniWorkerInfo struct {
-	UserAgent   string `json:"userAgent"`
-	Extranonce1 string `json:"extranonce1"`
+	UserAgent       string `json:"userAgent"`
+	Extranonce1     string `json:"extranonce1"`
+	ProtocolVersion uint8  `json:"protocolVersion"`
 }
 type getInfoRes struct {
 	Uptime        uint64           `json:"uptime"`
@@ -73,12 +74,12 @@ func initAPI() {
 		TotalWorkers: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
 			Namespace: METRICS_NAMESPACE,
 			Name:      "total_workers",
-			Help:      "Total number of gophers connected to the pool",
+			Help:      "Number of gophers connected to the pool",
 		}),
 		TotalHashrate: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
 			Namespace: METRICS_NAMESPACE,
 			Name:      "total_hashrate",
-			Help:      "Total hash rate of all gophers connected to the pool",
+			Help:      "Total hashrate of all gophers connected to the pool",
 		}),
 		BestDiff: promauto.With(reg).NewGauge(prometheus.GaugeOpts{
 			Namespace: METRICS_NAMESPACE,
@@ -141,8 +142,9 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 	bestDiff := float64(0)
 	for idx, client := range allClients {
 		workerStats[idx] = miniWorkerInfo{
-			UserAgent:   client.UserAgent,
-			Extranonce1: client.ID.String(),
+			UserAgent:       client.UserAgent,
+			Extranonce1:     client.ID.String(),
+			ProtocolVersion: client.protocol,
 		}
 		bestDiff = max(bestDiff, client.stats.bestDiff)
 		hashrateSum += client.stats.HashrateH()

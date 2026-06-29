@@ -123,7 +123,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	block := wire.MsgBlock{
 		Header: wire.BlockHeader{
 			/// OR configured activation bits with template from node
-			Version:    template.Version | conf.Pogolo.BIPVersionBits,
+			Version:    template.Version | conf.BIPVersionBits,
 			Bits:       headerBits,
 			PrevBlock:  *prevBlockHash,
 			Timestamp:  time.Unix(currTime, 0),
@@ -158,7 +158,7 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare, notif strat
 	en2Len := 0
 	if share.Extranonce2 != nil {
 		en2Len = len(share.Extranonce2)
-		if en2Len > 0 && en2Len != int(conf.Pogolo.ExtraNonce2Size) {
+		if en2Len > 0 && en2Len != int(conf.ExtraNonce2Size) {
 			return wire.BlockHeader{}, false
 		}
 	}

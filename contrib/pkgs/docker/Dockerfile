@@ -5,9 +5,9 @@ ARG TARGETARCH
 WORKDIR /build
 
 # set envs for the rest of the owl
-ENV GOOS=$TARGETOS
-ENV GOARCH=$TARGETARCH
-ENV GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
+ARG GOOS=$TARGETOS
+ARG GOARCH=$TARGETARCH
+ARG GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -15,7 +15,7 @@ RUN go mod download
 COPY --exclude=contrib/ --exclude=mockdata/ --exclude=*_test.go ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
-FROM alpine:latest
+FROM alpine:3.24
 
 WORKDIR /
 
@@ -28,4 +28,5 @@ EXPOSE 5661
 EXPOSE 5662
 
 # expects a /config dir with a pogolo.toml
-CMD ["/pogolo", "--conf", "/config/pogolo.toml"]
+ENTRYPOINT [ "/pogolo" ]
+CMD ["--conf", "/config/pogolo.toml"]

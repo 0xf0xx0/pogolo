@@ -77,6 +77,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 
 	/// peek to determine protocol
+	// TODO: figure out how to start with a small 128 byte buffer and grow as needed
 	r := bufio.NewReaderSize(client.conn, 512) // 512 bytes, we dont need much more
 	b, err := r.Peek(1)
 	if err != nil {
@@ -183,7 +184,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				if client.SuggestedDifficulty > 0 {
 					initialTarget = diffToTarget(client.SuggestedDifficulty)
 				} else {
-					initialTarget = diffToTarget(conf.Pogolo.DefaultDifficulty)
+					initialTarget = diffToTarget(conf.DefaultDifficulty)
 				}
 				client.writeSv2Msg(&stratumv2.OpenExtendedMiningChannelSuccess{
 					OpenStandardMiningChannelSuccess: stratumv2.OpenStandardMiningChannelSuccess{
@@ -225,7 +226,7 @@ func (client *StratumClient) startMining() {
 			/// use the hardcoded min
 			client.setDifficulty(constants.MIN_DIFFICULTY)
 		} else {
-			client.setDifficulty(conf.Pogolo.DefaultDifficulty)
+			client.setDifficulty(conf.DefaultDifficulty)
 		}
 	}
 
@@ -282,7 +283,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		}
 
 		/// deadline is a minute + 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.Pogolo.TargetShareInterval)))
+		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 
 		frame := stratumv2.Frame{}
 		if conf.Sv2Encryption {
@@ -558,7 +559,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 						},
 					},
 					Extranonce1:     client.ID,
-					Extranonce2Size: uint32(conf.Pogolo.ExtraNonce2Size),
+					Extranonce2Size: uint32(conf.ExtraNonce2Size),
 				}
 				client.writeSv1Msg(responseParams.ToResponse(m.MessageID))
 				isSubscribed = true
@@ -686,7 +687,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		MaxTime:       template.MaxTime,
 		NetworkDiff:   template.NetworkDiff,
 		PrevHash:      &blockHeader.PrevBlock,
-		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)],
+		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
 		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
 		Timestamp:     blockHeader.Timestamp,
 		Bits:          template.Bits,
@@ -1109,7 +1110,7 @@ func (stats *StratumClientStats) update(currTargetDiff float64) {
 		delta := float64(now.Sub(stats.lastSubmission).Milliseconds())
 		/// start the avg calc with the target delta, not 0
 		if stats.avgSubmissionDelta == 0 {
-			stats.avgSubmissionDelta = float64(conf.Pogolo.TargetShareInterval)
+			stats.avgSubmissionDelta = float64(conf.TargetShareInterval)
 		} else {
 			/// avg = smoothing*delta + (1-smoothing)*avg
 			smoothing := 0.01

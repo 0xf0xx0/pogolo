@@ -74,18 +74,18 @@ func TestCreateEmptyCoinbase(t *testing.T) {
 		t.Fatalf("failed to create coinbase: %s", err)
 	}
 
-	tag := conf.Pogolo.Tag
-	conf.Pogolo.Tag = strings.Repeat("wveegwgwgws", 25) /// way too big
+	tag := conf.Tag
+	conf.Tag = strings.Repeat("wveegwgwgws", 25) /// way too big
 	_, err = createEmptyCoinbase(MOCK_BLOCK_TEMPLATE)
-	conf.Pogolo.Tag = tag
+	conf.Tag = tag
 	if err != nil {
 		t.Fatalf("failed to fallback to default pool tag: %s", err)
 	}
 
-	en2 := conf.Pogolo.ExtraNonce2Size
-	conf.Pogolo.ExtraNonce2Size = 255
+	en2 := conf.ExtraNonce2Size
+	conf.ExtraNonce2Size = 255
 	_, err = createEmptyCoinbase(MOCK_BLOCK_TEMPLATE)
-	conf.Pogolo.ExtraNonce2Size = en2
+	conf.ExtraNonce2Size = en2
 	if err != nil {
 		t.Fatalf("failed to fallback to default pool tag: %s", err)
 	}

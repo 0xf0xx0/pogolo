@@ -114,7 +114,6 @@ func main() {
 		Version:                VERSION,
 		Usage:                  "Decentralize or die",
 		UseShortOptionHandling: true,
-		// EnableShellCompletion:  true,
 		MutuallyExclusiveFlags: []cli.MutuallyExclusiveFlags{
 			{
 				Flags: [][]cli.Flag{
@@ -184,19 +183,6 @@ func main() {
 			}
 			os.Exit(constants.EXIT_MISC)
 		},
-		/// XXX: https://github.com/urfave/cli/issues/1993
-		/* ShellComplete: func(ctx context.Context, cmd *cli.Command) {
-			if cmd.NArg() > 0 {
-				return
-			}
-			flags := cmd.Root().VisibleFlags()
-			for _, flag := range flags {
-				if !flag.IsSet() {
-					fmt.Fprintf(cmd.Root().Writer, "--"+flag.Names()[0]+"\n")
-				}
-			}
-		},
-		*/
 		Action: func(rootCtx context.Context, cmd *cli.Command) error {
 			if cmd.Bool("color") {
 				oigiki.NoColor = false
@@ -231,7 +217,7 @@ func main() {
 				conf.Backend.Host = host
 			}
 			if auth := cmd.String("BACKEND_RPCAUTH"); auth != "" {
-				conf.Backend.Rpcauth = auth
+				conf.Rpcauth = auth
 			}
 			if host := cmd.String("POGOLO_HOST"); host != "" {
 				conf.Pogolo.Host = host
@@ -277,15 +263,15 @@ func main() {
 			backendConnConf := &rpcclient.ConnConfig{
 				Host:         conf.Backend.Host,
 				DisableTLS:   true,
-				HTTPPostMode: !conf.Backend.Websocket,
+				HTTPPostMode: !conf.Websocket,
 			}
-			if conf.Backend.Websocket {
+			if conf.Websocket {
 				backendConnConf.Endpoint = "ws"
 			}
-			if conf.Backend.Cookie != "" {
-				backendConnConf.CookiePath = conf.Backend.Cookie
-			} else if conf.Backend.Rpcauth != "" && strings.Contains(conf.Backend.Rpcauth, ":") {
-				auth := strings.Split(conf.Backend.Rpcauth, ":")
+			if conf.Cookie != "" {
+				backendConnConf.CookiePath = conf.Cookie
+			} else if conf.Rpcauth != "" && strings.Contains(conf.Rpcauth, ":") {
+				auth := strings.Split(conf.Rpcauth, ":")
 				backendConnConf.User = auth[0]
 				backendConnConf.Pass = auth[1]
 			} else {
@@ -343,18 +329,21 @@ func main() {
 			}
 
 			/// decode the default mining address
-			if conf.Pogolo.PoolAddress != "" {
-				addr, err := address.DecodeAddress(conf.Pogolo.PoolAddress, backendChainParams)
+			if conf.PoolAddress != "" {
+				addr, err := address.DecodeAddress(conf.PoolAddress, backendChainParams)
 				if err != nil {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
 				defaultMiningAddr = addr
-				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.Pogolo.PoolAddress))
+				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.PoolAddress))
 			}
 
 			/// start
 			log(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, cmd.Version, cmd.Usage))
 			log(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
+			if conf.Sv1Password != "" {
+				log(fmt.Sprintf("%q set as stratum v1 password", conf.Sv1Password))
+			}
 			return startup(rootCtx)
 		},
 	}
@@ -392,8 +381,8 @@ func startup(rootCtx context.Context) error {
 	wg.Go(func() { connectionRoutine(conns, ctx) })
 
 	/// start listening on configured interface or ip
-	if conf.Pogolo.Interface != "" {
-		inter, err := net.InterfaceByName(conf.Pogolo.Interface)
+	if conf.Interface != "" {
+		inter, err := net.InterfaceByName(conf.Interface)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("error getting interface: %s", err), constants.EXIT_NET)
 		}
@@ -413,14 +402,10 @@ func startup(rootCtx context.Context) error {
 			if strings.HasPrefix(addr, "fe80::") {
 				addr += "%" + inter.Name
 			}
-			listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
+			err = spawnListenerRoutine(ctx, addr, wg, conns)
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
+				return err
 			}
-			httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-			wg.Go(func() {
-				listenerRoutine(conns, listener, httpAddr, ctx)
-			})
 		}
 	} else {
 		/// is domain, lookup and listen on addrs
@@ -430,24 +415,16 @@ func startup(rootCtx context.Context) error {
 				return cli.Exit(fmt.Sprintf("error looking up host %q: %s", conf.Pogolo.Host, err), constants.EXIT_NET)
 			}
 			for _, addr := range addrs {
-				listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.Port))))
+				err = spawnListenerRoutine(ctx, addr, wg, conns)
 				if err != nil {
-					return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
+					return err
 				}
-				httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-				wg.Go(func() {
-					listenerRoutine(conns, listener, httpAddr, ctx)
-				})
 			}
 		} else {
-
-			listener, err := net.Listen("tcp", net.JoinHostPort(conf.Pogolo.Host, strconv.Itoa(int(conf.Pogolo.Port))))
+			err := spawnListenerRoutine(ctx, conf.Pogolo.Host, wg, conns)
 			if err != nil {
-				return cli.Exit(fmt.Sprintf("error listening: %s", err), constants.EXIT_NET)
+				return err
 			}
-			httpAddr := net.JoinHostPort(conf.Pogolo.Host, strconv.Itoa(int(conf.Pogolo.HTTPPort)))
-
-			wg.Go(func() { listenerRoutine(conns, listener, httpAddr, ctx) })
 		}
 	}
 
@@ -460,6 +437,18 @@ func startup(rootCtx context.Context) error {
 	if conf.Benchmarking {
 		println(fmt.Sprintf("total shares/s: %f", totalSharesPerSec))
 	}
+	return nil
+}
+
+func spawnListenerRoutine(ctx context.Context, addr string, wg *sync.WaitGroup, conns chan<- net.Conn) error {
+	listener, err := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(conf.Port))))
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("error listening on addr %q: %s", addr, err), constants.EXIT_NET)
+	}
+	httpAddr := net.JoinHostPort(addr, strconv.Itoa(int(conf.HTTPPort)))
+	wg.Go(func() {
+		listenerRoutine(conns, listener, httpAddr, ctx)
+	})
 	return nil
 }
 
@@ -527,7 +516,7 @@ func backendRoutine(ctx context.Context) {
 				{
 					return
 				}
-			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
+			case <-time.After(time.Millisecond * time.Duration(conf.PollInterval)):
 				{
 					currTemplateLock.RLock()
 					if currTemplate != nil {
@@ -546,13 +535,11 @@ func backendRoutine(ctx context.Context) {
 				{
 					return
 				}
-			case <-time.After(time.Millisecond * time.Duration(conf.Backend.PollInterval)):
+			case <-time.After(time.Millisecond * time.Duration(conf.PollInterval)):
 				{
 					if count, err := backend.GetBlockCount(); err == nil {
 						currTemplateLock.RLock()
 						if count >= currTemplate.Height {
-							log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", count))
-
 							triggerGBT <- struct{}{}
 						}
 						currTemplateLock.RUnlock()
@@ -636,7 +623,7 @@ func backendRoutine(ctx context.Context) {
 		}
 	}()
 
-	// trigger initial job template fetch
+	// queue initial job template fetch
 	triggerGBT <- struct{}{}
 
 	/// main gbt loop
@@ -646,7 +633,7 @@ func backendRoutine(ctx context.Context) {
 			{
 				return
 			}
-		case <-time.After(time.Second * time.Duration(conf.Pogolo.JobInterval)):
+		case <-time.After(time.Second * time.Duration(conf.JobInterval)):
 		/// shortcircuit
 		case <-triggerGBT:
 		}
@@ -675,18 +662,13 @@ func backendRoutine(ctx context.Context) {
 			currTemplateLock.Unlock()
 			continue
 		}
+		if currTemplate != nil && jobTemplate.Height > currTemplate.Height {
+			log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", currTemplate.Height))
+		}
 		currTemplate = jobTemplate
 		currTemplateLock.Unlock()
-		log(fmt.Sprintf("==//==<the dig is mining on job {blue}0x%s{/blue}!>==//==\n\ttxns: {blue}%d", strconv.FormatUint(currTemplate.ID, 16), len(template.Transactions)))
+		log(fmt.Sprintf("==//==<the dig is mining on job {blue}%#x{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
-		go notifyClients() /// this might take a while
-	}
-}
-
-func notifyClients() {
-	currTemplateLock.RLock()
-	defer currTemplateLock.RUnlock()
-	for _, client := range clients.All() {
-		client.TemplateChannel() <- currTemplate
+		go clients.NotifyAll(jobTemplate) /// this might take a while
 	}
 }

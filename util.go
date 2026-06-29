@@ -94,6 +94,13 @@ func (m *clientMap) AllStats() []StratumClientStats {
 	}
 	return ret
 }
+func (m *clientMap) NotifyAll(job *JobTemplate) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	for _, client := range m.idMap {
+		client.TemplateChannel() <- job
+	}
+}
 func (m *clientMap) Len() int {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -130,7 +137,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	coinbaseTxMsg.LockTime = uint32(height) - 1 /// BIP-54
 
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
-	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.Pogolo.ExtraNonce2Size)
+	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)
 	/// random byte to avoid client loops if template doesn't change
 	/// better alternative to not sending the job at all
 	coinbaseScript := txscript.NewScriptBuilder().
@@ -138,7 +145,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		AddInt64(height).
 		/// MAYBE: remove prng, use jobid % 256?
 		AddData([]byte{uint8(rng.Uint64())}).
-		AddData([]byte(conf.Pogolo.Tag)).
+		AddData([]byte(conf.Tag)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
