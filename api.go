@@ -19,8 +19,8 @@ const API_VER = 1
 const METRICS_NAMESPACE = "pogolo"
 
 type detailedWorkerInfo struct {
-	Address         string  `json:"address"`
 	Extranonce1     string  `json:"extranonce1"`
+	Address         string  `json:"address"`
 	Nickname        string  `json:"nickname"`
 	UserAgent       string  `json:"userAgent"`
 	AcceptedShares  uint64  `json:"sharesAccepted"`
@@ -28,8 +28,8 @@ type detailedWorkerInfo struct {
 	Hashrate        float64 `json:"hashrate"`
 	BestDiff        float64 `json:"bestDifficulty"`
 	TargetDiff      float64 `json:"targetDifficulty"`
-	Uptime          uint64  `json:"uptime"`
 	AvgShareTime    float64 `json:"averageShareTime"`
+	Uptime          uint64  `json:"uptime"`
 	ProtocolVersion uint8   `json:"protocolVersion"`
 }
 
@@ -109,11 +109,11 @@ func initAPI() {
 	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
 
 	http.HandleFunc("GET /metrics", func(res http.ResponseWriter, req *http.Request) {
-		allClients := clients.AllStats()
+		allClientStats := clients.AllStats()
 		allClientsLen := clients.Len()
 		hashrateSum := float64(0)
 		bestDiff := float64(0)
-		for _, stats := range allClients {
+		for _, stats := range allClientStats {
 			bestDiff = max(bestDiff, stats.bestDiff)
 			hashrateSum += stats.HashrateH()
 		}
@@ -208,7 +208,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 func writeError(res http.ResponseWriter, code int, msg string) error {
 	res.WriteHeader(code)
 	if msg != "" {
-		return writeResponse(res, fmt.Appendf(nil, `{"error":%q}`, msg))
+		return writeResponse(res, []byte(fmt.Sprintf(`{"error":%q}`, msg)))
 	}
 	return nil
 }

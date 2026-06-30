@@ -14,7 +14,6 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
-	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/wire/v2"
 )
 
@@ -141,7 +140,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		return h == nil
 	})
 
-	merkleRoot := merkleBranches[len(merkleBranches)-1]
+	/// skip over the merkle root (its done in fillCoinbaseTx)
 	merkleBranches = merkleBranches[:len(merkleBranches)-1]
 
 	merkleBranch := []*chainhash.Hash{}
@@ -149,10 +148,6 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	if len(merkleBranches) > 1 {
 		merkleBranch = merkleBranches[1:]
 	}
-
-	/// btcd does the witness merkle root for us :3
-	/// thisll be updated on share submission
-	mining.AddWitnessCommitment(txns[0], txns)
 
 	msgTxns := make([]*wire.MsgTx, len(txns))
 	for idx, tx := range txns {
@@ -162,11 +157,10 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	block := wire.MsgBlock{
 		Header: wire.BlockHeader{
 			/// OR configured activation bits with template from node
-			Version:    template.Version | conf.BIPVersionBits,
-			Bits:       headerBits,
-			PrevBlock:  *prevBlockHash,
-			Timestamp:  time.Unix(currTime, 0),
-			MerkleRoot: *merkleRoot,
+			Version:   template.Version | conf.BIPVersionBits,
+			Bits:      headerBits,
+			PrevBlock: *prevBlockHash,
+			Timestamp: time.Unix(currTime, 0),
 		},
 		Transactions: msgTxns,
 	}

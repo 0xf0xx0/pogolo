@@ -129,6 +129,7 @@ func hexDec(s string) []byte {
 	return x
 }
 
+/*
 var (
 	MOCK_SETUPCONNECTION = func() *stratumv2.SetupConnection {
 		p := &stratumv2.SetupConnection{}
@@ -145,7 +146,7 @@ var (
 		p.Decode(hexDec(""))
 		return p
 	}()
-)
+)*/
 
 func encodeSv2(s stratumv2.Codable, t testing.TB) []byte {
 	b, err := s.Encode()

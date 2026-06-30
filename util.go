@@ -37,6 +37,15 @@ var (
 	maxTargetFloat = float64(math.Pow(2, 208) * 65535)
 )
 
+// stores solved block info
+type solvedBlock struct {
+	Gopher string         `json:"gopher"`
+	Hash   chainhash.Hash `json:"hash"`
+	Diff   float64        `json:"diff"`
+	Height uint64         `json:"height"`
+	Id     stratum.ID     `json:"extranonce1"`
+}
+
 // basically typed sync.Map
 type clientMap struct {
 	lock  sync.RWMutex
@@ -79,6 +88,7 @@ func (m *clientMap) AllStats() []StratumClientStats {
 	defer m.lock.RUnlock()
 	ret := make([]StratumClientStats, 0, len(m.idMap))
 	for _, client := range m.idMap {
+		// make a copy
 		stats := StratumClientStats{
 			lastTimeSlot:       client.stats.lastTimeSlot,
 			currTimeSlot:       client.stats.currTimeSlot,
@@ -129,12 +139,16 @@ func clientIDHash(addr string) stratum.ID {
 	return stratum.ID(xxh3.HashString(addr) >> (rand.N(2) * 32))
 }
 
-// placeholder tx, filled by clients
+// initial tx, copied and filled by clients
+// sets up everything but the outpoints, which are populated in fillCoinbaseTx
 func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx, error) {
 	height := template.Height
-	coinbaseTxMsg := wire.NewMsgTx(wire.TxVersion)
-
-	coinbaseTxMsg.LockTime = uint32(height) - 1 /// BIP-54
+	coinbaseTxMsg := &wire.MsgTx{
+		Version:  wire.TxVersion,
+		TxIn:     make([]*wire.TxIn, 0, 1),  /// only 1 txin for coinbases
+		TxOut:    make([]*wire.TxOut, 0, 2), /// 1 slot for witness, second for subsidy
+		LockTime: uint32(height) - 1,        /// BIP-54
+	}
 
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)
@@ -168,8 +182,6 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		SignatureScript:  encodedCoinbaseScript,
 		Sequence:         0xfffffffe, /// BIP-54
 	})
-	/// 1 slot for witness, second for subsidy
-	coinbaseTxMsg.TxOut = make([]*wire.TxOut, 0, 2)
 
 	tx := btcutil.NewTx(coinbaseTxMsg)
 	tx.SetIndex(0)
@@ -186,8 +198,6 @@ func fillCoinbaseTx(addr address.Address, block *btcutil.Block, subsidy int64, p
 
 	coinbase := block.Transactions()[0]
 	coinbaseMsgTx := coinbase.MsgTx()
-	/// HACK: mining.AddWitnessCommitment appends, empty txout
-	coinbaseMsgTx.TxOut = coinbaseMsgTx.TxOut[:0]
 	/// NOTE: witness gets added furst, just cause its *unique*
 	mining.AddWitnessCommitment(coinbase, block.Transactions())
 	/// we gotta add the subsidy too
@@ -308,7 +318,9 @@ func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	/// instead of creating a new one every time
 	temp := make([]byte, 0, 64)
 	for _, branch := range branches[1:] {
-		newroot := chainhash.DoubleHashH(append(append(temp, root[:]...), branch[:]...))
+		copy(temp[:32], root[:])
+		copy(temp[32:], branch[:])
+		newroot := chainhash.DoubleHashH(temp)
 		root = &newroot
 		temp = temp[:0]
 	}
