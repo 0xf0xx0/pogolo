@@ -148,7 +148,7 @@ shares submitted between job changes are normal, the expected error rate is <=0.
 # benchmarking
 
 to reproduce shares/s result:  
-///TODO///
+benchmark with https://github.com/eandersson/open-pool-benchmark
 
 # TODO
 
