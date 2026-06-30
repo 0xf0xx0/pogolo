@@ -21,32 +21,71 @@ import (
 //////
 /// public-pool my beloved
 
+// a JobTemplate is built from a getblocktemplate call,
+// and is sent to clients to be turned into a MiningJob
 type JobTemplate struct {
 	MsgBlock     wire.MsgBlock
 	Bits         []byte
 	MerkleBranch []*chainhash.Hash
-	ID           uint64
 	NetworkDiff  float64
+	ID           uint64
 	Subsidy      int64
 	Height       int64
 	MinTime      int64
 	MaxTime      int64
 }
+
+// MiningJob is built from a JobTemplate and is used to construct mining.notify/NewMiningJob mesages
+// and store mining state
 type MiningJob struct {
-	JobIDInt           uint64
-	Header             wire.BlockHeader
-	CoinbaseTx         *btcutil.Tx
-	MerkleBranch       []*chainhash.Hash
-	NetworkDiff        float64
-	Version            int32
-	MinTime            int64
-	MaxTime            int64
-	PrevHash           *chainhash.Hash
-	CoinbasePart1      []byte
-	CoinbasePart2      []byte
-	Timestamp          time.Time
-	Bits               []byte
-	MiningNotifyParams stratum.MiningNotifyParams // for sv1
+	Header        wire.BlockHeader
+	CoinbasePart1 []byte
+	CoinbasePart2 []byte
+	MerkleBranch  []*chainhash.Hash
+	Bits          []byte
+	Timestamp     time.Time // TODO: uint32
+	CoinbaseTx    *btcutil.Tx
+	PrevHash      *chainhash.Hash
+	NetworkDiff   float64
+	ID            uint64
+	MinTime       int64
+	MaxTime       int64
+	Version       int32
+}
+
+// like public-pools copyAndUpdateBlock without the copy
+func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare) (wire.BlockHeader, bool) {
+	en2Len := 0
+	if share.Extranonce2 != nil {
+		en2Len = len(share.Extranonce2)
+		if en2Len > 0 && en2Len != int(conf.ExtraNonce2Size) {
+			return wire.BlockHeader{}, false
+		}
+	}
+
+	/// mutate the coinbase script with the client id and extranonce2
+	/// MAYBE: store the serialized coinbasetx and mutate directly?
+	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
+	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
+	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
+		len(sigscript)-(constants.EXTRANONCE_SIZE+en2Len),
+		len(sigscript),
+		append(id.Bytes(), share.Extranonce2...)...,
+	)
+
+	/// update the header
+	job.Header.Nonce = share.Nonce
+	job.Header.Version = int32(share.Version)
+	job.Header.Timestamp = time.Unix(int64(share.Time), 0)
+
+	/// coinbase was changed, thus recalc the root
+	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
+	coinbaseTxHash := coinbaseMsgTx.TxHash()
+	branches[0] = &coinbaseTxHash
+	branches = append(branches, job.MerkleBranch...)
+	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
+
+	return job.Header, true
 }
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {
@@ -151,38 +190,4 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		MaxTime: template.MaxTime,
 	}
 	return job, nil
-}
-
-// like public-pools copyAndUpdateBlock without the copy
-func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare, notif stratum.MiningNotifyParams) (wire.BlockHeader, bool) {
-	en2Len := 0
-	if share.Extranonce2 != nil {
-		en2Len = len(share.Extranonce2)
-		if en2Len > 0 && en2Len != int(conf.ExtraNonce2Size) {
-			return wire.BlockHeader{}, false
-		}
-	}
-
-	/// mutate the coinbase script with the client id and extranonce2
-	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
-	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
-	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
-		len(sigscript)-(constants.EXTRANONCE_SIZE+en2Len),
-		len(sigscript),
-		append(id.Bytes(), share.Extranonce2...)...,
-	)
-
-	/// update the header
-	job.Header.Nonce = share.Nonce
-	job.Header.Version = int32(share.Version)
-	job.Header.Timestamp = time.Unix(int64(share.Time), 0)
-
-	/// coinbase was changed, thus recalc the root
-	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-	coinbaseTxHash := coinbaseMsgTx.TxHash()
-	branches[0] = &coinbaseTxHash
-	branches = append(branches, job.MerkleBranch...)
-	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
-
-	return job.Header, true
 }

@@ -92,7 +92,7 @@ func TestUpdateBlock(t *testing.T) {
 		Extranonce2: submitParams.Extranonce2,
 		Sequence:    0,
 	}
-	hdr, ok := job.UpdateHeader(client.ID, s, notifyParams)
+	hdr, ok := job.UpdateHeader(client.ID, s)
 	if !ok {
 		t.Error("invalid extranonce2 length")
 		return

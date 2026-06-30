@@ -24,27 +24,6 @@ import (
 	"github.com/btcsuite/btcd/wire/v2"
 )
 
-// aka gopher
-type StratumClient struct {
-	currentJobMutex     sync.RWMutex
-	CurrentJob          MiningJob
-	conn                net.Conn
-	User                address.Address
-	Nickname            string
-	UserAgent           string
-	TargetDifficulty    float64
-	SuggestedDifficulty float64    // overloaded, initially set by client (optional) then used by diff adjust
-	ID                  stratum.ID // used for the extranonce1 (sv1) and channel ID (sv2)
-	VersionRollingMask  uint32
-	templateChan        chan *JobTemplate
-	submissionChan      chan<- blockSubmission
-	shareHashMutex      sync.Mutex
-	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
-	stats               StratumClientStats
-	protocol            uint8
-	extendedChannel     bool
-}
-
 // used for hashrate calc
 type timeSlot struct {
 	time.Time
@@ -53,13 +32,13 @@ type timeSlot struct {
 
 // all shares are converted into this common struct
 type commonShare struct {
-	ChannelID   uint32
+	Extranonce2 []byte
 	JobID       uint32
+	ChannelID   uint32 // only for sv2
+	Sequence    uint32 // only for sv2
 	Time        uint32
 	Version     uint32
 	Nonce       uint32
-	Extranonce2 []byte
-	Sequence    uint32 // only for sv2
 }
 
 type blockSubmission struct {
@@ -67,6 +46,27 @@ type blockSubmission struct {
 	Coinbase *wire.MsgTx
 	Share    *commonShare
 	ClientID stratum.ID // for lookup in client map
+}
+
+// aka gopher
+type StratumClient struct {
+	CurrentJob          MiningJob
+	stats               StratumClientStats
+	conn                net.Conn
+	User                address.Address
+	Nickname            string
+	UserAgent           string
+	TargetDifficulty    float64
+	SuggestedDifficulty float64    // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID // used for the extranonce1 (sv1) and channel ID (sv2)
+	VersionRollingMask  uint32
+	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
+	shareHashMutex      sync.Mutex
+	currentJobMutex     sync.RWMutex
+	templateChan        chan *JobTemplate
+	submissionChan      chan<- blockSubmission
+	protocol            uint8
+	extendedChannel     bool
 }
 
 func (client *StratumClient) Run(ctx context.Context) {
@@ -78,7 +78,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 
 	/// peek to determine protocol
 	// TODO: figure out how to start with a small 128 byte buffer and grow as needed
-	r := bufio.NewReaderSize(client.conn, 512) // 512 bytes, we dont need much more
+	r := bufio.NewReaderSize(client.conn, 1024) // 1024 bytes, we dont need much more
 	b, err := r.Peek(1)
 	if err != nil {
 		return
@@ -233,9 +233,11 @@ func (client *StratumClient) startMining() {
 	/// i dont think the order matters, but lets send the current template
 	/// before adding to the client map, just in case notifyClients gets
 	/// called in between (and rapid-fires jobs)
+	currTemplateLock.RLock()
 	if currTemplate != nil {
 		client.TemplateChannel() <- currTemplate
 	}
+	currTemplateLock.RUnlock()
 	clients.Add(client)
 	client.stats.startTime = time.Now()
 }
@@ -497,6 +499,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 						return
 					}
 					/// bip-310
+					/// TODO: use mask in share validation?
 					client.VersionRollingMask = uint32(rollingConfig.Mask) & constants.VERSION_ROLLING_MASK
 
 					err = res.SetVersionRolling(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
@@ -678,7 +681,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	return MiningJob{
-		JobIDInt:      template.ID,
+		ID:            template.ID,
 		Header:        blockHeader,
 		CoinbaseTx:    coinbaseTx,
 		Version:       blockHeader.Version,
@@ -737,7 +740,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				CoinbasePart2:  newJob.CoinbasePart2,
 				Clean:          true,
 			}
-			newJob.MiningNotifyParams = *params
+			//newJob.MiningNotifyParams = *params
 			err := client.writeSv1Msg(params.ToNotification())
 			if err != nil {
 				client.logError("error sending job: %s", err)
@@ -861,9 +864,9 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	return true
 }
 func (client *StratumClient) validateShareSubmission(share commonShare, m *stratum.Request) {
-	if share.JobID != uint32(client.CurrentJob.JobIDInt) {
+	if share.JobID != uint32(client.CurrentJob.ID) {
 		client.stats.sharesRejected++
-		if share.JobID == uint32(client.CurrentJob.JobIDInt-1) {
+		if share.JobID == uint32(client.CurrentJob.ID-1) {
 			if m != nil {
 				client.writeSv1Msg(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
 			} else {
@@ -924,7 +927,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedHeader, ok := client.CurrentJob.UpdateHeader(client.ID, share, client.CurrentJob.MiningNotifyParams)
+	updatedHeader, ok := client.CurrentJob.UpdateHeader(client.ID, share)
 	if !ok {
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
@@ -1170,9 +1173,9 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) *Stra
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate, 1),
 		submissionChan: submissionChannel,
-		// allocate enough space to store the expected number of share hashes before a new job is sent out,
-		// plus some extra to account for luck
-		shareHashes: make(map[chainhash.Hash]struct{}, 5+conf.JobInterval/conf.TargetShareInterval),
+		// allocate enough space to store the expected number of share hashes before a new job is sent out
+		// 15 is a good starter, default config results in 12 shares per job and the map will grow as needed
+		shareHashes: make(map[chainhash.Hash]struct{}, 15),
 	}
 	return client
 }

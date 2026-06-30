@@ -9,6 +9,7 @@ go 1.26.2
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0
 	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260627195812-39fedcd36817
+	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260627200957-00fc8bfb23ab
 	github.com/btcsuite/btcd v0.26.0
 	github.com/btcsuite/btcd/address/v2 v2.0.0
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.0
@@ -24,11 +25,8 @@ require (
 )
 
 require (
-	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260627200957-00fc8bfb23ab // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
-	github.com/btcsuite/btcd/btcutil v1.2.0 // indirect
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.2.0 // indirect
 	github.com/btcsuite/btclog v1.0.0 // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
@@ -48,7 +46,6 @@ require (
 	github.com/prometheus/common v0.69.0 // indirect
 	github.com/prometheus/procfs v0.21.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/arch v0.28.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
