@@ -57,9 +57,8 @@ type StratumClient struct {
 	Nickname            string
 	UserAgent           string
 	TargetDifficulty    float64
-	SuggestedDifficulty float64    // overloaded, initially set by client (optional) then used by diff adjust
-	ID                  stratum.ID // used for the extranonce1 (sv1) and channel ID (sv2)
-	VersionRollingMask  uint32
+	SuggestedDifficulty float64                     // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	shareHashMutex      sync.Mutex
 	currentJobMutex     sync.RWMutex
@@ -215,9 +214,6 @@ func (client *StratumClient) startMining() {
 
 	if defaultMiningAddr != nil && client.User.EncodeAddress() == defaultMiningAddr.EncodeAddress() {
 		client.log("{yellow}mining to pool address")
-	}
-	if client.VersionRollingMask > 0 {
-		client.log("version rolling enabled! mask: {blue}%#x", client.VersionRollingMask)
 	}
 	/// the client may have suggested a difficulty before fully initialized
 	/// if they haven't, we alert them to our default diff here
@@ -472,6 +468,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 				jobID, _ := strconv.ParseUint(share.JobID, 16, 64)
 
 				client.currentJobMutex.RLock()
+
 				s := commonShare{
 					JobID:       uint32(jobID),
 					Time:        share.Time,
@@ -499,10 +496,11 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 						return
 					}
 					/// bip-310
-					/// TODO: use mask in share validation?
-					client.VersionRollingMask = uint32(rollingConfig.Mask) & constants.VERSION_ROLLING_MASK
-
-					err = res.SetVersionRolling(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: client.VersionRollingMask})
+					/// do we even care about the calced mask? its within our constant,
+					// and if the client rolls outside its provided range thats a client issue
+					// just tell the client its computed mask
+					clientMask := constants.VERSION_ROLLING_MASK & uint32(rollingConfig.Mask)
+					err = res.SetVersionRolling(stratum.VersionRollingConfigurationResult{Accepted: true, Mask: clientMask})
 					if err != nil {
 						/// uhhhhhhhhhhhhhhhh
 						/// honestly just leave this as a panic

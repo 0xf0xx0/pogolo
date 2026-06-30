@@ -33,15 +33,12 @@ func TestMain(t *testing.T) {
 /// stratum chatter
 
 func TestSv1Configure(t *testing.T) {
-	lpipe, client, _ := initClient()
+	lpipe, _, _ := initClient()
 	params := configureParams
 	req := configureReq
 	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
 	validateSv1Res(req, res, t)
-	t.Logf("ver rolling mask: %x, supported: %v", client.VersionRollingMask, params.Supported)
-	if client.VersionRollingMask == 0 {
-		t.Error("version rolling is wrong")
-	}
+	t.Logf("supported: %v", params.Supported)
 }
 
 func TestSv1Authorize(t *testing.T) {
