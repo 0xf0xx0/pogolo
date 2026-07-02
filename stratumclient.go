@@ -66,8 +66,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 	defer client.Stop()
 	go client.readTemplateChanRoutine()
 
-	/// 5 secs to send the initial stratum message
-	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
+	/// 5 secs to init
+	client.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
 	/// MAYBE: figure out how to start with a small 128 byte buffer and grow when a larger message comes in?
 	/// the largest message we'll handle is an sv2 SetupConnection frame, at a max of ~1288 bytes
@@ -277,7 +277,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		}
 
 		/// deadline is a minute + 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
+		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 
 		frame := stratumv2.Frame{}
 		if conf.Sv2Encryption {
@@ -605,7 +605,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		}
 
 		/// deadline is a minute + 10x target share interval
-		client.conn.SetDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
+		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 	}
 }
 
@@ -1070,6 +1070,8 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 	return client.writeConn(f)
 }
 func (client *StratumClient) writeConn(b []byte) error {
+	/// if it takes 3 seconds to write somethings fucked
+	client.conn.SetWriteDeadline(time.Now().Add(time.Second * 3))
 	_, err := client.conn.Write(b)
 	return err
 }

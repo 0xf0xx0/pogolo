@@ -564,7 +564,7 @@ func backendRoutine(ctx context.Context) {
 		if !strings.HasPrefix(conf.ZMQHost, "tcp://") {
 			conf.ZMQHost = "tcp://" + conf.ZMQHost
 		}
-		socket, err := NewZMQ(conf.ZMQHost, ctx)
+		socket, err := newZMQ(conf.ZMQHost, ctx)
 		if err != nil {
 			logError(fmt.Sprintf("failed to make zmq socket: %s", err))
 			logError("{yellow}falling back to polling")

@@ -8,8 +8,8 @@ import (
 	"github.com/go-zeromq/zmq4"
 )
 
-// TODO: figure out how to make conn re-sub on reconnect
-func NewZMQ(endpoint string, ctx context.Context) (zmq4.Socket, error) {
+func newZMQ(endpoint string, ctx context.Context) (zmq4.Socket, error) {
+	// TODO: figure out how to make conn re-sub on reconnect
 	socket := zmq4.NewSub(ctx, zmq4.WithAutomaticReconnect(true),
 		zmq4.WithDialerRetry(time.Duration(conf.PollInterval)),
 		zmq4.WithDialerTimeout(3*time.Second),
@@ -23,6 +23,7 @@ func NewZMQ(endpoint string, ctx context.Context) (zmq4.Socket, error) {
 	}
 	return socket, nil
 }
+
 func zmqListener(socket zmq4.Socket) {
 	for {
 		msg, err := socket.Recv()
@@ -35,6 +36,7 @@ func zmqListener(socket zmq4.Socket) {
 		}
 		/// NOTE: bitcoind zmq can use the same address for multiple topics
 		/// ensure we only trigger gbt on hashblock
+		/// frames := [3]string{topic, data, sequence}
 		if string(msg.Frames[0]) != "hashblock" {
 			continue
 		}
