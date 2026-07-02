@@ -93,7 +93,7 @@ func (m *clientMap) AllStats() []StratumClientStats {
 			lastTimeSlot:       client.stats.lastTimeSlot,
 			currTimeSlot:       client.stats.currTimeSlot,
 			startTime:          client.stats.startTime,
-			lastSubmission:     client.stats.lastSubmission,
+			lastSubmissionTime: client.stats.lastSubmissionTime,
 			sharesAccepted:     client.stats.sharesAccepted,
 			sharesRejected:     client.stats.sharesRejected,
 			avgSubmissionDelta: client.stats.avgSubmissionDelta,

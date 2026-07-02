@@ -24,12 +24,6 @@ import (
 	"github.com/btcsuite/btcd/wire/v2"
 )
 
-// used for hashrate calc
-type timeSlot struct {
-	time.Time
-	accDiff uint64 // accumulated difficulty, used for hashrate calc
-}
-
 // all shares are converted into this common struct
 type commonShare struct {
 	Extranonce2 []byte
@@ -75,15 +69,16 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// 5 secs to send the initial stratum message
 	client.conn.SetDeadline(time.Now().Add(time.Second * 5))
 
+	/// MAYBE: figure out how to start with a small 128 byte buffer and grow when a larger message comes in?
+	/// the largest message we'll handle is an sv2 SetupConnection frame, at a max of ~1288 bytes
+	r := bufio.NewReaderSize(client.conn, 1290)
 	/// peek to determine protocol
-	// TODO: figure out how to start with a small 128 byte buffer and grow as needed
-	r := bufio.NewReaderSize(client.conn, 1024) // 1024 bytes, we dont need much more
 	b, err := r.Peek(1)
 	if err != nil {
 		return
 	}
 
-	// sv1 always starts with '{' and might start with whitespace
+	/// sv1 always starts with '{' and might start with whitespace
 	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
 		client.protocol = 1
 		client.processSv1Loop(ctx, r)
@@ -117,6 +112,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.logError("wrong SV2 protocol")
 			return
 		}
+		/// thou shalt not select thy own work
 		if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				// TODO: extract into an UNSUPPORTED_FLAGS constant
@@ -235,7 +231,7 @@ func (client *StratumClient) startMining() {
 	}
 	currTemplateLock.RUnlock()
 	clients.Add(client)
-	client.stats.startTime = time.Now()
+	client.stats.startTime = uint64(time.Now().Unix())
 }
 func (client *StratumClient) Stop() {
 	select {
@@ -633,8 +629,8 @@ func (client *StratumClient) calcNextDifficulty() {
 		delta = -(delta / 2) /// we want to be more conservative when adjusting downwards
 	}
 
-	newDiff := max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
-	client.SuggestedDifficulty = newDiff
+	client.SuggestedDifficulty = max(math.Round(client.TargetDifficulty+delta), constants.MIN_DIFFICULTY)
+	/// TODO: figure out how to merge this log with the setdiff one
 	client.log("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
@@ -738,7 +734,6 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				CoinbasePart2:  newJob.CoinbasePart2,
 				Clean:          true,
 			}
-			//newJob.MiningNotifyParams = *params
 			err := client.writeSv1Msg(params.ToNotification())
 			if err != nil {
 				client.logError("error sending job: %s", err)
@@ -890,7 +885,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	if client.protocol == 2 && share.ChannelID != uint32(client.ID) {
+	if share.ChannelID != 0 && share.ChannelID != uint32(client.ID) {
 		client.stats.sharesRejected++
 		client.writeSv2Msg(&stratumv2.SubmitSharesError{
 			ChannelID:      uint32(client.ID),
@@ -1061,7 +1056,7 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 		}
 		f, err := noiseFrame.Encode()
 		if err != nil {
-			client.logError("failed to encode encrypted frame: %s", err)
+			client.logError("failed to encrypt frame: %s", err)
 			return err
 		}
 		return client.writeConn(f)
@@ -1089,44 +1084,48 @@ func (client *StratumClient) logError(s string, a ...any) {
 	logError("{cyan}[{red}" + client.Name() + "{/red}]{/cyan} " + s)
 }
 
+// used for hashrate calc
+type timeSlot struct {
+	startTime uint64
+	accDiff   uint64 // accumulated difficulty, used for hashrate calc
+}
+
 // stats for the api
 type StratumClientStats struct {
 	lastTimeSlot,
 	currTimeSlot timeSlot
-	startTime, // time the client subscribed
-	lastSubmission time.Time // used for calcing delta between `mining.submit`s
+	lastSubmissionTime int64 // used for calcing delta between (valid) `mining.submit`s, in ms
 	sharesAccepted,
 	sharesRejected uint64
 	avgSubmissionDelta, // in ms
-	bestDiff, // session
+	bestDiff,
 	hashrate float64
+	startTime uint64 // time the client subscribed
 }
 
 func (stats *StratumClientStats) update(currTargetDiff float64) {
-	now := time.Now()
-	if stats.lastSubmission.Unix() > 0 {
+	now := time.Now().UnixMilli()
+	if stats.lastSubmissionTime > 0 {
 		/// exponential moving average
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Exponential_smoothing
-		delta := float64(now.Sub(stats.lastSubmission).Milliseconds())
+		delta := float64(now - stats.lastSubmissionTime)
 		/// start the avg calc with the target delta, not 0
 		if stats.avgSubmissionDelta == 0 {
 			stats.avgSubmissionDelta = float64(conf.TargetShareInterval)
-		} else {
-			/// avg = smoothing*delta + (1-smoothing)*avg
-			smoothing := 0.01
-			stats.avgSubmissionDelta =
-				smoothing*delta + (1-smoothing)*stats.avgSubmissionDelta
 		}
+		/// avg = smoothing*delta + (1-smoothing)*avg
+		stats.avgSubmissionDelta =
+			0.01*delta + 0.99*stats.avgSubmissionDelta
 	}
 
-	stats.calcHashrate(now, currTargetDiff)
-	stats.lastSubmission = now
+	stats.calcHashrate(uint64(now/1000), currTargetDiff)
+	stats.lastSubmissionTime = now
 }
 
 // getters
 func (stats *StratumClientStats) Uptime() uint64 {
-	return uint64(time.Since(stats.startTime).Seconds())
+	return uint64(time.Since(time.Unix(int64(stats.startTime), 0)).Seconds())
 }
 func (stats *StratumClientStats) HashrateMH() float64 {
 	return stats.hashrate / 1e6
@@ -1136,19 +1135,19 @@ func (stats *StratumClientStats) HashrateH() float64 {
 }
 
 // live hashrate in H/s
-func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDiff float64) {
+func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff float64) {
 	/// calc copied from public-pool
-	windowStart := time.Unix((shareTime.Unix()/constants.HASHRATE_WINDOW)*constants.HASHRATE_WINDOW, 0)
+	windowStart := (shareTime / constants.HASHRATE_WINDOW) * constants.HASHRATE_WINDOW
 	/// first call, make the current slot (and set the last as the init time)
-	if stats.currTimeSlot.Unix() <= 0 {
-		stats.currTimeSlot.Time = windowStart
-		stats.lastTimeSlot.Time = stats.startTime
+	if stats.currTimeSlot.startTime <= 0 {
+		stats.currTimeSlot.startTime = windowStart
+		stats.lastTimeSlot.startTime = stats.startTime
 		/// if we're in the next chunk of time, snapshot the curr* and move over
-	} else if stats.currTimeSlot.Unix() != windowStart.Unix() {
-		stats.lastTimeSlot = stats.currTimeSlot
+	} else if stats.currTimeSlot.startTime != windowStart {
+		stats.lastTimeSlot.startTime = stats.currTimeSlot.startTime
 
 		stats.currTimeSlot.accDiff = uint64(currTargetDiff)
-		stats.currTimeSlot.Time = windowStart
+		stats.currTimeSlot.startTime = windowStart
 		/// otherwise just update stats
 	} else {
 		/// we wanna use the target difficulty for a stable number
@@ -1156,9 +1155,9 @@ func (stats *StratumClientStats) calcHashrate(shareTime time.Time, currTargetDif
 		if stats.currTimeSlot.accDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
-			time := shareTime.Sub(stats.lastTimeSlot.Time).Seconds()
+			time := shareTime - stats.lastTimeSlot.startTime
 			/// sum the two time slots for the total accumulated diff
-			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / time
+			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / float64(time)
 		}
 	}
 }

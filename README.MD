@@ -47,7 +47,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 
 pogolo has no tls support.
 
-- JSON-RPC (core, knots, etc)
+- JSON-RPC (no longpoll)
 - btcd websocket
 - ZMQ (`hashblock` topic)
 

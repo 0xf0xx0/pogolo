@@ -12,8 +12,8 @@ const (
 	EXTRANONCE_SIZE      = 4                  // in bytes
 	DEFAULT_DIFFICULTY   = 1024               // for gpu, fpga, and asic miners
 	DEFAULT_COINBASE_TAG = "/pogolo - decentralize or die/"
-	MIN_DIFFICULTY       = 0.16       // hard min
-	HASHRATE_WINDOW      = int64(600) // 10 min windows
+	MIN_DIFFICULTY       = 0.16        // hard min
+	HASHRATE_WINDOW      = uint64(600) // 10 min windows
 )
 
 // exit codes
