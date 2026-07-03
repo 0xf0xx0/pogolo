@@ -27,7 +27,7 @@ func TestCreateJobTemplate(t *testing.T) {
 	if job.Subsidy != *template.CoinbaseValue {
 		t.Errorf("job coinbase value mismatch, expected %d, got %d", template.CoinbaseValue, job.Subsidy)
 	}
-	jobBits := hex.EncodeToString(job.Bits)
+	jobBits := hex.EncodeToString(job.Bits[:])
 	if jobBits != template.Bits {
 		t.Errorf("job bits mismatch, expected %s, got %s", template.Bits, jobBits)
 	}

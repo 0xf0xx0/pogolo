@@ -24,8 +24,8 @@ import (
 // and is sent to clients to be turned into a MiningJob
 type JobTemplate struct {
 	MsgBlock     wire.MsgBlock
-	Bits         []byte
 	MerkleBranch []*chainhash.Hash
+	Bits         [4]byte
 	NetworkDiff  float64
 	ID           uint64
 	Subsidy      int64
@@ -43,7 +43,7 @@ type MiningJob struct {
 	MerkleBranch  []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
 	CoinbaseTx    *btcutil.Tx
 	PrevBlock     *chainhash.Hash // pointer to hash in header
-	Bits          []byte
+	Bits          [4]byte
 	NetworkDiff   float64
 	ID            uint64
 	MinTime       int64
@@ -174,7 +174,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		ID:           currTemplateID,
 		MsgBlock:     block,
 		MerkleBranch: merkleBranch,
-		Bits:         bits,
+		Bits:         [4]byte(bits),
 		NetworkDiff:  calcNetworkDifficulty(headerBits),
 		Subsidy:      *template.CoinbaseValue,
 		Height:       template.Height,

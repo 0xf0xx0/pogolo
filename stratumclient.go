@@ -728,7 +728,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				PrevBlockHash:  newJob.PrevBlock,
 				MerkleBranches: merkleBranches,
 				Version:        uint32(newJob.Version),
-				Bits:           template.Bits,
+				Bits:           template.Bits[:],
 				Timestamp:      newJob.Header.Timestamp,
 				CoinbasePart1:  newJob.CoinbasePart1,
 				CoinbasePart2:  newJob.CoinbasePart2,
