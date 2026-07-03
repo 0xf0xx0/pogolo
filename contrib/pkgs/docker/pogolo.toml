@@ -1,10 +1,13 @@
 [backend]
 # RPC host:port
-host = '172.17.0.1:8332'
+host = 'bitcoin:8332'
 # RPC user:pass (ignored if cookie is set)
 rpcauth = 'configure:me'
 # whether to use the btcd websocket interface
 # websocket = false
+# ZMQ endpoint to subscribe to 'hashblock' events
+# overridden by POGOLO_BACKEND_ZMQHOST
+zmq_host = 'bitcoin:28332'
 # how quickly to poll for block updates, in milliseconds
 # ignored if websocket is true
 poll_interval = 500

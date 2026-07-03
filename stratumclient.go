@@ -71,7 +71,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 
 	/// MAYBE: figure out how to start with a small 128 byte buffer and grow when a larger message comes in?
 	/// the largest message we'll handle is an sv2 SetupConnection frame, at a max of ~1288 bytes
-	r := bufio.NewReaderSize(client.conn, 1290)
+	/// shares are sub-128 bytes, everything else is sub-512, if not -256
+	r := bufio.NewReaderSize(client.conn, 660)
 	/// peek to determine protocol
 	b, err := r.Peek(1)
 	if err != nil {
