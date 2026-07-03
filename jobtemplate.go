@@ -40,16 +40,15 @@ type MiningJob struct {
 	Header        wire.BlockHeader
 	CoinbasePart1 []byte
 	CoinbasePart2 []byte
-	MerkleBranch  []*chainhash.Hash
-	Bits          []byte
-	Timestamp     time.Time // TODO: uint32
+	MerkleBranch  []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
 	CoinbaseTx    *btcutil.Tx
-	PrevHash      *chainhash.Hash
+	PrevBlock     *chainhash.Hash // pointer to hash in header
+	Bits          []byte
 	NetworkDiff   float64
 	ID            uint64
 	MinTime       int64
 	MaxTime       int64
-	Version       int32
+	Version       int32 // the original job version
 }
 
 // like public-pools copyAndUpdateBlock without the copy

@@ -684,10 +684,9 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		MinTime:       template.MinTime,
 		MaxTime:       template.MaxTime,
 		NetworkDiff:   template.NetworkDiff,
-		PrevHash:      &blockHeader.PrevBlock,
+		PrevBlock:     &blockHeader.PrevBlock,
 		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
 		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
-		Timestamp:     blockHeader.Timestamp,
 		Bits:          template.Bits,
 	}
 }
@@ -726,11 +725,11 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			}
 			params := &stratum.MiningNotifyParams{
 				JobID:          strconv.FormatUint(template.ID, 16),
-				PrevBlockHash:  newJob.PrevHash,
+				PrevBlockHash:  newJob.PrevBlock,
 				MerkleBranches: merkleBranches,
 				Version:        uint32(newJob.Version),
 				Bits:           template.Bits,
-				Timestamp:      newJob.Timestamp,
+				Timestamp:      newJob.Header.Timestamp,
 				CoinbasePart1:  newJob.CoinbasePart1,
 				CoinbasePart2:  newJob.CoinbasePart2,
 				Clean:          true,
@@ -743,8 +742,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			prevhash := &stratumv2.SetNewPrevHash{
 				ChannelID: uint32(client.ID),
 				JobID:     uint32(currTemplateID),
-				PrevHash:  stratumv2.U256(*newJob.PrevHash),
-				MinTime:   uint32(newJob.Timestamp.Unix()), /// should be equiv to Clean=true
+				PrevHash:  stratumv2.U256(*newJob.PrevBlock),
+				MinTime:   uint32(newJob.Header.Timestamp.Unix()), /// should be equiv to Clean=true
 				Bits:      newJob.Header.Bits,
 			}
 			if client.extendedChannel {
