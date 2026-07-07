@@ -87,7 +87,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	} else {
 		/// TODO: finish sv2 noise
 		/// for now, disable sv2 path
-		client.logErrorf("sv2 is currently unsupported")
+		client.logError("sv2 is currently unsupported")
 		return
 		/// perform handshake
 		pawshake := &stratumv2.HandshakeState{}
@@ -114,14 +114,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.ProtocolVersionMismatchError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logErrorf("invalid SV2 version")
+			client.logError("invalid SV2 version")
 			return
 		}
 		if msg.Protocol != stratumv2.MiningProtocol {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.UnsupportedProtocolError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logErrorf("wrong SV2 protocol")
+			client.logError("wrong SV2 protocol")
 			return
 		}
 		/// thou shalt not select thy own work
@@ -131,7 +131,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
 				ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logErrorf("unsupported feature flags")
+			client.logError("unsupported feature flags")
 			return
 		}
 		/// TODO: figure out sv2 uas
@@ -204,7 +204,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				}, stratumv2.MessageOpenExtendedMiningChannelSuccess)
 			}
 		default:
-			client.logErrorf("second message wasn't a channel open")
+			client.logError("second message wasn't a channel open")
 			return
 		}
 
@@ -312,7 +312,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		case stratumv2.MessageSubmitSharesExtended:
 			{
 				if !client.extendedChannel {
-					client.logErrorf("extended share submitted on standard channel")
+					client.logError("extended share submitted on standard channel")
 					break
 				}
 				share := stratumv2.SubmitSharesExtended{}
@@ -336,7 +336,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		case stratumv2.MessageSubmitSharesStandard:
 			{
 				if client.extendedChannel {
-					client.logErrorf("standard share submitted on extended channel")
+					client.logError("standard share submitted on extended channel")
 					break
 				}
 				share := stratumv2.SubmitSharesStandard{}
@@ -383,7 +383,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				}
 				/// if its too large, error
 				if !newTargetMeetsMin {
-					client.logErrorf("new target difficulty too low")
+					client.logError("new target difficulty too low")
 					client.writeSv2Msg(&stratumv2.UpdateChannelError{
 						ChannelID: msg.ChannelID,
 						ErrorCode: constants.ERROR_LOW_DIFF.Message,
@@ -463,7 +463,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		case stratum.MethodMiningSubmit:
 			{
 				if !stratumInited {
-					client.logErrorf("submit before subscribe")
+					client.logError("submit before subscribe")
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_SUBBED))
 					return
 				}
@@ -530,7 +530,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					break
 				}
 				if conf.Sv1Password != "" && params.Password != conf.Sv1Password {
-					client.logErrorf("invalid password")
+					client.logError("invalid password")
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNAUTHORIZED))
 					return
 				}
@@ -595,7 +595,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					client.logf("accepted suggested difficulty {blue}%g", suggestedDiff)
 				} else {
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_ACCEPTED))
-					client.logErrorf("rejected suggested difficulty")
+					client.logError("rejected suggested difficulty")
 				}
 			}
 		case stratum.MethodMiningExtranonceSubscribe:
@@ -850,7 +850,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	// TODO: verify Target1U256 is a valid maximum
 	// maybe "steal" from a different pool lol
 	if !constants.Target1U256.IsMetBy(&maxTarget) {
-		client.logErrorf("provided max target is out of range")
+		client.logError("provided max target is out of range")
 		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 			RequestID: requestID,
 			ErrorCode: stratumv2.MaxTargetOutOfRangeError,
@@ -880,7 +880,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 					ErrorCode:      stratumv2.Error(constants.ERROR_SHARE_BETWEEN_JOBS.Message),
 				}, stratumv2.MessageSubmitSharesError)
 			}
-			client.logErrorf("share submitted during job change")
+			client.logError("share submitted during job change")
 			return
 		}
 		if m != nil {
@@ -892,7 +892,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				ErrorCode:      stratumv2.StaleShareError,
 			}, stratumv2.MessageSubmitSharesError)
 		}
-		client.logErrorf("share rejected: stale job")
+		client.logError("share rejected: stale job")
 		return
 	}
 
@@ -903,7 +903,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			SequenceNumber: share.Sequence,
 			ErrorCode:      stratumv2.InvalidChannelIDError,
 		}, stratumv2.MessageSubmitSharesError)
-		client.logErrorf("share rejected: invalid channel ID")
+		client.logError("share rejected: invalid channel ID")
 		return
 	}
 
@@ -924,7 +924,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				ErrorCode:      stratumv2.Error(constants.ERROR_INV_VER_MASK.Message),
 			}, stratumv2.MessageSubmitSharesError)
 		}
-		client.logErrorf("share rejected: invalid version mask")
+		client.logError("share rejected: invalid version mask")
 		return
 	}
 
@@ -942,7 +942,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				ErrorCode:      stratumv2.Error(constants.ERROR_UNPROCESSABLE.Message),
 			}, stratumv2.MessageSubmitSharesError)
 		}
-		client.logErrorf("invalid extranonce2 length")
+		client.logError("invalid extranonce2 length")
 		return
 	}
 
@@ -958,7 +958,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		client.logErrorf("share rejected: invalid timestamp")
+		client.logError("share rejected: invalid timestamp")
 		return
 	}
 
@@ -993,7 +993,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		client.logErrorf("share rejected: duplicate")
+		client.logError("share rejected: duplicate")
 		return
 	}
 	/// add to dupe map
@@ -1051,7 +1051,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 	b, err := msg.Marshal()
 	if err != nil {
-		client.logErrorf("failed to marshal message: %s", err)
+		client.logError("failed to marshal message: %s", err)
 		return err
 	}
 
