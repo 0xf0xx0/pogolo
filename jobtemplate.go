@@ -25,13 +25,13 @@ import (
 type JobTemplate struct {
 	MsgBlock     wire.MsgBlock
 	MerkleBranch []*chainhash.Hash
-	Bits         [4]byte
 	NetworkDiff  float64
 	ID           uint64
 	Subsidy      int64
 	Height       int64
 	MinTime      int64
 	MaxTime      int64
+	Bits         [4]byte
 }
 
 // MiningJob is built from a JobTemplate and is used to construct mining.notify/NewMiningJob mesages
@@ -43,12 +43,12 @@ type MiningJob struct {
 	MerkleBranch  []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
 	CoinbaseTx    *btcutil.Tx
 	PrevBlock     *chainhash.Hash // pointer to hash in header
-	Bits          [4]byte
 	NetworkDiff   float64
 	ID            uint64
 	MinTime       int64
 	MaxTime       int64
 	Version       int32 // the original job version
+	Bits          [4]byte
 }
 
 // like public-pools copyAndUpdateBlock without the copy
@@ -78,7 +78,8 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare) (wire.Block
 
 	/// coinbase was changed, thus recalc the root
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-	coinbaseTxHash := coinbaseMsgTx.TxHash()
+	// coinbaseTxHash := coinbaseMsgTx.TxHash()
+	coinbaseTxHash := simdCoinbaseTxHash(coinbaseMsgTx)
 	branches[0] = &coinbaseTxHash
 	branches = append(branches, job.MerkleBranch...)
 	job.Header.MerkleRoot = *merkleRootFromBranches(branches)

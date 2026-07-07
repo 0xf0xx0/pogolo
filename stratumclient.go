@@ -951,7 +951,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 
-	shareHash := updatedHeader.BlockHash()
+	shareHash := simdHeaderHash(updatedHeader)
 	shareDiff := calcDifficulty(shareHash)
 	if shareDiff < client.TargetDifficulty {
 		if m != nil {

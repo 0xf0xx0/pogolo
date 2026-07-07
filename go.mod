@@ -4,7 +4,7 @@ go 1.26.2
 
 // replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
 
-// replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
+replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
 
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0
@@ -37,10 +37,10 @@ require (
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
-	github.com/flynn/noise v1.1.0 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/kcalvinalvin/anet v0.0.0-20251112173137-d8ddc1f6dbee // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.69.0 // indirect

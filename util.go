@@ -13,10 +13,10 @@ import (
 	"sync"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
-	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/oigiki"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
@@ -26,6 +26,7 @@ import (
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript/v2"
 	"github.com/btcsuite/btcd/wire/v2"
+	"github.com/minio/sha256-simd"
 	"github.com/zeebo/xxh3"
 )
 
@@ -492,4 +493,27 @@ func logError(s string) {
 		return
 	}
 	println(s)
+}
+
+func simdCoinbaseTxHash(msgTx *wire.MsgTx) chainhash.Hash {
+	b := serializeCoinbaseTx(msgTx)
+	h := sha256.New()
+	h.Write(b)
+	temp := make([]byte, 0, 32)
+	first := h.Sum(temp)
+	h.Reset()
+	h.Write(first)
+	result := chainhash.Hash(h.Sum(temp))
+	return result
+}
+
+func simdHeaderHash(header wire.BlockHeader) chainhash.Hash {
+	h := sha256.New()
+	header.Serialize(h)
+	temp := make([]byte, 0, 32)
+	first := h.Sum(temp)
+	h.Reset()
+	h.Write(first)
+	result := chainhash.Hash(h.Sum(temp))
+	return result
 }
