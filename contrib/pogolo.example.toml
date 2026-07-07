@@ -39,12 +39,10 @@ default_difficulty = 1024.0
 job_interval = 60
 # how often we want shares on average, in seconds
 target_share_interval = 5
-# version bits as int32, ORed with the template version
-# bip_version_bits = 0
 # extranonce2 size in bytes, usually shouldnt be touched
 # extranonce2_size = 4
-# disable sv2 noise encryption
-# disable_sv2_encryption = false
+# version bits as int32, ORed with the template version
+# bip_version_bits = 0
 # ignore the client-suggested difficulty
 # ignore_suggested_difficulty = false
 # disable automatic difficulty adjustment
