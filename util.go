@@ -167,7 +167,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		return nil, err
 	}
 	if len(encodedCoinbaseScript) > blockchain.MaxCoinbaseScriptLen {
-		logError("pool tag too long (>100), resetting to default")
+		globalLogError("pool tag too long (>100), resetting to default")
 		coinbaseScript = coinbaseScript.Reset().
 			AddInt64(height).
 			AddData([]byte(constants.DEFAULT_COINBASE_TAG)).
@@ -472,7 +472,7 @@ func formatHashrate(value float64) string {
 	return sb.String()
 }
 
-func log(s string) {
+func globalLog(s string) {
 	if disableLogs {
 		return
 	}
@@ -483,7 +483,7 @@ func log(s string) {
 	}
 	fmt.Println(s)
 }
-func logError(s string) {
+func globalLogError(s string) {
 	if disableLogs {
 		return
 	}
@@ -496,9 +496,8 @@ func logError(s string) {
 }
 
 func simdCoinbaseTxHash(msgTx *wire.MsgTx) chainhash.Hash {
-	b := serializeCoinbaseTx(msgTx)
 	h := sha256.New()
-	h.Write(b)
+	msgTx.SerializeNoWitness(h)
 	temp := make([]byte, 0, 32)
 	first := h.Sum(temp)
 	h.Reset()

@@ -181,7 +181,7 @@ func main() {
 			},
 		},
 		ExitErrHandler: func(_ context.Context, _ *cli.Command, err error) {
-			logError(err.Error())
+			globalLogError(err.Error())
 			var ec cli.ExitCoder
 			if errors.As(err, &ec) {
 				os.Exit(ec.ExitCode())
@@ -242,7 +242,7 @@ func main() {
 				logFile = file
 			}
 			if profileDir := cmd.String("profile"); profileDir != "" {
-				log(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
+				globalLog(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
 				if err != nil {
 					return err
@@ -257,7 +257,7 @@ func main() {
 			}
 
 			if conf.Benchmarking {
-				log("{bold}{yellow}==<<!>=<<!>=<<!>>=<benchmarking>=<<!>=<<!>=<<!>>==")
+				globalLog("{bold}{yellow}==<<!>=<<!>=<<!>>=<benchmarking>=<<!>=<<!>=<<!>>==")
 			}
 
 			/// init backend
@@ -285,7 +285,7 @@ func main() {
 				/// FIXME: stalls shutdown on certain errors? prolly related to longpolling
 				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 					/// ok we kinda care
-					log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
+					globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
 					triggerGBT <- struct{}{}
 				},
 				OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
@@ -336,14 +336,14 @@ func main() {
 					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
 				}
 				defaultMiningAddr = addr
-				log(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.PoolAddress))
+				globalLog(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.PoolAddress))
 			}
 
 			/// start
-			log(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, cmd.Version, cmd.Usage))
-			log(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
+			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, cmd.Version, cmd.Usage))
+			globalLog(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
 			if conf.Sv1Password != "" {
-				log(fmt.Sprintf("%q set as stratum v1 password", conf.Sv1Password))
+				globalLog(fmt.Sprintf("%q set as stratum v1 password", conf.Sv1Password))
 			}
 			return startup(rootCtx)
 		},
@@ -366,7 +366,7 @@ func startup(rootCtx context.Context) error {
 	/// ws shutdown handler
 	if conf.Backend.Websocket {
 		defer func() {
-			log("closing websocket")
+			globalLog("closing websocket")
 			backend.Shutdown()
 			backend.WaitForShutdown()
 		}()
@@ -434,7 +434,7 @@ func startup(rootCtx context.Context) error {
 	// wait for exit
 	<-sigs
 
-	log("\n{yellow}stopping")
+	globalLog("\n{yellow}stopping")
 	if conf.Benchmarking {
 		println(fmt.Sprintf("total shares/s: %d", totalSharesPerSec))
 	}
@@ -463,7 +463,7 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 
 	go http.ListenAndServe(httpAddr, nil)
 	// log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green} (api port: {green}%d{/green})", listener.Addr(), conf.HTTPPort))
-	log(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green}\napi listening on {green}http://%s", listener.Addr(), httpAddr))
+	globalLog(fmt.Sprintf("stratum listening on {green}stratum+tcp://%s{/green}\napi listening on {green}http://%s", listener.Addr(), httpAddr))
 	// log(fmt.Sprintf("api listening on {green}http://%s", httpAddr))
 
 	for {
@@ -545,7 +545,7 @@ func backendRoutine(ctx context.Context) {
 						}
 						currTemplateLock.RUnlock()
 					} else {
-						logError(err.Error())
+						globalLogError(err.Error())
 					}
 				}
 			}
@@ -556,8 +556,8 @@ func backendRoutine(ctx context.Context) {
 	if conf.Backend.Websocket {
 		/// wait for new blocks to come in
 		if err := backend.NotifyBlocks(); err != nil {
-			logError(fmt.Sprintf("error subscribing to block notifs: %s", err))
-			logError("{yellow}falling back to polling")
+			globalLogError(fmt.Sprintf("error subscribing to block notifs: %s", err))
+			globalLogError("{yellow}falling back to polling")
 			go getBlockCountPoll()
 		}
 	} else if conf.ZMQHost != "" {
@@ -567,11 +567,11 @@ func backendRoutine(ctx context.Context) {
 		}
 		socket, err := newZMQ(conf.ZMQHost, ctx)
 		if err != nil {
-			logError(fmt.Sprintf("failed to make zmq socket: %s", err))
-			logError("{yellow}falling back to polling")
+			globalLogError(fmt.Sprintf("failed to make zmq socket: %s", err))
+			globalLogError("{yellow}falling back to polling")
 			go getBlockCountPoll()
 		} else {
-			log(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
+			globalLog(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
 			/// go, my zmq
 			go zmqListener(socket)
 		}
@@ -598,14 +598,14 @@ func backendRoutine(ctx context.Context) {
 
 					err := backend.SubmitBlock(block, nil)
 					if err != nil {
-						logError(fmt.Sprintf("error from backend while submitting block: %s", err))
+						globalLogError(fmt.Sprintf("error from backend while submitting block: %s", err))
 						continue
 					}
 					client, _ := clients.Get(submission.ClientID)
 					shareHash := msgBlock.Header.BlockHash()
 					shareDiff := calcDifficulty(shareHash)
 					foundBlocks = append(foundBlocks, shareHash.String())
-					log(fmt.Sprintf(
+					globalLog(fmt.Sprintf(
 						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\n{/green}gopher: {green}%s{/green}\nhash: {green}%s{/green}\ndifficulty: {green}%s{/green}\nnonce: {green}%08x{/green}\nextranonce: {blue}%s{green}%x",
 						client.Name(),
 						shareHash,
@@ -646,7 +646,7 @@ func backendRoutine(ctx context.Context) {
 			// LongPollID:   longpollid,
 		})
 		if err != nil {
-			logError(fmt.Sprintf("error fetching template: %s", err))
+			globalLogError(fmt.Sprintf("error fetching template: %s", err))
 			continue
 		}
 
@@ -659,16 +659,16 @@ func backendRoutine(ctx context.Context) {
 		currTemplateLock.Lock()
 		jobTemplate, err := CreateJobTemplate(template)
 		if err != nil {
-			logError(fmt.Sprintf("error making job template: %s", err.Error()))
+			globalLogError(fmt.Sprintf("error making job template: %s", err.Error()))
 			currTemplateLock.Unlock()
 			continue
 		}
 		if currTemplate != nil && jobTemplate.Height > currTemplate.Height {
-			log(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", currTemplate.Height))
+			globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", currTemplate.Height))
 		}
 		currTemplate = jobTemplate
 		currTemplateLock.Unlock()
-		log(fmt.Sprintf("==//==<the dig is mining on job {blue}%#x{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
+		globalLog(fmt.Sprintf("==//==<the dig is mining on job {blue}%#x{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go clients.NotifyAll(jobTemplate) /// this might take a while
 	}

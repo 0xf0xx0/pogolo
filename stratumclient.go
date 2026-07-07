@@ -214,7 +214,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	}
 }
 func (client *StratumClient) startMining() {
-	log(fmt.Sprintf(
+	globalLog(fmt.Sprintf(
 		/// dig, cause gophers, get it?
 		"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
 		client.Name(), client.ID, client.Addr(),
@@ -259,7 +259,7 @@ func (client *StratumClient) Stop() {
 	/// remove ourselves from the client map
 	if client.ID != 0 {
 		clients.Delete(client.ID)
-		log(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
+		globalLog(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
 	}
 
 	client.conn.Close()
@@ -1051,7 +1051,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 	b, err := msg.Marshal()
 	if err != nil {
-		client.logError("failed to marshal message: %s", err)
+		client.logErrorf("failed to marshal message: %s", err)
 		return err
 	}
 
@@ -1087,17 +1087,28 @@ func (client *StratumClient) writeConn(b []byte) error {
 // logging
 func (client *StratumClient) logf(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
-	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
+	client.log(s)
 }
 func (client *StratumClient) log(s string) {
-	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
+	sb := strings.Builder{}
+	sb.Grow(len(s) + 64)
+	sb.WriteString("[{green}")
+	sb.WriteString(client.Name())
+	sb.WriteString("{/green}] ")
+	sb.WriteString(s)
+	globalLog(sb.String())
 }
 func (client *StratumClient) logErrorf(s string, a ...any) {
-	s = fmt.Sprintf(s, a...)
-	logError("{cyan}[{red}" + client.Name() + "{/red}]{/cyan} " + s)
+	client.logError(fmt.Sprintf(s, a...))
 }
 func (client *StratumClient) logError(s string) {
-	logError("{cyan}[{red}" + client.Name() + "{/red}]{/cyan} " + s)
+	sb := strings.Builder{}
+	sb.Grow(len(s) + 64)
+	sb.WriteString("[{red}")
+	sb.WriteString(client.Name())
+	sb.WriteString("{/red}]{red} ")
+	sb.WriteString(s)
+	globalLogError(sb.String())
 }
 
 // used for hashrate calc

@@ -183,7 +183,7 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	name := req.PathValue("idOrNickname")
 	worker := getClientFromNameOrID(name)
 	if worker == nil {
-		logError(fmt.Sprintf("failed to find client %s", name))
+		globalLogError(fmt.Sprintf("failed to find client %s", name))
 		writeError(res, http.StatusBadRequest, "failed to find client")
 		return
 	}
