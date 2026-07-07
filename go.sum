@@ -2,8 +2,6 @@ git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0 h1:A9PQ+Tx64d97N7s1QeRbWqWqcHNC+l94fi
 git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0/go.mod h1:0/T+yirG7BckgCWvPxXP6RMnDWulVm7qhbgjcHAX+Xs=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260627195812-39fedcd36817 h1:7MP8BEvRU+XzSfzerWLHZ4jlUdutDAcH4nih38ZtmbE=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9-0.20260627195812-39fedcd36817/go.mod h1:2qD1Qfwrx6byk+rFMaamLKOoYDFghuhQfq/yKDXdgcU=
-git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260627200957-00fc8bfb23ab h1:wc7DzYGK70jLC+Vn/mybEPDF4aZ9FrsJ9mj5GLyYbxY=
-git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260627200957-00fc8bfb23ab/go.mod h1:nKnrh93DyFniyrLPYzY5nWCXyC0W1S0J0JwuE88v9Uo=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.26.0 h1:yntnSshlG3+H7dTwIOR4LTFXDPojVBsFORBNN5y5c/c=

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -84,6 +85,16 @@ func (client *StratumClient) Run(ctx context.Context) {
 		client.protocol = 1
 		client.processSv1Loop(ctx, r)
 	} else {
+		/// TODO: finish sv2 noise
+		/// for now, disable sv2 path
+		client.logError("sv2 is currently unsupported")
+		return
+		/// perform handshake
+		pawshake := &stratumv2.HandshakeState{}
+		connWriter := bufio.NewWriter(client.conn)
+		rw := bufio.ReadWriter{Reader: r, Writer: connWriter}
+		pawshake.PerformHandshakeResponder(rw, sv2Cert, sv2StaticKeypair)
+
 		/// 1. handle SetupConnection
 		frame := stratumv2.Frame{}
 		if err := frame.DecodeFromReader(r); err != nil {
@@ -255,7 +266,7 @@ func (client *StratumClient) Stop() {
 
 	if conf.Benchmarking {
 		sharesPS := float64(client.stats.sharesAccepted+client.stats.sharesRejected) / float64(client.stats.Uptime())
-		totalSharesPerSec += sharesPS
+		atomic.AddUint64(&totalSharesPerSec, uint64(sharesPS))
 		println(fmt.Sprintf("shares/s: %f", sharesPS))
 	}
 	client = nil
@@ -281,13 +292,13 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 
 		frame := stratumv2.Frame{}
-		if conf.Sv2Encryption {
-			noised := stratumv2.NoiseFrame{}
-			err = noised.DecodeFromReader(reader)
-			frame = noised.Frame
-		} else {
-			err = frame.DecodeFromReader(reader)
-		}
+		// if !conf.DisableSv2Encryption {
+		// 	noised := stratumv2.NoiseFrame{}
+		// 	err = noised.DecodeFromReader(reader)
+		// 	frame = noised.Frame
+		// } else {
+		err = frame.DecodeFromReader(reader)
+		// }
 		switch err {
 		case io.ErrClosedPipe:
 		case io.EOF:
@@ -1049,17 +1060,6 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 		ExtensionType: stratumv2.ExtensionTypeCore,
 		MessageLength: stratumv2.U24(len(b)),
 		Payload:       b,
-	}
-	if conf.Sv2Encryption {
-		noiseFrame := stratumv2.NoiseFrame{
-			Frame: frame,
-		}
-		f, err := noiseFrame.Encode()
-		if err != nil {
-			client.logError("failed to encrypt frame: %s", err)
-			return err
-		}
-		return client.writeConn(f)
 	}
 	f, err := frame.Encode()
 	if err != nil {

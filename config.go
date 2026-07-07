@@ -40,13 +40,13 @@ type Pogolo struct {
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.16"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
-	ExtraNonce2Size     uint16  `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
-	BIPVersionBits      int32   `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
-	IgnoreSuggDiff      bool    `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
-	DisableVarDiff      bool    `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
-	Benchmarking        bool    `toml:"benchmark,omitempty"`
-	LogFile             string  `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
-	Sv2Encryption       bool    `toml:"sv2_encryption,commented" comment:"enable sv2 noise encryption"`
+
+	ExtraNonce2Size uint16 `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
+	BIPVersionBits  int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
+	IgnoreSuggDiff  bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
+	DisableVarDiff  bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
+	Benchmarking    bool   `toml:"benchmark,omitempty"`
+	LogFile         string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
 }
 
 var DEFAULT_CONFIG = Config{

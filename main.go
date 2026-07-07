@@ -81,7 +81,7 @@ Options:{blue}
 Version:
    {green}v{{.Version}}{/green}
 
-Home page: <https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}>
+Home page: <{green}{underline}https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}{/}>
 `
 
 // global state
@@ -102,9 +102,13 @@ var (
 	foundBlocks      = make([]string, 0, 3)          // not gonna bother mutexing this unless it becomes an issue
 	serverStartTime  time.Time
 	logFile          *os.File
+	// sv2
+	sv2Cert             *stratumv2.SIGNATURE_NOISE_MESSAGE
+	sv2AuthorityKeypair *stratumv2.Keypair
+	sv2StaticKeypair    *stratumv2.Keypair
 
 	/// debug shit
-	totalSharesPerSec = float64(0)
+	totalSharesPerSec = uint64(0)
 	disableLogs       = false /// used for tests
 )
 
@@ -252,12 +256,8 @@ func main() {
 				defer pprof.StopCPUProfile()
 			}
 
-			/// ignore vardiff and diff suggestions when benching
 			if conf.Benchmarking {
-				conf.DisableVarDiff = true
-				conf.IgnoreSuggDiff = true
 				log("{bold}{yellow}==<<!>=<<!>=<<!>>=<benchmarking>=<<!>=<<!>=<<!>>==")
-				log("{yellow}connect with a client to start")
 			}
 
 			/// init backend
@@ -436,7 +436,7 @@ func startup(rootCtx context.Context) error {
 
 	log("\n{yellow}stopping")
 	if conf.Benchmarking {
-		println(fmt.Sprintf("total shares/s: %f", totalSharesPerSec))
+		println(fmt.Sprintf("total shares/s: %d", totalSharesPerSec))
 	}
 	return nil
 }
