@@ -69,7 +69,7 @@ import (
 // name and version
 const (
 	NAME    = "pogolo"
-	VERSION = "1.1.3"
+	VERSION = "1.1.4"
 )
 
 const commandHelpTemplate = `Usage:
@@ -81,7 +81,8 @@ Options:{blue}
 Version:
    {green}v{{.Version}}{/green}
 
-Home page: <{green}{underline}https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}{/}>
+Home page:
+   {green}{underline}https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}{/}
 `
 
 // global state
