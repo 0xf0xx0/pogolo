@@ -373,7 +373,7 @@ func startup(rootCtx context.Context) error {
 		}()
 	}
 
-	conns := make(chan net.Conn)
+	conns := make(chan net.Conn, 5)
 
 	/// init
 	clients.Init()
@@ -423,6 +423,7 @@ func startup(rootCtx context.Context) error {
 				}
 			}
 		} else {
+			/// listen on ip
 			err := spawnListenerRoutine(ctx, conf.Pogolo.Host, wg, conns)
 			if err != nil {
 				return err
@@ -432,7 +433,7 @@ func startup(rootCtx context.Context) error {
 
 	serverStartTime = time.Now()
 
-	// wait for exit
+	/// wait for exit
 	<-sigs
 
 	globalLog("\n{yellow}stopping")
