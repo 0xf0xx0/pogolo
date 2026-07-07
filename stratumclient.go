@@ -824,7 +824,7 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 	}
 	decoded, err := address.DecodeAddress(split[0], backendChainParams)
 	if err != nil {
-		if defaultMiningAddr == nil {
+		if client.Nickname != "" || defaultMiningAddr == nil {
 			client.logErrorf("failed decoding address: %s", err)
 			if msg != nil {
 				client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
@@ -1104,9 +1104,9 @@ func (client *StratumClient) logErrorf(s string, a ...any) {
 func (client *StratumClient) logError(s string) {
 	sb := strings.Builder{}
 	sb.Grow(len(s) + 64)
-	sb.WriteString("[{red}")
+	sb.WriteString("{cyan}[{/cyan}")
 	sb.WriteString(client.Name())
-	sb.WriteString("{/red}]{red} ")
+	sb.WriteString("{cyan}]{/cyan} ")
 	sb.WriteString(s)
 	globalLogError(sb.String())
 }
