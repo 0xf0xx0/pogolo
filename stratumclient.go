@@ -87,7 +87,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	} else {
 		/// TODO: finish sv2 noise
 		/// for now, disable sv2 path
-		client.logError("sv2 is currently unsupported")
+		client.logErrorf("sv2 is currently unsupported")
 		return
 		/// perform handshake
 		pawshake := &stratumv2.HandshakeState{}
@@ -105,7 +105,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		}
 		msg := stratumv2.SetupConnection{}
 		if err = msg.Decode(frame.Payload); err != nil {
-			client.logError("error decoding SetupConnection: %s", err)
+			client.logErrorf("error decoding SetupConnection: %s", err)
 			return
 		}
 
@@ -114,14 +114,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.ProtocolVersionMismatchError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logError("invalid SV2 version")
+			client.logErrorf("invalid SV2 version")
 			return
 		}
 		if msg.Protocol != stratumv2.MiningProtocol {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.UnsupportedProtocolError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logError("wrong SV2 protocol")
+			client.logErrorf("wrong SV2 protocol")
 			return
 		}
 		/// thou shalt not select thy own work
@@ -131,7 +131,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
 				ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logError("unsupported feature flags")
+			client.logErrorf("unsupported feature flags")
 			return
 		}
 		/// TODO: figure out sv2 uas
@@ -149,7 +149,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 			{
 				msg := stratumv2.OpenStandardMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding OpenStandardMiningChannel: %s", err)
+					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
 					return
 				}
 
@@ -171,12 +171,12 @@ func (client *StratumClient) Run(ctx context.Context) {
 			{
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding OpenExtendedMiningChannel: %s", err)
+					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
 					return
 				}
 
 				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
-					client.logError("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
+					client.logErrorf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
 					return
 				}
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
@@ -204,7 +204,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 				}, stratumv2.MessageOpenExtendedMiningChannelSuccess)
 			}
 		default:
-			client.logError("second message wasn't a channel open")
+			client.logErrorf("second message wasn't a channel open")
 			return
 		}
 
@@ -221,7 +221,7 @@ func (client *StratumClient) startMining() {
 	))
 
 	if defaultMiningAddr != nil && client.User.EncodeAddress() == defaultMiningAddr.EncodeAddress() {
-		client.log("{yellow}mining to pool address")
+		client.logf("{yellow}mining to pool address")
 	}
 	/// the client may have suggested a difficulty before fully initialized
 	/// if they haven't, we alert them to our default diff here
@@ -305,19 +305,19 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			return
 		case nil:
 		default:
-			client.logError("failed to read frame: %s", err)
+			client.logErrorf("failed to read frame: %s", err)
 		}
 
 		switch frame.MessageType {
 		case stratumv2.MessageSubmitSharesExtended:
 			{
 				if !client.extendedChannel {
-					client.logError("extended share submitted on standard channel")
+					client.logErrorf("extended share submitted on standard channel")
 					break
 				}
 				share := stratumv2.SubmitSharesExtended{}
 				if err = share.Decode(frame.Payload); err != nil {
-					client.logError("error decoding SubmitSharesExtended: %s", err)
+					client.logErrorf("error decoding SubmitSharesExtended: %s", err)
 					break
 				}
 				s := commonShare{
@@ -336,12 +336,12 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		case stratumv2.MessageSubmitSharesStandard:
 			{
 				if client.extendedChannel {
-					client.logError("standard share submitted on extended channel")
+					client.logErrorf("standard share submitted on extended channel")
 					break
 				}
 				share := stratumv2.SubmitSharesStandard{}
 				if err = share.Decode(frame.Payload); err != nil {
-					client.logError("error decoding SubmitSharesStandard: %s", err)
+					client.logErrorf("error decoding SubmitSharesStandard: %s", err)
 					break
 				}
 				s := commonShare{
@@ -361,7 +361,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			{
 				msg := stratumv2.UpdateChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding UpdateChannel: %s", err)
+					client.logErrorf("error decoding UpdateChannel: %s", err)
 					return
 				}
 
@@ -383,7 +383,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				}
 				/// if its too large, error
 				if !newTargetMeetsMin {
-					client.logError("new target difficulty too low")
+					client.logErrorf("new target difficulty too low")
 					client.writeSv2Msg(&stratumv2.UpdateChannelError{
 						ChannelID: msg.ChannelID,
 						ErrorCode: constants.ERROR_LOW_DIFF.Message,
@@ -400,10 +400,10 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 			{
 				msg := stratumv2.CloseChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
-					client.logError("error decoding CloseChannel: %s", err)
+					client.logErrorf("error decoding CloseChannel: %s", err)
 					return
 				}
-				client.log("leaving: %s", msg.ReasonCode)
+				client.logf("leaving: %s", msg.ReasonCode)
 				return
 			}
 
@@ -415,7 +415,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 				break
 			}
 		default:
-			client.logError("unknown method: %x", frame.MessageType)
+			client.logErrorf("unknown method: %x", frame.MessageType)
 			continue
 		}
 	}
@@ -445,9 +445,9 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 			case io.EOF:
 			case err.(*net.OpError):
 				ne := err.(*net.OpError)
-				client.logError("%s", ne.Err)
+				client.logErrorf("%s", ne.Err)
 			default:
-				client.logError("read error: %s", err)
+				client.logErrorf("read error: %s", err)
 			}
 			return
 		}
@@ -455,7 +455,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		/// process the message
 		m, err := decodeStratumMessage(line)
 		if err != nil {
-			client.logError("stratum decode error: %s", err)
+			client.logErrorf("stratum decode error: %s", err)
 			return
 		}
 
@@ -463,13 +463,13 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		case stratum.MethodMiningSubmit:
 			{
 				if !stratumInited {
-					client.logError("submit before subscribe")
+					client.logErrorf("submit before subscribe")
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_SUBBED))
 					return
 				}
 				share := stratum.Share{}
 				if err := share.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
+					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
@@ -491,7 +491,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 			{
 				params := stratum.MiningConfigureParams{}
 				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
+					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
@@ -499,7 +499,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 				if params.Supports(stratum.ExtensionVersionRolling) {
 					rollingConfig, err := params.GetVersionRolling()
 					if err != nil {
-						client.logError("couldnt parse version rolling config: %s", err)
+						client.logErrorf("couldnt parse version rolling config: %s", err)
 						client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 						return
 					}
@@ -525,12 +525,12 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 				}
 				params := stratum.MiningAuthorizeParams{}
 				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
+					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
 				if conf.Sv1Password != "" && params.Password != conf.Sv1Password {
-					client.logError("invalid password")
+					client.logErrorf("invalid password")
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNAUTHORIZED))
 					return
 				}
@@ -550,7 +550,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 				}
 				params := stratum.MiningSubscribeParams{}
 				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
+					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
@@ -583,7 +583,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 
 				params := stratum.MiningSuggestDifficultyParams{}
 				if err := params.FromRequest(m); err != nil {
-					client.logError("error processing %s: %s", m.Method, err)
+					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 					break
 				}
@@ -592,10 +592,10 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					/// this comment is just for visual spacing
 					client.SuggestedDifficulty = suggestedDiff
 					client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
-					client.log("accepted suggested difficulty {blue}%g", suggestedDiff)
+					client.logf("accepted suggested difficulty {blue}%g", suggestedDiff)
 				} else {
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_ACCEPTED))
-					client.logError("rejected suggested difficulty")
+					client.logErrorf("rejected suggested difficulty")
 				}
 			}
 		case stratum.MethodMiningExtranonceSubscribe:
@@ -605,7 +605,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		default:
 			{
 				client.writeSv1Msg(m.RespondError(constants.ERROR_UNK_METHOD))
-				client.logError("unknown stratum message: %+v", m)
+				client.logErrorf("unknown stratum message: %+v", m)
 			}
 		}
 
@@ -643,7 +643,7 @@ func (client *StratumClient) calcNextDifficulty() {
 
 	client.SuggestedDifficulty = max(math.Round(client.TargetDifficulty+delta), constants.MIN_DIFFICULTY)
 	/// TODO: figure out how to merge this log with the setdiff one
-	client.log("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
+	client.logf("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
 	if newDiff <= 0 || newDiff == client.TargetDifficulty {
@@ -667,7 +667,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		}
 	}
 	client.TargetDifficulty = newDiff
-	client.log("adjusting share target to {blue}%g", newDiff)
+	client.logf("adjusting share target to {blue}%g", newDiff)
 	return nil
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
@@ -726,7 +726,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				client.Stop()
 				return
 			}
-			client.logError("error adjusting difficulty: %s", err)
+			client.logErrorf("error adjusting difficulty: %s", err)
 		}
 
 		if client.protocol == 1 {
@@ -747,7 +747,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			}
 			err := client.writeSv1Msg(params.ToNotification())
 			if err != nil {
-				client.logError("error sending job: %s", err)
+				client.logErrorf("error sending job: %s", err)
 			}
 		} else {
 			prevhash := &stratumv2.SetNewPrevHash{
@@ -825,7 +825,7 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 	decoded, err := address.DecodeAddress(split[0], backendChainParams)
 	if err != nil {
 		if defaultMiningAddr == nil {
-			client.logError("failed decoding address: %s", err)
+			client.logErrorf("failed decoding address: %s", err)
 			if msg != nil {
 				client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
 			} else {
@@ -850,7 +850,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	// TODO: verify Target1U256 is a valid maximum
 	// maybe "steal" from a different pool lol
 	if !constants.Target1U256.IsMetBy(&maxTarget) {
-		client.logError("provided max target is out of range")
+		client.logErrorf("provided max target is out of range")
 		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 			RequestID: requestID,
 			ErrorCode: stratumv2.MaxTargetOutOfRangeError,
@@ -863,7 +863,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 		cast := float64(nominalHashRate)
 		client.SuggestedDifficulty = calcDiffFromHashrate(cast)
 		client.stats.hashrate = cast
-		client.log("guessed initial difficulty {blue}%s", formatDifficulty(client.SuggestedDifficulty))
+		client.logf("guessed initial difficulty {blue}%s", formatDifficulty(client.SuggestedDifficulty))
 	}
 	return true
 }
@@ -880,7 +880,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 					ErrorCode:      stratumv2.Error(constants.ERROR_SHARE_BETWEEN_JOBS.Message),
 				}, stratumv2.MessageSubmitSharesError)
 			}
-			client.logError("share submitted during job change")
+			client.logErrorf("share submitted during job change")
 			return
 		}
 		if m != nil {
@@ -892,7 +892,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				ErrorCode:      stratumv2.StaleShareError,
 			}, stratumv2.MessageSubmitSharesError)
 		}
-		client.logError("share rejected: stale job")
+		client.logErrorf("share rejected: stale job")
 		return
 	}
 
@@ -903,7 +903,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			SequenceNumber: share.Sequence,
 			ErrorCode:      stratumv2.InvalidChannelIDError,
 		}, stratumv2.MessageSubmitSharesError)
-		client.logError("share rejected: invalid channel ID")
+		client.logErrorf("share rejected: invalid channel ID")
 		return
 	}
 
@@ -924,7 +924,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				ErrorCode:      stratumv2.Error(constants.ERROR_INV_VER_MASK.Message),
 			}, stratumv2.MessageSubmitSharesError)
 		}
-		client.logError("share rejected: invalid version mask")
+		client.logErrorf("share rejected: invalid version mask")
 		return
 	}
 
@@ -942,7 +942,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 				ErrorCode:      stratumv2.Error(constants.ERROR_UNPROCESSABLE.Message),
 			}, stratumv2.MessageSubmitSharesError)
 		}
-		client.logError("invalid extranonce2 length")
+		client.logErrorf("invalid extranonce2 length")
 		return
 	}
 
@@ -958,7 +958,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		client.logError("share rejected: invalid timestamp")
+		client.logErrorf("share rejected: invalid timestamp")
 		return
 	}
 
@@ -975,7 +975,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		client.logError("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
+		client.logErrorf("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
 		return
 	}
 
@@ -993,7 +993,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		client.logError("share rejected: duplicate")
+		client.logErrorf("share rejected: duplicate")
 		return
 	}
 	/// add to dupe map
@@ -1009,7 +1009,7 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		}
 
 		client.submitBlock(submission)
-		client.log("{yellow}block candidate submitted")
+		client.logf("{yellow}block candidate submitted")
 	}
 
 	if m != nil {
@@ -1027,23 +1027,31 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 	/// vanity things
 	if shareDiff > client.stats.bestDiff {
 		client.stats.bestDiff = shareDiff
-		client.log("{green}new best session diff!")
+		client.logf("{green}new best session diff!")
 	}
 	client.stats.sharesAccepted++
 	/// update with the target diff for a more accurate estimation
 	client.stats.update(client.TargetDifficulty)
-	client.log("diff {blue}%s{/blue} of {blue}%s{/blue} (best: {bluebright}%s{/bluebright})\n{blackbright}%s\n\tversion: {blue}%08x{/blue} nonce: {green}%08x{/green} extranonce: {blue}%s{green}%x{/blue}{/green}\n\t{green}%s{/green}, avg submit delta: {blue}%.2fs{/blue}",
-		formatDifficulty(shareDiff), formatDifficulty(client.TargetDifficulty), formatDifficulty(client.stats.bestDiff),
-		shareHash,
-		updatedHeader.Version, share.Nonce, client.ID, share.Extranonce2,
-		formatHashrate(client.stats.HashrateMH()), client.stats.avgSubmissionDelta/1000)
+	l := shareAcceptLog{
+		shareDiff:  shareDiff,
+		targetDiff: client.TargetDifficulty,
+		bestDiff:   client.stats.bestDiff,
+		shareHash:  shareHash.String(),
+		version:    updatedHeader.Version,
+		nonce:      share.Nonce,
+		id:         client.ID,
+		en2:        share.Extranonce2,
+		hashrate:   client.stats.HashrateMH(),
+		delta:      client.stats.avgSubmissionDelta / 1000,
+	}
+	client.log(l.String())
 }
 
 // chatter
 func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 	b, err := msg.Marshal()
 	if err != nil {
-		client.logError("failed to marshal message: %s", err)
+		client.logErrorf("failed to marshal message: %s", err)
 		return err
 	}
 
@@ -1052,7 +1060,7 @@ func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType stratumv2.MessageType) error {
 	b, err := payload.Encode()
 	if err != nil {
-		client.logError("failed to encode payload: %s", err)
+		client.logErrorf("failed to encode payload: %s", err)
 		return err
 	}
 	frame := stratumv2.Frame{
@@ -1063,7 +1071,7 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 	}
 	f, err := frame.Encode()
 	if err != nil {
-		client.logError("failed to encode frame: %s", err)
+		client.logErrorf("failed to encode frame: %s", err)
 		return err
 	}
 	// client.log("TX: %x", f)
@@ -1077,12 +1085,18 @@ func (client *StratumClient) writeConn(b []byte) error {
 }
 
 // logging
-func (client *StratumClient) log(s string, a ...any) {
+func (client *StratumClient) logf(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
 	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
 }
-func (client *StratumClient) logError(s string, a ...any) {
+func (client *StratumClient) log(s string) {
+	log("[{green}" + client.Name() + "{/green}]{cyan} " + s)
+}
+func (client *StratumClient) logErrorf(s string, a ...any) {
 	s = fmt.Sprintf(s, a...)
+	logError("{cyan}[{red}" + client.Name() + "{/red}]{/cyan} " + s)
+}
+func (client *StratumClient) logError(s string) {
 	logError("{cyan}[{red}" + client.Name() + "{/red}]{/cyan} " + s)
 }
 
