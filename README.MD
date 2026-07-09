@@ -9,6 +9,7 @@ infinite thanks to btcd for bitcoin tooling and public-pool for reference
 start it, point your miners to it, and watch the logs roll by
 
 ![cpuminer on regtest](./showoff.png)
+[![Get pogolo on umbrelOS](https://apps.umbrel.com/api/app/pogolo/badge-dark.svg)](https://apps.umbrel.com/app/pogolo)
 
 _want a go pool you can run on the public internet? check out https://github.com/Distortions81/M45-Core-goPool!_
 
