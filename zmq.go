@@ -8,7 +8,7 @@ import (
 	"github.com/go-zeromq/zmq4"
 )
 
-func newZMQ(endpoint string, ctx context.Context) (zmq4.Socket, error) {
+func createZMQSocket(endpoint string, ctx context.Context) (zmq4.Socket, error) {
 	// TODO: figure out how to make conn re-sub on reconnect
 	socket := zmq4.NewSub(ctx, zmq4.WithAutomaticReconnect(true),
 		zmq4.WithDialerRetry(time.Duration(conf.PollInterval)),

@@ -1,3 +1,27 @@
+// stratumclient is simple :3
+// we take a conn and a submission channel, provide a template channel to receive [JobTemplate]s over,
+// and start mining uwu
+//
+// the codepath goes
+//  1. .Run() starts .readTemplateChanRoutine(),
+//     	peeks into the furst byte to determine whether the client is sv1 or sv2,
+//     	then calls processSv1Loop() or processSv2Loop() to handle the message loop
+//     	it handles the sv2 setup handshake before handing off to processSv2Loop(), per the spec
+// 		if the client suggested a difficulty during setup
+//      (for sv1, this MUST come before the mining.subscribe to be processed immediately),
+//  	pogolo will ensure its above the hard-coded [constants.MIN_DIFFICULTY] and respond with a success.
+//     	either way, once setup is done, the message loop func calls
+//  2. .startMining(), which sends the furst job to the client and adds the client to the map.
+//     	.readTemplateChanRoutine() creates a job with .createJob() and ships it off to the client
+// 	   	after calculating the next difficulty adjustment with .calcNextDifficulty() and setDifficulty().
+//
+// the client submits shares, which are processed into a [commonShare] and handled by
+//  3. .validateShareSubmission(), where its processed.
+//     	if the share is above the client diff, its hash gets logged into the dupe map
+//     	and its difficulty is used to update the hashrate estimation.
+//     	if its also above network diff, it gets submitted to the backend with .submitBlock() and hopefully becomes a real block!
+//
+
 package main
 
 import (
@@ -718,6 +742,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		if !conf.DisableVarDiff {
 			client.calcNextDifficulty()
 		}
+
 		/// both stratum specs apply diff changes to next job, so announce diff before announcing job
 
 		if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {

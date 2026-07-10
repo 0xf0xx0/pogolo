@@ -87,23 +87,24 @@ Home page:
 
 // global state
 var (
-	// config stuffs
+	/// config stuffs
 	conf               Config
 	backend            *rpcclient.Client
-	backendChainParams *chaincfg.Params
+	backendChainParams *chaincfg.Params /// used for address decoding and coinbase creation
 	defaultMiningAddr  address.Address
+	logFile            *os.File
 
-	// runtime state
+	/// runtime state
 	clients          = &clientMap{} // map of active client ids to clients
 	currTemplate     *JobTemplate
 	currTemplateID   uint64
 	currTemplateLock sync.RWMutex
-	submissionChan   = make(chan blockSubmission, 3) // global cause it gets passed around :\
-	triggerGBT       = make(chan struct{}, 1)        // ditto cause of websocket
-	foundBlocks      = make([]string, 0, 3)          // not gonna bother mutexing this unless it becomes an issue
+	submissionChan   = make(chan blockSubmission, 3) /// global cause it gets passed around :\
+	triggerGBT       = make(chan struct{}, 1)        /// ditto cause of websocket
+	foundBlocks      = make([]string, 0, 3)          /// not gonna bother mutexing this unless it becomes an issue
 	serverStartTime  time.Time
-	logFile          *os.File
-	// sv2
+
+	/// sv2
 	sv2Cert             *stratumv2.SIGNATURE_NOISE_MESSAGE
 	sv2AuthorityKeypair *stratumv2.Keypair
 	sv2StaticKeypair    *stratumv2.Keypair
@@ -218,7 +219,7 @@ func main() {
 				}
 			}
 
-			/// conf overrides
+			/// env overrides
 			if host := cmd.String("BACKEND_HOST"); host != "" {
 				conf.Backend.Host = host
 			}
@@ -232,7 +233,7 @@ func main() {
 				conf.ZMQHost = zmq
 			}
 
-			/// conf loading
+			/// create logfile
 			if path := cmd.String("logfile"); path != "" {
 				conf.LogFile = resolvePath(path)
 
@@ -242,6 +243,7 @@ func main() {
 				}
 				logFile = file
 			}
+
 			if profileDir := cmd.String("profile"); profileDir != "" {
 				globalLog(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
@@ -355,12 +357,15 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
+	/// handle exit sigs
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
+	/// waitgroup for clean shutdown
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
+	/// ditto for context, to kill clients cleanly
 	ctx, cancel := context.WithCancel(rootCtx)
 	defer cancel()
 
@@ -379,6 +384,7 @@ func startup(rootCtx context.Context) error {
 	clients.Init()
 	initAPI()
 
+	/// start backend and connection routines before listening
 	wg.Go(func() { backendRoutine(ctx) })
 	wg.Go(func() { connectionRoutine(conns, ctx) })
 
@@ -565,7 +571,7 @@ func backendRoutine(ctx context.Context) {
 		if !strings.HasPrefix(conf.ZMQHost, "tcp://") {
 			conf.ZMQHost = "tcp://" + conf.ZMQHost
 		}
-		socket, err := newZMQ(conf.ZMQHost, ctx)
+		socket, err := createZMQSocket(conf.ZMQHost, ctx)
 		if err != nil {
 			globalLogError(fmt.Sprintf("failed to make zmq socket: %s", err))
 			globalLogError("{yellow}falling back to polling")
@@ -668,6 +674,7 @@ func backendRoutine(ctx context.Context) {
 		}
 		currTemplate = jobTemplate
 		currTemplateLock.Unlock()
+
 		globalLog(fmt.Sprintf("==//==<the dig is mining on job {blue}%#x{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
 		go clients.NotifyAll(jobTemplate) /// this might take a while
