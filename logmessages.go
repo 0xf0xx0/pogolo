@@ -25,7 +25,7 @@ type shareAcceptLog struct {
 
 func (l shareAcceptLog) String() string {
 	sb := strings.Builder{}
-	sb.Grow(1024)
+	sb.Grow(2048)
 	sb.WriteString("diff {blue}")
 	sb.WriteString(formatDifficulty(l.shareDiff))
 	sb.WriteString("{/blue} of {blue}")
@@ -42,7 +42,7 @@ func (l shareAcceptLog) String() string {
 	sb.WriteString(l.id.String())
 	sb.WriteString("{green}")
 	sb.WriteString(hex.EncodeToString(l.en2))
-	sb.WriteString("{/blue}{/green}\n\t{green}")
+	sb.WriteString("{/blue}\n\t")
 	sb.WriteString(formatHashrate(l.hashrate))
 	sb.WriteString("{/green}, avg submit delta: {blue}")
 	sb.WriteString(strconv.FormatFloat(l.delta, 'f', 3, 64))

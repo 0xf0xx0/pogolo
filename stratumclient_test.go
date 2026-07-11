@@ -223,7 +223,7 @@ func TestSv1ParseIdentity(t *testing.T) {
 func BenchmarkSv1Submit(b *testing.B) {
 	lpipe := ezInitSv1Client(b, true)
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond)
 	for b.Loop() {
 		res := sendSv1ReqAndWaitForRes(b, submitReq, lpipe)
 		if res.Error != nil {
@@ -266,7 +266,7 @@ func sendSv1ReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) st
 	if err != nil {
 		t.Fatalf("error marshalling req: %s", err)
 	}
-	t.Logf("sending message: %s", b)
+	// t.Logf("sending message: %s", b)
 	//time.Sleep(time.Millisecond * 100) /// if needed
 	_, err = lpipe.Write(b)
 	if err != nil {

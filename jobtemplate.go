@@ -7,8 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
-
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
@@ -52,24 +50,20 @@ type MiningJob struct {
 }
 
 // like public-pools copyAndUpdateBlock without the copy
-func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare) (wire.BlockHeader, bool) {
-	en2Len := 0
-	if share.Extranonce2 != nil {
-		en2Len = len(share.Extranonce2)
-		if en2Len > 0 && en2Len != int(conf.ExtraNonce2Size) {
-			return wire.BlockHeader{}, false
-		}
+func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.BlockHeader, bool) {
+	if share.Extranonce2 == nil {
+		return nil, false
+	}
+	en2Len := len(share.Extranonce2)
+	if en2Len != int(conf.ExtraNonce2Size) {
+		return nil, false
 	}
 
-	/// mutate the coinbase script with the client id and extranonce2
+	/// mutate the coinbase script with the extranonce2 (client id is done in fillCoinbaseTx)
 	/// MAYBE: store the serialized coinbasetx and mutate directly?
 	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
-	sigscript := coinbaseMsgTx.TxIn[0].SignatureScript
-	coinbaseMsgTx.TxIn[0].SignatureScript = slices.Replace(sigscript,
-		len(sigscript)-(constants.EXTRANONCE_SIZE+en2Len),
-		len(sigscript),
-		append(id.Bytes(), share.Extranonce2...)...,
-	)
+	sigscriptLen := len(coinbaseMsgTx.TxIn[0].SignatureScript)
+	copy(coinbaseMsgTx.TxIn[0].SignatureScript[sigscriptLen-en2Len:], share.Extranonce2)
 
 	/// update the header
 	job.Header.Nonce = share.Nonce
@@ -84,7 +78,7 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share commonShare) (wire.Block
 	branches = append(branches, job.MerkleBranch...)
 	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
-	return job.Header, true
+	return &job.Header, true
 }
 
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {

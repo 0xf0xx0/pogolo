@@ -121,7 +121,8 @@ func getAddr() address.Address {
 func getCoinbaseTx() *btcutil.Tx {
 	addr := getAddr()
 	job, _ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	tx := fillCoinbaseTx(addr, btcutil.NewBlock(&job.MsgBlock), job.Subsidy, MOCK_CHAIN)
+	en1, _ := stratum.DecodeID(MOCK_EXTRANONCE)
+	tx := fillCoinbaseTx(en1, addr, btcutil.NewBlock(&job.MsgBlock), job.Subsidy)
 	return tx
 }
 func hexDec(s string) []byte {

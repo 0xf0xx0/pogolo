@@ -94,7 +94,7 @@ func TestCreateEmptyCoinbase(t *testing.T) {
 func TestClientIDGeneration(t *testing.T) {
 	set := make(map[stratum.ID]struct{}, 2)
 	for range 100 {
-		hash := clientIDHash("127.0.0.1:42069")
+		hash := clientIDHash("127.0.0.1:42069", "10.42.69.0:65535")
 		_, ok := set[hash]
 		if !ok {
 			set[hash] = struct{}{}
@@ -102,5 +102,8 @@ func TestClientIDGeneration(t *testing.T) {
 	}
 	for k := range set {
 		t.Log(k.String())
+	}
+	if len(set) != 2 {
+		t.Fatal("client ID generation failed: expected 2 unique IDs, got", len(set))
 	}
 }

@@ -83,7 +83,7 @@ func TestUpdateBlock(t *testing.T) {
 	tml, _ := CreateJobTemplate(template)
 	job := client.createJob(tml)
 	jobID, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
-	s := commonShare{
+	s := &commonShare{
 		ChannelID:   0,
 		JobID:       uint32(jobID),
 		Time:        submitParams.Time,

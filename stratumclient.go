@@ -21,6 +21,12 @@
 //     	and its difficulty is used to update the hashrate estimation.
 //     	if its also above network diff, it gets submitted to the backend with .submitBlock() and hopefully becomes a real block!
 //
+// the client maintains a [*wire.BlockHeader] and a [*wire.MsgTx]
+// 	for the current job header and coinbase txn. this lets the client run independently
+// 	and enables greater scaling for larger home swarms. the coinbase txn is created in the main routine
+//  with createEmptyCoinbase, and populated by each client in .createJob() with fillCoinbaseTx().
+//  the job header obviously comes from the job template, which comes from the backend routine.
+//
 
 package main
 
@@ -97,6 +103,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// MAYBE: figure out how to start with a small 128 byte buffer and grow when a larger message comes in?
 	/// the largest message we'll handle is an sv2 SetupConnection frame, at a max of ~1288 bytes
 	/// shares are sub-128 bytes, everything else is sub-512, if not -256
+	/// TODO: figure out if we can avoid the buffer entirely while still peeking
 	r := bufio.NewReaderSize(client.conn, 660)
 	/// peek to determine protocol
 	b, err := r.Peek(1)
@@ -344,7 +351,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					client.logErrorf("error decoding SubmitSharesExtended: %s", err)
 					break
 				}
-				s := commonShare{
+				s := &commonShare{
 					ChannelID:   share.ChannelID,
 					JobID:       share.JobID,
 					Time:        share.Time,
@@ -368,7 +375,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 					client.logErrorf("error decoding SubmitSharesStandard: %s", err)
 					break
 				}
-				s := commonShare{
+				s := &commonShare{
 					ChannelID:   share.ChannelID,
 					JobID:       share.JobID,
 					Time:        share.Time,
@@ -501,7 +508,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 
 				client.currentJobMutex.RLock()
 
-				s := commonShare{
+				s := &commonShare{
 					JobID:       uint32(jobID),
 					Time:        share.Time,
 					Version:     uint32(client.CurrentJob.Version) + share.VersionMask,
@@ -698,7 +705,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	block := btcutil.NewBlock(template.MsgBlock.Copy())
 	blockHeader := block.MsgBlock().Header
 
-	coinbaseTx := fillCoinbaseTx(client.User, block, template.Subsidy, backendChainParams)
+	coinbaseTx := fillCoinbaseTx(client.ID, client.User, block, template.Subsidy)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
 
@@ -892,7 +899,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	}
 	return true
 }
-func (client *StratumClient) validateShareSubmission(share commonShare, m *stratum.Request) {
+func (client *StratumClient) validateShareSubmission(share *commonShare, m *stratum.Request) {
 	if share.JobID != uint32(client.CurrentJob.ID) {
 		client.stats.sharesRejected++
 		if share.JobID == uint32(client.CurrentJob.ID-1) {
@@ -1022,15 +1029,25 @@ func (client *StratumClient) validateShareSubmission(share commonShare, m *strat
 		return
 	}
 	/// add to dupe map
-	client.shareHashes[shareHash] = struct{}{}
+	/// TODO: toggle this in tests
+	// client.shareHashes[shareHash] = struct{}{}
 
-	if shareDiff >= client.CurrentJob.NetworkDiff {
+	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
+		/// copy header to avoid overwrites
+		h := wire.BlockHeader{
+			Version:    updatedHeader.Version,
+			PrevBlock:  updatedHeader.PrevBlock,
+			MerkleRoot: updatedHeader.MerkleRoot,
+			Timestamp:  updatedHeader.Timestamp,
+			Bits:       updatedHeader.Bits,
+			Nonce:      updatedHeader.Nonce,
+		}
 		submission := blockSubmission{
 			ClientID: client.ID,
-			Header:   updatedHeader,
+			Header:   h,
 			Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
-			Share:    &share,
+			Share:    share,
 		}
 
 		client.submitBlock(submission)
@@ -1217,7 +1234,7 @@ func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff f
 // clients are given an id, a job, and a channel to submit blocks on
 func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) *StratumClient {
 	client := &StratumClient{
-		ID:             clientIDHash(conn.LocalAddr().String() + conn.RemoteAddr().String()),
+		ID:             clientIDHash(conn.LocalAddr().String(), conn.RemoteAddr().String()),
 		stats:          StratumClientStats{},
 		conn:           conn,
 		templateChan:   make(chan *JobTemplate, 1),

@@ -21,7 +21,6 @@ import (
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil/v2"
-	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript/v2"
@@ -39,6 +38,7 @@ var (
 )
 
 // stores solved block info
+// TODO: use
 type solvedBlock struct {
 	Gopher string         `json:"gopher"`
 	Hash   chainhash.Hash `json:"hash"`
@@ -134,10 +134,15 @@ func serializeCoinbaseTx(tx *wire.MsgTx) []byte {
 	return serializedTx.Bytes()
 }
 
-// hashes client ip address+port for no reason other than being different
-func clientIDHash(addr string) stratum.ID {
+// "merkle root" of remote and local addr hashes for no reason other than being different
+// dis pogolo we serious and silly :3
+func clientIDHash(la, ra string) stratum.ID {
+	out := make([]byte, 16)
+	binary.LittleEndian.PutUint64(out, xxh3.HashString(la))
+	binary.LittleEndian.PutUint64(out[8:], xxh3.HashString(ra))
+
 	/// randomly pick between upper and lower 32 for double the extranonce1s
-	return stratum.ID(xxh3.HashString(addr) >> (rand.N(2) * 32))
+	return stratum.ID(xxh3.Hash(out) >> (rand.N(2) * 32))
 }
 
 // initial tx, copied and filled by clients
@@ -193,7 +198,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
-func fillCoinbaseTx(addr address.Address, block *btcutil.Block, subsidy int64, params *chaincfg.Params) *btcutil.Tx {
+func fillCoinbaseTx(en1 stratum.ID, addr address.Address, block *btcutil.Block, subsidy int64) *btcutil.Tx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
 
@@ -206,6 +211,9 @@ func fillCoinbaseTx(addr address.Address, block *btcutil.Block, subsidy int64, p
 		Value:    subsidy,
 		PkScript: pkScript,
 	})
+	/// pre-fill extranonce1
+	sigscriptLen := len(coinbaseMsgTx.TxIn[0].SignatureScript)
+	copy(coinbaseMsgTx.TxIn[0].SignatureScript[sigscriptLen-(constants.EXTRANONCE_SIZE+int(conf.ExtraNonce2Size)):], en1.Bytes())
 	return coinbase
 }
 
@@ -506,7 +514,7 @@ func simdCoinbaseTxHash(msgTx *wire.MsgTx) chainhash.Hash {
 	return result
 }
 
-func simdHeaderHash(header wire.BlockHeader) chainhash.Hash {
+func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 	h := sha256.New()
 	header.Serialize(h)
 	temp := make([]byte, 0, 32)
