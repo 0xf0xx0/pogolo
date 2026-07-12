@@ -941,6 +941,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 
 	/// no version rolling means the version is left untouched, its already valid
 	currJobVer := uint32(client.CurrentJob.Version)
+	/// recover the mask from the final version for validation
 	shareMask := share.Version - currJobVer
 	masked := (shareMask & ^constants.VERSION_ROLLING_MASK)
 	// version rolling means we NAND the share version with the version mask
@@ -1030,11 +1031,11 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 	/// add to dupe map
 	/// TODO: toggle this in tests
-	// client.shareHashes[shareHash] = struct{}{}
+	client.shareHashes[shareHash] = struct{}{}
 
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
-		/// copy header to avoid overwrites
+		/// copy header and coinbase to avoid overwrites
 		h := wire.BlockHeader{
 			Version:    updatedHeader.Version,
 			PrevBlock:  updatedHeader.PrevBlock,
