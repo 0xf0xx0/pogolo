@@ -939,12 +939,10 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		return
 	}
 
-	/// no version rolling means the version is left untouched, its already valid
-	currJobVer := uint32(client.CurrentJob.Version)
 	/// recover the mask from the final version for validation
-	shareMask := share.Version - currJobVer
+	shareMask := share.Version - uint32(client.CurrentJob.Version)
+	/// NAND the share version with the version mask to validate
 	masked := (shareMask & ^constants.VERSION_ROLLING_MASK)
-	// version rolling means we NAND the share version with the version mask
 	if masked != 0 {
 		println(client.CurrentJob.Version, share.Version, masked)
 		client.stats.sharesRejected++
