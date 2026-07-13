@@ -1217,7 +1217,7 @@ func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff f
 		stats.lastTimeSlot.startTime = stats.startTime
 		/// if we're in the next chunk of time, snapshot the curr* and move over
 	} else if stats.currTimeSlot.startTime != windowStart {
-		stats.lastTimeSlot.startTime = stats.currTimeSlot.startTime
+		stats.lastTimeSlot = stats.currTimeSlot
 
 		stats.currTimeSlot.accDiff = uint64(currTargetDiff)
 		stats.currTimeSlot.startTime = windowStart
