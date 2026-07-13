@@ -128,7 +128,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	}
 	txns[0] = cb
 
-	/// this merkle tree is for the header merkle root, created from the block txids
+	/// this merkle tree describes the block txids and will be used to create the merkle root
 	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)
 	merkleBranches := buildMerkleProof(merkleTree, txns[0].Hash())
 	/// prune empty branches
@@ -136,11 +136,11 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		return h == nil
 	})
 
-	/// skip over the merkle root (its done in fillCoinbaseTx)
+	/// skip over the merkle root (its replaced in fillCoinbaseTx)
 	merkleBranches = merkleBranches[:len(merkleBranches)-1]
 
 	merkleBranch := []*chainhash.Hash{}
-	/// theres only 1 branch with empty bl00ks
+	/// theres only 1 branch with empty bl00ks, the coinbase hash
 	if len(merkleBranches) > 1 {
 		merkleBranch = merkleBranches[1:]
 	}

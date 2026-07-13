@@ -128,7 +128,7 @@ func TestSv1InitSequence(t *testing.T) {
 }
 
 func TestSv1Submit(t *testing.T) {
-	lpipe := ezInitSv1Client(t, true)
+	lpipe, _ := ezInitSv1Client(t, true)
 
 	res := sendSv1ReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error != nil {
@@ -136,7 +136,7 @@ func TestSv1Submit(t *testing.T) {
 	}
 }
 func TestSv1SubmitDiffTooLow(t *testing.T) {
-	lpipe := ezInitSv1Client(t, false)
+	lpipe, _ := ezInitSv1Client(t, false)
 	res := sendSv1ReqAndWaitForRes(t, submitReq, lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
@@ -146,8 +146,26 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 	}
 }
 
+func TestSv1VersionValidation(t *testing.T) {
+	conf.BIPVersionBits = 0x20000020
+	lpipe, _ := ezInitSv1Client(t, true)
+	params := stratum.MiningSubmitParams{}
+	req := reqFrom(MOCK_MINING_SUBMIT)
+	params.FromRequest(req)
+	params.VersionMask = 0
+
+	// disableLogs = false
+	res := sendSv1ReqAndWaitForRes(t, params.ToRequest(9), lpipe)
+	// disableLogs = true
+
+	/// TODO: find a valid share with this mutated version?
+	if res.Error != nil && res.Error.Code != constants.ERROR_LOW_DIFF.Code {
+		t.Fatalf("share submission failed! code: %s", res.Error)
+	}
+}
+
 func TestSv1SubmitUnkJob(t *testing.T) {
-	lpipe := ezInitSv1Client(t, false)
+	lpipe, _ := ezInitSv1Client(t, false)
 
 	share := submitParams
 	share.JobID = "fffffff"
@@ -221,7 +239,7 @@ func TestSv1ParseIdentity(t *testing.T) {
 
 // kinda pointless but eh
 func BenchmarkSv1Submit(b *testing.B) {
-	lpipe := ezInitSv1Client(b, true)
+	lpipe, _ := ezInitSv1Client(b, true)
 
 	time.Sleep(time.Millisecond)
 	for b.Loop() {
@@ -312,7 +330,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 }
 
 // flip suggDiff to true to drop the diff to 0.16
-func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
+func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 	/// init pool state
 	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	s, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
@@ -340,7 +358,7 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) net.Conn {
 	c.CurrentJob.MinTime = 0
 	c.CurrentJob.MaxTime = 0
 
-	return lpipe
+	return lpipe, c
 }
 
 // TODO
