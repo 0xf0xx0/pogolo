@@ -146,30 +146,17 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 	}
 }
 
-func TestSv1VersionValidation(t *testing.T) {
-	conf.BIPVersionBits = 0x20000020
-	lpipe, _ := ezInitSv1Client(t, true)
-	params := stratum.MiningSubmitParams{}
-	req := reqFrom(MOCK_MINING_SUBMIT)
-	params.FromRequest(req)
-	params.VersionMask = 0
-
-	// disableLogs = false
-	res := sendSv1ReqAndWaitForRes(t, params.ToRequest(9), lpipe)
-	// disableLogs = true
-
-	/// TODO: find a valid share with this mutated version?
-	if res.Error != nil && res.Error.Code != constants.ERROR_LOW_DIFF.Code {
-		t.Fatalf("share submission failed! code: %s", res.Error)
-	}
-}
-func TestSv1VersionValidationFull(t *testing.T) {
+func TestVersionValidation(t *testing.T) {
 	job := uint32(0x20000020)
 
 	for i := uint32(0); i < 0xffffffff; i++ {
+		/// this efffectively rolls the version bits
 		shareMask := i & constants.VERSION_ROLLING_MASK
+		/// do bip 310 ver calc...
 		ver := (job & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
+		/// then attempt to recover mask by doing the inverse of the ver calc
 		recoveredMask := (^job & ver) | (ver & constants.VERSION_ROLLING_MASK)
+
 		if recoveredMask != shareMask {
 			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", ver, shareMask, recoveredMask)
 			t.Fatalf("recoveredMask should be %x, got %x", shareMask, recoveredMask)
