@@ -35,18 +35,20 @@ type JobTemplate struct {
 // MiningJob is built from a JobTemplate and is used to construct mining.notify/NewMiningJob mesages
 // and store mining state
 type MiningJob struct {
-	Header        wire.BlockHeader
-	CoinbasePart1 []byte
-	CoinbasePart2 []byte
-	MerkleBranch  []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
-	CoinbaseTx    *btcutil.Tx
-	PrevBlock     *chainhash.Hash // pointer to hash in header
-	NetworkDiff   float64
-	ID            uint64
-	MinTime       int64
-	MaxTime       int64
-	Version       int32 // the original job version
-	Bits          [4]byte
+	Header         wire.BlockHeader
+	CoinbasePart1  []byte
+	CoinbasePart2  []byte
+	MerkleBranch   []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
+	CoinbaseTx     *btcutil.Tx
+	CoinbaseBytes  []byte          // for faster merkle root calc
+	Extranonce2Idx int             // for faster merkle root calc
+	PrevBlock      *chainhash.Hash // pointer to hash in header
+	NetworkDiff    float64
+	ID             uint64
+	MinTime        int64
+	MaxTime        int64
+	Version        int32 // the original job version
+	Bits           [4]byte
 }
 
 // like public-pools copyAndUpdateBlock without the copy
@@ -60,10 +62,11 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.Blo
 	}
 
 	/// mutate the coinbase script with the extranonce2 (client id is done in fillCoinbaseTx)
-	/// MAYBE: store the serialized coinbasetx and mutate directly?
+	/// also mutate the coinbase bytes directly for faster merkle root calc
 	coinbaseMsgTx := job.CoinbaseTx.MsgTx()
 	sigscriptLen := len(coinbaseMsgTx.TxIn[0].SignatureScript)
 	copy(coinbaseMsgTx.TxIn[0].SignatureScript[sigscriptLen-en2Len:], share.Extranonce2)
+	copy(job.CoinbaseBytes[job.Extranonce2Idx:job.Extranonce2Idx+en2Len], share.Extranonce2)
 
 	/// update the header
 	job.Header.Nonce = share.Nonce
@@ -72,8 +75,7 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.Blo
 
 	/// coinbase was changed, thus recalc the root
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-	// coinbaseTxHash := coinbaseMsgTx.TxHash()
-	coinbaseTxHash := simdCoinbaseTxHash(coinbaseMsgTx)
+	coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
 	branches[0] = &coinbaseTxHash
 	branches = append(branches, job.MerkleBranch...)
 	job.Header.MerkleRoot = *merkleRootFromBranches(branches)

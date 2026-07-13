@@ -718,18 +718,20 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	return MiningJob{
-		ID:            template.ID,
-		Header:        blockHeader,
-		CoinbaseTx:    coinbaseTx,
-		Version:       blockHeader.Version,
-		MerkleBranch:  template.MerkleBranch,
-		MinTime:       template.MinTime,
-		MaxTime:       template.MaxTime,
-		NetworkDiff:   template.NetworkDiff,
-		PrevBlock:     &blockHeader.PrevBlock,
-		CoinbasePart1: serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
-		CoinbasePart2: serializedCoinbaseTx[partOneIndex:],
-		Bits:          template.Bits,
+		ID:             template.ID,
+		Header:         blockHeader,
+		CoinbaseTx:     coinbaseTx,
+		CoinbaseBytes:  serializedCoinbaseTx,
+		Extranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
+		Version:        blockHeader.Version,
+		MerkleBranch:   template.MerkleBranch,
+		MinTime:        template.MinTime,
+		MaxTime:        template.MaxTime,
+		NetworkDiff:    template.NetworkDiff,
+		PrevBlock:      &blockHeader.PrevBlock,
+		CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
+		CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
+		Bits:           template.Bits,
 	}
 }
 func (client *StratumClient) submitBlock(block blockSubmission) {

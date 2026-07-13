@@ -329,7 +329,7 @@ func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
 	for _, branch := range branches[1:] {
 		copy(temp[:32], root[:])
 		copy(temp[32:], branch[:])
-		newroot := chainhash.DoubleHashH(temp)
+		newroot := simdSha256d(temp)
 		root = &newroot
 	}
 	return root
@@ -510,8 +510,7 @@ func simdCoinbaseTxHash(msgTx *wire.MsgTx) chainhash.Hash {
 	first := h.Sum(temp)
 	h.Reset()
 	h.Write(first)
-	result := chainhash.Hash(h.Sum(temp))
-	return result
+	return chainhash.Hash(h.Sum(temp))
 }
 
 func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
@@ -521,6 +520,10 @@ func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 	first := h.Sum(temp)
 	h.Reset()
 	h.Write(first)
-	result := chainhash.Hash(h.Sum(temp))
-	return result
+	return chainhash.Hash(h.Sum(temp))
+}
+
+func simdSha256d(data []byte) chainhash.Hash {
+	a := sha256.Sum256(data)
+	return sha256.Sum256(a[:])
 }
