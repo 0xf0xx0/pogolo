@@ -509,10 +509,9 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 				client.currentJobMutex.RLock()
 
 				s := &commonShare{
-					JobID:   uint32(jobID),
-					Time:    share.Time,
-					Version: uint32(client.CurrentJob.Version),
-					// Version:     uint32(client.CurrentJob.Version) + share.VersionMask,
+					JobID:       uint32(jobID),
+					Time:        share.Time,
+					Version:     uint32(client.CurrentJob.Version),
 					Nonce:       share.Nonce,
 					Extranonce2: share.Extranonce2,
 				}
@@ -946,8 +945,8 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 
 	/// recover the mask from the final version for validation
-	shareMask := (^uint32(client.CurrentJob.Version) & share.Version) // | (share.Version & constants.VERSION_ROLLING_MASK)
-	/// NAND the share version with the version mask to validate
+	shareMask := (^uint32(client.CurrentJob.Version) & share.Version) | (share.Version & constants.VERSION_ROLLING_MASK)
+	/// NAND the share mask with the version mask to validate
 	masked := (shareMask & ^constants.VERSION_ROLLING_MASK)
 	if masked != 0 {
 		println(client.CurrentJob.Version, share.Version, masked)

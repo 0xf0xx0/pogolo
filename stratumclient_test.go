@@ -163,6 +163,19 @@ func TestSv1VersionValidation(t *testing.T) {
 		t.Fatalf("share submission failed! code: %s", res.Error)
 	}
 }
+func TestSv1VersionValidationFull(t *testing.T) {
+	job := uint32(0x20000020)
+
+	for i := uint32(0); i < 0xffffffff; i++ {
+		shareMask := i & constants.VERSION_ROLLING_MASK
+		ver := (job & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
+		recoveredMask := (^job & ver) | (ver & constants.VERSION_ROLLING_MASK)
+		if recoveredMask != shareMask {
+			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", ver, shareMask, recoveredMask)
+			t.Fatalf("recoveredMask should be %x, got %x", shareMask, recoveredMask)
+		}
+	}
+}
 
 func TestSv1SubmitUnkJob(t *testing.T) {
 	lpipe, _ := ezInitSv1Client(t, false)
