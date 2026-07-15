@@ -87,7 +87,7 @@ func TestUpdateBlock(t *testing.T) {
 		ChannelID:   0,
 		JobID:       uint32(jobID),
 		Time:        submitParams.Time,
-		Version:     uint32(job.Version) + submitParams.VersionMask,
+		Version:     uint32(job.Version),
 		Nonce:       submitParams.Nonce,
 		Extranonce2: submitParams.Extranonce2,
 		Sequence:    0,

@@ -515,8 +515,9 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					Nonce:       share.Nonce,
 					Extranonce2: share.Extranonce2,
 				}
-				if share.VersionMask > 0 {
-					s.Version = (s.Version & ^constants.VERSION_ROLLING_MASK) | (share.VersionMask & constants.VERSION_ROLLING_MASK)
+				/// BIP-310
+				if share.VersionMask > -1 {
+					s.Version = (s.Version & ^constants.VERSION_ROLLING_MASK) | (uint32(share.VersionMask) & constants.VERSION_ROLLING_MASK)
 				}
 				client.validateShareSubmission(s, m)
 				client.currentJobMutex.RUnlock()

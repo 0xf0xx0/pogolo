@@ -146,19 +146,35 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 	}
 }
 
+func TestVersionValidationEdgeCase(t *testing.T) {
+	conf.BIPVersionBits = 0x20000020
+	lpipe, _ := ezInitSv1Client(t, true)
+
+	submitParams.VersionMask = 0
+	r := submitParams.ToRequest(20)
+	/// expected hash: 00000001cac12f82479784bf2687b6cf5f455f5912b3c88e0c6e97bf6dc643c3
+	res := sendSv1ReqAndWaitForRes(t, r, lpipe)
+	submitParams.VersionMask = -1
+	conf.BIPVersionBits = 0
+
+	if res.Error != nil {
+		t.Fatalf("share submission failed: %s", res.Error)
+	}
+}
+
 func TestVersionValidation(t *testing.T) {
-	job := uint32(0x20000020)
+	jobVersion := uint32(0x20202020)
 
 	for i := uint32(0); i < 0xffffffff; i++ {
 		/// this efffectively rolls the version bits
 		shareMask := i & constants.VERSION_ROLLING_MASK
-		/// do bip 310 ver calc...
-		ver := (job & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
+		/// do bip 310 nVersion calc...
+		nVersion := (jobVersion & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
 		/// then attempt to recover mask by doing the inverse of the ver calc
-		recoveredMask := (^job & ver) | (ver & constants.VERSION_ROLLING_MASK)
+		recoveredMask := (^jobVersion & nVersion) | (nVersion & constants.VERSION_ROLLING_MASK)
 
 		if recoveredMask != shareMask {
-			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", ver, shareMask, recoveredMask)
+			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", nVersion, shareMask, recoveredMask)
 			t.Fatalf("recoveredMask should be %x, got %x", shareMask, recoveredMask)
 		}
 	}
