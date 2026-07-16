@@ -39,13 +39,13 @@ type JobTemplate struct {
 // and store mining state
 type MiningJob struct {
 	Header                 wire.BlockHeader
+	CoinbaseTx             wire.MsgTx
 	CoinbasePart1          []byte
 	CoinbasePart2          []byte
 	MerkleBranch           []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
-	CoinbaseTx             *wire.MsgTx
-	CoinbaseBytes          []byte          // for faster merkle root calc
-	CoinbaseExtranonce2Idx int             // for faster merkle root calc
-	PrevBlock              *chainhash.Hash // pointer to hash in header
+	CoinbaseBytes          []byte            // for faster merkle root calc
+	CoinbaseExtranonce2Idx int               // for faster merkle root calc
+	PrevBlock              *chainhash.Hash   // pointer to hash in header
 	NetworkDiff            float64
 	ID                     uint64
 	MinTime                int64

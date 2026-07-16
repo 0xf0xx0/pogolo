@@ -836,7 +836,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	return MiningJob{
 		ID:                     template.ID,
 		Header:                 blockHeader,
-		CoinbaseTx:             coinbaseTx,
+		CoinbaseTx:             *coinbaseTx,
 		CoinbaseBytes:          serializedCoinbaseTx,
 		CoinbaseExtranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
 		Version:                blockHeader.Version,
