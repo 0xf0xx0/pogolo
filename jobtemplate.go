@@ -23,8 +23,9 @@ import (
 // and is sent to clients to be turned into a MiningJob
 type JobTemplate struct {
 	Header       wire.BlockHeader // copied by clients
-	CoinbaseTx   *wire.MsgTx      // copied by clients
 	MerkleBranch []*chainhash.Hash
+	CoinbaseTx   *wire.MsgTx    // copied by clients
+	MsgBlock     *wire.MsgBlock /// used on block submission only
 	NetworkDiff  float64
 	ID           uint64
 	Subsidy      int64
@@ -32,7 +33,6 @@ type JobTemplate struct {
 	MinTime      int64
 	MaxTime      int64
 	Bits         [4]byte
-	MsgBlock     *wire.MsgBlock /// used on block submission only
 }
 
 // MiningJob is built from a JobTemplate and is used to construct mining.notify/NewMiningJob mesages
