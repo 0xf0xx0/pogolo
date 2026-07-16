@@ -808,13 +808,13 @@ func (client *StratumClient) readTemplateChanRoutine() {
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	block := template.MsgBlock.Copy()
-	blockHeader := block.Header
-
-	coinbaseTx := fillCoinbaseTx(client.ID, client.User, block, template.Subsidy)
+	blockHeader := template.Header
+	/// copy the coinbase, we don't wanna share it now x3
+	coinbaseTx := addCoinbasePayout(client.ID, client.User, template.CoinbaseTx.Copy(), template.Subsidy)
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx)
 
+	/// serialize and split coinbase for clients
 	inputScript := coinbaseTx.TxIn[0].SignatureScript
 	/// find the split point, right after the input
 	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)

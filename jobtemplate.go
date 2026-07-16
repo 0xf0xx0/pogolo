@@ -22,7 +22,8 @@ import (
 // a JobTemplate is built from a getblocktemplate call,
 // and is sent to clients to be turned into a MiningJob
 type JobTemplate struct {
-	MsgBlock     wire.MsgBlock
+	Header       wire.BlockHeader // copied by clients
+	CoinbaseTx   *wire.MsgTx      // copied by clients
 	MerkleBranch []*chainhash.Hash
 	NetworkDiff  float64
 	ID           uint64
@@ -31,6 +32,7 @@ type JobTemplate struct {
 	MinTime      int64
 	MaxTime      int64
 	Bits         [4]byte
+	MsgBlock     *wire.MsgBlock /// used on block submission only
 }
 
 // MiningJob is built from a JobTemplate and is used to construct mining.notify/NewMiningJob mesages
@@ -172,7 +174,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	currTemplateID++
 	job := &JobTemplate{
 		ID:           currTemplateID,
-		MsgBlock:     block,
+		MsgBlock:     &block,
+		Header:       block.Header,
+		CoinbaseTx:   block.Transactions[0].Copy(), /// TODO: verify if we need to copy
 		MerkleBranch: merkleBranch,
 		Bits:         [4]byte(bits),
 		NetworkDiff:  calcNetworkDifficulty(headerBits),

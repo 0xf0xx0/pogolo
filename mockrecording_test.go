@@ -122,7 +122,7 @@ func getCoinbaseTx() *wire.MsgTx {
 	addr := getAddr()
 	job, _ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	en1, _ := stratum.DecodeID(MOCK_EXTRANONCE)
-	tx := fillCoinbaseTx(en1, addr, job.MsgBlock.Copy(), job.Subsidy)
+	tx := addCoinbasePayout(en1, addr, job.CoinbaseTx, job.Subsidy)
 	return tx
 }
 func hexDec(s string) []byte {

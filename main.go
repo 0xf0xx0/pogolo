@@ -597,7 +597,10 @@ func backendRoutine(ctx context.Context) {
 				}
 			case submission := <-submissionChan:
 				{
+					currTemplateLock.RLock()
 					block := btcutil.NewBlock(currTemplate.MsgBlock.Copy())
+					currTemplateLock.RUnlock()
+
 					msgBlock := block.MsgBlock()
 					msgBlock.Header = submission.Header
 					msgBlock.Transactions[0] = submission.Coinbase

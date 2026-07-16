@@ -197,10 +197,9 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 // thank you btcd devs for doin all this boilerplate work
 //
 // fill the coinbase with the client-specific data
-func fillCoinbaseTx(en1 stratum.ID, addr address.Address, block *wire.MsgBlock, subsidy int64) *wire.MsgTx {
+func addCoinbasePayout(en1 stratum.ID, addr address.Address, coinbaseMsgTx *wire.MsgTx, subsidy int64) *wire.MsgTx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
-	coinbaseMsgTx := block.Transactions[0]
 	/// we gotta add the subsidy too
 	coinbaseMsgTx.AddTxOut(&wire.TxOut{
 		Value:    subsidy,

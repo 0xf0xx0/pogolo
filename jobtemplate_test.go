@@ -31,10 +31,10 @@ func TestCreateJobTemplate(t *testing.T) {
 	if jobBits != template.Bits {
 		t.Errorf("job bits mismatch, expected %s, got %s", template.Bits, jobBits)
 	}
-	if job.MsgBlock.Header.PrevBlock.String() != template.PreviousHash {
+	if job.Header.PrevBlock.String() != template.PreviousHash {
 		t.Errorf("job prevhash mismatch, expected %s, got %s",
 			template.PreviousHash,
-			job.MsgBlock.Header.PrevBlock.String())
+			job.Header.PrevBlock.String())
 	}
 }
 
