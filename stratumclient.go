@@ -657,6 +657,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 }
 
 // aims for the .TargetShareInterval
+// TODO: we likely need a different algo for diffs <=16, if it becomes an issue
 func (client *StratumClient) calcNextDifficulty() {
 	if client.stats.avgSubmissionDelta == 0 {
 		return
@@ -705,41 +706,9 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 	client.logf("adjusting share target to {blue}%g", newDiff)
 	return nil
 }
-func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	block := btcutil.NewBlock(template.MsgBlock.Copy())
-	blockHeader := block.MsgBlock().Header
 
-	coinbaseTx := fillCoinbaseTx(client.ID, client.User, block, template.Subsidy)
-	/// serialized without the witness, we handle that on submission
-	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
-
-	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
-	/// find the split point, right after the input
-	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
-	if partOneIndex < 0 {
-		panic("partOneIndex shoudnt be below 0")
-	}
-	partOneIndex += len(inputScript)
-
-	return MiningJob{
-		ID:             template.ID,
-		Header:         blockHeader,
-		CoinbaseTx:     coinbaseTx,
-		CoinbaseBytes:  serializedCoinbaseTx,
-		Extranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
-		Version:        blockHeader.Version,
-		MerkleBranch:   template.MerkleBranch,
-		MinTime:        template.MinTime,
-		MaxTime:        template.MaxTime,
-		NetworkDiff:    template.NetworkDiff,
-		PrevBlock:      &blockHeader.PrevBlock,
-		CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
-		CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
-		Bits:           template.Bits,
-	}
-}
-func (client *StratumClient) submitBlock(block blockSubmission) {
-	client.submissionChan <- block
+func (client *StratumClient) TemplateChannel() chan<- *JobTemplate {
+	return client.templateChan
 }
 func (client *StratumClient) readTemplateChanRoutine() {
 	for {
@@ -839,8 +808,41 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		client.currentJobMutex.Unlock()
 	}
 }
-func (client *StratumClient) TemplateChannel() chan<- *JobTemplate {
-	return client.templateChan
+func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
+	block := btcutil.NewBlock(template.MsgBlock.Copy())
+	blockHeader := block.MsgBlock().Header
+
+	coinbaseTx := fillCoinbaseTx(client.ID, client.User, block, template.Subsidy)
+	/// serialized without the witness, we handle that on submission
+	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
+
+	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
+	/// find the split point, right after the input
+	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
+	if partOneIndex < 0 {
+		panic("partOneIndex shoudnt be below 0")
+	}
+	partOneIndex += len(inputScript)
+
+	return MiningJob{
+		ID:             template.ID,
+		Header:         blockHeader,
+		CoinbaseTx:     coinbaseTx,
+		CoinbaseBytes:  serializedCoinbaseTx,
+		Extranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
+		Version:        blockHeader.Version,
+		MerkleBranch:   template.MerkleBranch,
+		MinTime:        template.MinTime,
+		MaxTime:        template.MaxTime,
+		NetworkDiff:    template.NetworkDiff,
+		PrevBlock:      &blockHeader.PrevBlock,
+		CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
+		CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
+		Bits:           template.Bits,
+	}
+}
+func (client *StratumClient) submitBlock(block blockSubmission) {
+	client.submissionChan <- block
 }
 
 // returns the nickname if set and falls back to the id

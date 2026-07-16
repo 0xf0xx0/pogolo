@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
+	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/wire/v2"
 )
 
@@ -127,6 +128,8 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		return nil, err
 	}
 	txns[0] = cb
+	/// NOTE: witness gets added furst, just cause its *unique*
+	mining.AddWitnessCommitment(txns[0], txns)
 
 	/// this merkle tree describes the block txids and will be used to create the merkle root
 	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)

@@ -22,7 +22,6 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
-	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/txscript/v2"
 	"github.com/btcsuite/btcd/wire/v2"
 	"github.com/minio/sha256-simd"
@@ -201,11 +200,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 func fillCoinbaseTx(en1 stratum.ID, addr address.Address, block *btcutil.Block, subsidy int64) *btcutil.Tx {
 	/// address is validated on client connect, we can safely assume no errors will occur
 	pkScript, _ := txscript.PayToAddrScript(addr)
-
-	coinbase := block.Transactions()[0]
-	coinbaseMsgTx := coinbase.MsgTx()
-	/// NOTE: witness gets added furst, just cause its *unique*
-	mining.AddWitnessCommitment(coinbase, block.Transactions())
+	coinbaseMsgTx := block.Transactions()[0].MsgTx()
 	/// we gotta add the subsidy too
 	coinbaseMsgTx.AddTxOut(&wire.TxOut{
 		Value:    subsidy,
@@ -214,7 +209,7 @@ func fillCoinbaseTx(en1 stratum.ID, addr address.Address, block *btcutil.Block, 
 	/// pre-fill extranonce1
 	sigscriptLen := len(coinbaseMsgTx.TxIn[0].SignatureScript)
 	copy(coinbaseMsgTx.TxIn[0].SignatureScript[sigscriptLen-(constants.EXTRANONCE_SIZE+int(conf.ExtraNonce2Size)):], en1.Bytes())
-	return coinbase
+	return block.Transactions()[0]
 }
 
 // shamelessly stolen from m45core lol
