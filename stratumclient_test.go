@@ -147,13 +147,16 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 }
 
 func TestVersionValidationEdgeCase(t *testing.T) {
+	/// set job version
 	conf.BIPVersionBits = 0x20000020
 	lpipe, _ := ezInitSv1Client(t, true)
 
+	/// explicitly set version mask to 0
 	submitParams.VersionMask = 0
 	r := submitParams.ToRequest(20)
 	/// expected hash: 00000001cac12f82479784bf2687b6cf5f455f5912b3c88e0c6e97bf6dc643c3
 	res := sendSv1ReqAndWaitForRes(t, r, lpipe)
+	/// reset state for later tests
 	submitParams.VersionMask = -1
 	conf.BIPVersionBits = 0
 
