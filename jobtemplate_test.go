@@ -58,7 +58,7 @@ func TestJobmaxTime(t *testing.T) {
 
 func TestValidateCoinbaseScript(t *testing.T) {
 	tx := getCoinbaseTx()
-	script := tx.MsgTx().TxIn[0].SignatureScript
+	script := tx.TxIn[0].SignatureScript
 
 	if len(script) > blockchain.MaxCoinbaseScriptLen {
 		t.Errorf("coinbase script too long: %d, max %d", len(script), blockchain.MaxCoinbaseScriptLen)

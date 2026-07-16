@@ -7,7 +7,7 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
-	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/wire/v2"
 
 	"encoding/hex"
 	"encoding/json"
@@ -118,11 +118,11 @@ func getAddr() address.Address {
 	addr, _ := address.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
 	return addr
 }
-func getCoinbaseTx() *btcutil.Tx {
+func getCoinbaseTx() *wire.MsgTx {
 	addr := getAddr()
 	job, _ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
 	en1, _ := stratum.DecodeID(MOCK_EXTRANONCE)
-	tx := fillCoinbaseTx(en1, addr, btcutil.NewBlock(&job.MsgBlock), job.Subsidy)
+	tx := fillCoinbaseTx(en1, addr, job.MsgBlock.Copy(), job.Subsidy)
 	return tx
 }
 func hexDec(s string) []byte {

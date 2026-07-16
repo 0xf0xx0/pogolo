@@ -50,7 +50,6 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
-	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/wire/v2"
 )
@@ -809,14 +808,14 @@ func (client *StratumClient) readTemplateChanRoutine() {
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	block := btcutil.NewBlock(template.MsgBlock.Copy())
-	blockHeader := block.MsgBlock().Header
+	block := template.MsgBlock.Copy()
+	blockHeader := block.Header
 
 	coinbaseTx := fillCoinbaseTx(client.ID, client.User, block, template.Subsidy)
 	/// serialized without the witness, we handle that on submission
-	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx.MsgTx())
+	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx)
 
-	inputScript := coinbaseTx.MsgTx().TxIn[0].SignatureScript
+	inputScript := coinbaseTx.TxIn[0].SignatureScript
 	/// find the split point, right after the input
 	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
 	if partOneIndex < 0 {
@@ -825,20 +824,20 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	partOneIndex += len(inputScript)
 
 	return MiningJob{
-		ID:             template.ID,
-		Header:         blockHeader,
-		CoinbaseTx:     coinbaseTx,
-		CoinbaseBytes:  serializedCoinbaseTx,
-		Extranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
-		Version:        blockHeader.Version,
-		MerkleBranch:   template.MerkleBranch,
-		MinTime:        template.MinTime,
-		MaxTime:        template.MaxTime,
-		NetworkDiff:    template.NetworkDiff,
-		PrevBlock:      &blockHeader.PrevBlock,
-		CoinbasePart1:  serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
-		CoinbasePart2:  serializedCoinbaseTx[partOneIndex:],
-		Bits:           template.Bits,
+		ID:                     template.ID,
+		Header:                 blockHeader,
+		CoinbaseTx:             coinbaseTx,
+		CoinbaseBytes:          serializedCoinbaseTx,
+		CoinbaseExtranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
+		Version:                blockHeader.Version,
+		MerkleBranch:           template.MerkleBranch,
+		MinTime:                template.MinTime,
+		MaxTime:                template.MaxTime,
+		NetworkDiff:            template.NetworkDiff,
+		PrevBlock:              &blockHeader.PrevBlock,
+		CoinbasePart1:          serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
+		CoinbasePart2:          serializedCoinbaseTx[partOneIndex:],
+		Bits:                   template.Bits,
 	}
 }
 func (client *StratumClient) submitBlock(block blockSubmission) {
@@ -1053,7 +1052,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		submission := blockSubmission{
 			ClientID: client.ID,
 			Header:   h,
-			Coinbase: client.CurrentJob.CoinbaseTx.MsgTx().Copy(),
+			Coinbase: client.CurrentJob.CoinbaseTx.Copy(),
 			Share:    share,
 		}
 
