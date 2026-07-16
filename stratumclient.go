@@ -808,14 +808,24 @@ func (client *StratumClient) readTemplateChanRoutine() {
 	}
 }
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
-	blockHeader := template.Header
+	blockHeader := wire.BlockHeader{
+		Version:    template.Header.Version,
+		PrevBlock:  chainhash.Hash(template.Header.PrevBlock.CloneBytes()),
+		MerkleRoot: chainhash.Hash(template.Header.MerkleRoot.CloneBytes()),
+		Timestamp:  template.Header.Timestamp,
+		Bits:       template.Header.Bits,
+		Nonce:      template.Header.Nonce,
+	}
+
 	/// copy the coinbase, we don't wanna share it now x3
 	coinbaseTx := addCoinbasePayout(client.ID, client.User, template.CoinbaseTx.Copy(), template.Subsidy)
+
 	/// serialized without the witness, we handle that on submission
 	serializedCoinbaseTx := serializeCoinbaseTx(coinbaseTx)
 
-	/// serialize and split coinbase for clients
+	/// split coinbase for clients
 	inputScript := coinbaseTx.TxIn[0].SignatureScript
+
 	/// find the split point, right after the input
 	partOneIndex := bytes.Index(serializedCoinbaseTx, inputScript)
 	if partOneIndex < 0 {
@@ -1043,8 +1053,8 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		/// copy header and coinbase to avoid overwrites
 		h := wire.BlockHeader{
 			Version:    updatedHeader.Version,
-			PrevBlock:  updatedHeader.PrevBlock,
-			MerkleRoot: updatedHeader.MerkleRoot,
+			PrevBlock:  chainhash.Hash(updatedHeader.PrevBlock.CloneBytes()),
+			MerkleRoot: chainhash.Hash(updatedHeader.MerkleRoot.CloneBytes()),
 			Timestamp:  updatedHeader.Timestamp,
 			Bits:       updatedHeader.Bits,
 			Nonce:      updatedHeader.Nonce,
