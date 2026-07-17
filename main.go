@@ -547,7 +547,7 @@ func backendRoutine(ctx context.Context) {
 				{
 					if count, err := backend.GetBlockCount(); err == nil {
 						currTemplateLock.RLock()
-						if count >= currTemplate.Height {
+						if uint64(count) >= currTemplate.Height {
 							triggerGBT <- struct{}{}
 						}
 						currTemplateLock.RUnlock()
@@ -600,6 +600,7 @@ func backendRoutine(ctx context.Context) {
 				{
 					currTemplateLock.RLock()
 					block := btcutil.NewBlock(currTemplate.MsgBlock.Copy())
+					block.SetHeight(int32(currTemplate.Height))
 					currTemplateLock.RUnlock()
 
 					msgBlock := block.MsgBlock()
