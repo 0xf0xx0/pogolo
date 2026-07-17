@@ -38,6 +38,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -101,7 +102,7 @@ var (
 	currTemplateLock sync.RWMutex
 	submissionChan   = make(chan blockSubmission, 3) /// global cause it gets passed around :\
 	triggerGBT       = make(chan struct{}, 1)        /// ditto cause of websocket
-	foundBlocks      = make([]string, 0, 3)          /// not gonna bother mutexing this unless it becomes an issue
+	foundBlocks      = make([]solvedBlock, 0, 3)     /// not gonna bother mutexing this unless it becomes an issue
 	serverStartTime  time.Time
 
 	/// sv2
@@ -610,10 +611,29 @@ func backendRoutine(ctx context.Context) {
 						globalLogError(fmt.Sprintf("error from backend while submitting block: %s", err))
 						continue
 					}
-					client, _ := clients.Get(submission.ClientID)
+					/// one day pogolo will win a block, reload, and win a second back to back
+					/// im manifesting it now
+					triggerGBT <- struct{}{}
+
+					/// do vanity things
+					client, ok := clients.Get(submission.ClientID)
+					if !ok {
+						/// ???
+						continue
+					}
 					shareHash := msgBlock.Header.BlockHash()
 					shareDiff := calcDifficulty(shareHash)
-					foundBlocks = append(foundBlocks, shareHash.String())
+					solved := solvedBlock{
+						Gopher:      client.Name(),
+						Hash:        shareHash,
+						Diff:        shareDiff,
+						Height:      uint64(block.Height()),
+						Nonce:       submission.Header.Nonce,
+						Extranonce2: hex.EncodeToString(submission.Share.Extranonce2),
+						Version:     submission.Header.Version,
+						Timestamp:   uint64(submission.Header.Timestamp.Unix()),
+					}
+					foundBlocks = append(foundBlocks, solved)
 					globalLog(fmt.Sprintf(
 						"{bold}{green}=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}==<BL00K FOUND>=={yellow}[!]{/yellow}=={/bold}\n{/green}gopher: {green}%s{/green}\nhash: {green}%s{/green}\ndifficulty: {green}%s{/green}\nnonce: {green}%08x{/green}\nextranonce: {blue}%s{green}%x",
 						client.Name(),
@@ -624,10 +644,6 @@ func backendRoutine(ctx context.Context) {
 						submission.Share.Extranonce2,
 					))
 					// log(fmt.Sprintf("%d %d", seeda, seedb))
-
-					/// one day pogolo will win a block, reload, and win a second back to back
-					/// im manifesting it now
-					triggerGBT <- struct{}{}
 				}
 			}
 		}

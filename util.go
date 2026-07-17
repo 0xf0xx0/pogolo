@@ -36,16 +36,6 @@ var (
 	maxTargetFloat = float64(math.Pow(2, 208) * 65535)
 )
 
-// stores solved block info
-// TODO: use
-type solvedBlock struct {
-	Gopher string         `json:"gopher"`
-	Hash   chainhash.Hash `json:"hash"`
-	Diff   float64        `json:"diff"`
-	Height uint64         `json:"height"`
-	Id     stratum.ID     `json:"extranonce1"`
-}
-
 // basically typed sync.Map
 type clientMap struct {
 	lock  sync.RWMutex

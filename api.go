@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -47,9 +48,20 @@ type getInfoRes struct {
 	BestDiff      float64          `json:"bestDifficulty"`
 	Tag           string           `json:"tag"`
 	Workers       []miniWorkerInfo `json:"gophers"`
-	BlocksFound   []string         `json:"blocksFound"`
+	BlocksFound   []solvedBlock    `json:"blocksFound"`
 }
 
+// stores solved block info
+type solvedBlock struct {
+	Hash        chainhash.Hash `json:"hash"`
+	Gopher      string         `json:"gopher"`
+	Extranonce2 string         `json:"extranonce2"`
+	Diff        float64        `json:"difficulty"`
+	Timestamp   uint64         `json:"timestamp"`
+	Height      uint64         `json:"height"`
+	Nonce       uint32         `json:"nonce"`
+	Version     int32          `json:"version"`
+}
 type pogoloMetrics struct {
 	TotalWorkers   prometheus.Gauge
 	TotalHashrate  prometheus.Gauge

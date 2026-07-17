@@ -34,9 +34,9 @@ components:
           description: In seconds
         blocksFound:
           type: array
-          description: Array of block hashes
+          description: Array of FoundBlockInfo
           items:
-            type: string
+            $ref: "#/components/schemas/FoundBlockInfo"
         blockHeight:
           type: integer
           description: The height the pool is mining at
@@ -113,6 +113,39 @@ components:
         userAgent:
           type: string
 
+    FoundBlockInfo:
+      type: object
+      required:
+        - difficulty
+        - extranonce2
+        - gopher
+        - hash
+        - height
+        - nonce
+        - timestamp
+        - version
+      properties:
+        difficulty:
+          type: number
+        extranonce2:
+          type: string
+        gopher:
+          type: string
+          description: Gopher nickname or ID
+        hash:
+          type: string
+          description: Byte-reversed block hash
+        height:
+          type: integer
+        nonce:
+          type: integer
+          description: Header nonce
+        timestamp:
+          type: integer
+          description: In seconds since unix epoch
+        version:
+          type: integer
+          description: Header version
 paths:
   /api/v1/info:
     get:
