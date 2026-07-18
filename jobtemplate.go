@@ -176,7 +176,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		ID:           currTemplateID,
 		MsgBlock:     &block,
 		Header:       block.Header,
-		CoinbaseTx:   block.Transactions[0].Copy(), /// TODO: verify if we need to copy
+		CoinbaseTx:   block.Transactions[0],
 		MerkleBranch: merkleBranch,
 		Bits:         [4]byte(bits),
 		NetworkDiff:  calcNetworkDifficulty(headerBits),
