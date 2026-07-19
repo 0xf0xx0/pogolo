@@ -2,11 +2,10 @@
 /pogolo - decentralize or die/
 ```
 
-solo db-less bitcoin-only mining pool  
-meant for lan swarms, not the internet  
+solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet;  
+start it, point your miners to it, and watch the logs roll by  
 think of this as public-pool but minimal and for self-sovereign nerds  
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
-start it, point your miners to it, and watch the logs roll by
 
 ![cpuminer on regtest](./showoff.png)
 [![Get pogolo on umbrelOS](https://apps.umbrel.com/api/app/pogolo/badge-dark.svg)](https://apps.umbrel.com/app/pogolo)
@@ -79,7 +78,7 @@ copy the pogolo.toml from [`contrib/pkgs/docker`](./contrib/pkgs/docker), config
 docker run -d -v "./pogolo.toml:/config/pogolo.toml" 0xf0xx0/pogolo:latest
 ```
 
-docker (+compose) files exist and work but likely need tweaks, theyre also under [`contrib/pkgs/docker`](./contrib/pkgs/docker)
+docker compose exists but likely needs tweaks, its also under [`contrib/pkgs/docker`](./contrib/pkgs/docker)
 
 ### environment overrides
 

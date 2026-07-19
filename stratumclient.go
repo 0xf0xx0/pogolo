@@ -1045,7 +1045,6 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		return
 	}
 	/// add to dupe map
-	/// TODO: toggle this in tests
 	client.shareHashes[shareHash] = struct{}{}
 
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
