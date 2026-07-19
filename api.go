@@ -1,9 +1,11 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/btcsuite/btcd/chainhash/v2"
@@ -18,6 +20,9 @@ import (
 const API_PFX = "/api"
 const API_VER = 1
 const METRICS_NAMESPACE = "pogolo"
+
+//go:embed openapi.yaml
+var embeddedSwagger []byte
 
 type detailedWorkerInfo struct {
 	Extranonce1     string  `json:"extranonce1"`
@@ -118,8 +123,12 @@ func initAPI() {
 
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
-	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
+	http.HandleFunc("/openapi.yaml", func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Content-Type", "application/yaml")
+		writeResponse(res, embeddedSwagger)
+	})
 
+	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
 	http.HandleFunc("GET /metrics", func(res http.ResponseWriter, req *http.Request) {
 		allClientStats := clients.AllStats()
 		allClientsLen := clients.Len()
@@ -185,7 +194,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		TotalHashrate: hashrateSum / 1e6,
 		BestDiff:      bestDiff,
 		TotalWorkers:  uint64(len(allClients)),
-		BlockHeight:   uint64(currTemplate.Height),
+		BlockHeight:   currTemplate.Height,
 		BlocksFound:   foundBlocks,
 	})
 }
@@ -220,7 +229,8 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 func writeError(res http.ResponseWriter, code int, msg string) error {
 	res.WriteHeader(code)
 	if msg != "" {
-		return writeResponse(res, []byte(fmt.Sprintf(`{"error":%q}`, msg)))
+		res.Header().Set("Content-Type", "application/json")
+		return writeResponse(res, fmt.Appendf(nil, `{"error":%q}`, msg))
 	}
 	return nil
 }
@@ -230,13 +240,14 @@ func marshalAndWrite(res http.ResponseWriter, v any) error {
 		writeError(res, http.StatusInternalServerError, "")
 		return err
 	}
+	res.Header().Set("Content-Type", "application/json")
 	return writeResponse(res, x)
 }
 
 func writeResponse(res http.ResponseWriter, x []byte) error {
-	res.Header().Set("Content-Type", "application/json")
 	res.Header().Set("Server", NAME+"/"+VERSION)
 	res.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	res.Header().Set("Content-Length", strconv.Itoa(len(x)))
 	_, err := res.Write(x)
 	return err
 }

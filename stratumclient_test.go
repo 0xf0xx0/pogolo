@@ -168,7 +168,7 @@ func TestVersionValidationEdgeCase(t *testing.T) {
 func TestVersionValidation(t *testing.T) {
 	jobVersion := uint32(0x20202020)
 
-	for i := uint32(0); i < 0xffffffff; i++ {
+	for i := range uint32(0xffffffff) {
 		/// this efffectively rolls the version bits
 		shareMask := i & constants.VERSION_ROLLING_MASK
 		/// do bip 310 nVersion calc...
