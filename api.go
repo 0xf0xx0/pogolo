@@ -123,7 +123,7 @@ func initAPI() {
 
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
-	http.HandleFunc("/openapi.yaml", func(res http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("GET /openapi.yaml", func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "application/yaml")
 		writeResponse(res, embeddedSwagger)
 	})

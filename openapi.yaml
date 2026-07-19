@@ -178,3 +178,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GopherInfo"
+
+  /openapi.yaml:
+    get:
+      summary: Get this Swagger spec
+      operationId: getSwagger
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /metrics:
+    get:
+      summary: Get prometheus metrics
+      operationId: getMetrics
+      responses:
+        "200":
+          description: "Success"
+          content:
+            text/plain; version=0.0.4:
+              schema:
+                type: string
