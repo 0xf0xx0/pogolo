@@ -26,7 +26,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
 - colorful and detailed logs (respects NO_COLOR)
-- read-only api (see api.go and swagger spec)
+- read-only api
 - zmq and btcd websocket support
 - up to 160k shares/sec
 
@@ -57,6 +57,10 @@ pogolo has no tls support.
 - miners requiring extranonce.subscribe
 - luckyminers/other non-foss axe clones
 - stratum v2 (temporarily)
+
+## api
+
+the api is documented in [`openapi.yaml`](./openapi.yaml), and exposed at `/openapi.yaml`.
 
 # install
 
