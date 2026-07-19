@@ -128,7 +128,10 @@ func initAPI() {
 		writeResponse(res, embeddedSwagger)
 	})
 
-	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
+	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{
+		Timeout:           5 * time.Second,
+		EnableOpenMetrics: true,
+	})
 	http.HandleFunc("GET /metrics", func(res http.ResponseWriter, req *http.Request) {
 		allClientStats := clients.AllStats()
 		allClientsLen := clients.Len()
@@ -177,12 +180,10 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		/// also skip found blocks cause if currTemplate is nil the backend node
 		/// hasnt fully inited
 		marshalAndWrite(res, getInfoRes{
-			Uptime:        uint64(time.Since(serverStartTime).Seconds()),
-			Workers:       workerStats,
-			Tag:           conf.Tag,
-			TotalHashrate: hashrateSum / 1e6,
-			BestDiff:      bestDiff,
-			TotalWorkers:  uint64(len(allClients)),
+			Uptime:       uint64(time.Since(serverStartTime).Seconds()),
+			Workers:      workerStats,
+			Tag:          conf.Tag,
+			TotalWorkers: uint64(len(allClients)),
 		})
 		return
 	}
