@@ -199,9 +199,9 @@ func main() {
 			}
 
 			if cmd.String("writedefaultconf") != "" {
-				WriteDefaultConfig(cmd.String("writedefaultconf"))
-				return nil
+				return WriteDefaultConfig(cmd.String("writedefaultconf"))
 			}
+
 			/// set defaults
 			DeepCopyConfig(&conf, &DEFAULT_CONFIG)
 			if passedConfig := cmd.String("conf"); passedConfig != "" && passedConfig != "none" {
@@ -227,11 +227,11 @@ func main() {
 			if auth := cmd.String("BACKEND_RPCAUTH"); auth != "" {
 				conf.Rpcauth = auth
 			}
-			if host := cmd.String("POGOLO_HOST"); host != "" {
-				conf.Pogolo.Host = host
-			}
 			if zmq := cmd.String("BACKEND_ZMQHOST"); zmq != "" {
 				conf.ZMQHost = zmq
+			}
+			if host := cmd.String("POGOLO_HOST"); host != "" {
+				conf.Pogolo.Host = host
 			}
 
 			/// create logfile
@@ -299,12 +299,12 @@ func main() {
 				return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.EXIT_BACKEND)
 			}
 
-			mininginfo, err := backend.GetBlockChainInfo()
+			chainInfo, err := backend.GetBlockChainInfo()
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("failed to get chain info: %s", err), constants.EXIT_BACKEND)
 			}
 
-			switch mininginfo.Chain {
+			switch chainInfo.Chain {
 			case "mainnet":
 				fallthrough
 			case "main":
@@ -329,7 +329,7 @@ func main() {
 				}
 			default:
 				{
-					return cli.Exit(fmt.Sprintf("what's a %q? (unknown backend chain)", mininginfo.Chain), constants.EXIT_BACKEND)
+					return cli.Exit(fmt.Sprintf("what's a %q? (unknown backend chain)", chainInfo.Chain), constants.EXIT_BACKEND)
 				}
 			}
 
@@ -568,7 +568,7 @@ func backendRoutine(ctx context.Context) {
 			go getBlockCountPoll()
 		}
 	} else if conf.ZMQHost != "" {
-		// implicitly add tcp:// as required by zmq4
+		/// implicitly add tcp:// as required by zmq4
 		if !strings.HasPrefix(conf.ZMQHost, "tcp://") {
 			conf.ZMQHost = "tcp://" + conf.ZMQHost
 		}

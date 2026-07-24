@@ -487,16 +487,6 @@ func globalLogError(s string) {
 	println(s)
 }
 
-func simdCoinbaseTxHash(msgTx *wire.MsgTx) chainhash.Hash {
-	h := sha256.New()
-	msgTx.SerializeNoWitness(h)
-	temp := make([]byte, 0, 32)
-	first := h.Sum(temp)
-	h.Reset()
-	h.Write(first)
-	return chainhash.Hash(h.Sum(temp))
-}
-
 func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 	h := sha256.New()
 	header.Serialize(h)
