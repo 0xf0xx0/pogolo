@@ -25,7 +25,7 @@ type shareAcceptLog struct {
 
 func (l shareAcceptLog) String() string {
 	sb := strings.Builder{}
-	sb.Grow(2048)
+	sb.Grow(341 + int(conf.ExtraNonce2Size))
 	sb.WriteString("diff {blue}")
 	sb.WriteString(formatDifficulty(l.shareDiff))
 	sb.WriteString("{/blue} of {blue}")
@@ -48,5 +48,21 @@ func (l shareAcceptLog) String() string {
 	sb.WriteString(strconv.FormatFloat(l.delta, 'f', 3, 64))
 	sb.WriteString("{/blue}")
 
+	return sb.String()
+}
+
+type shareRejectLog struct {
+	shareDiff  float64
+	targetDiff float64
+}
+
+func (l shareRejectLog) String() string {
+	sb := strings.Builder{}
+	sb.Grow(40)
+	sb.WriteString("share rejected: diff too low (")
+	sb.WriteString(formatDifficulty(l.shareDiff))
+	sb.WriteString("/")
+	sb.WriteString(formatDifficulty(l.targetDiff))
+	sb.WriteString(")")
 	return sb.String()
 }

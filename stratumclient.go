@@ -90,6 +90,9 @@ type StratumClient struct {
 	submissionChan      chan<- blockSubmission
 	protocol            uint8
 	extendedChannel     bool
+
+	logPrefix    string
+	errLogPrefix string
 }
 
 func (client *StratumClient) Run(ctx context.Context) {
@@ -896,6 +899,22 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 		decoded = defaultMiningAddr
 	}
 	client.User = decoded
+
+	/// create log prefixes
+	nameLen := len(client.Name())
+	sb := strings.Builder{}
+	sb.Grow(17 + nameLen)
+	sb.WriteString("[{green}")
+	sb.WriteString(client.Name())
+	sb.WriteString("{/green}] ")
+	client.logPrefix = sb.String()
+
+	sb.Reset()
+	sb.Grow(29 + nameLen)
+	sb.WriteString("{cyan}[{/cyan}")
+	sb.WriteString(client.Name())
+	sb.WriteString("{cyan}]{/cyan} ")
+	client.errLogPrefix = sb.String()
 	return true
 }
 func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget stratumv2.U256, nominalHashRate float32) bool {
@@ -1027,7 +1046,11 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		client.logErrorf("share rejected: diff too low (%.5g/%g)", shareDiff, client.TargetDifficulty)
+		l := shareRejectLog{
+			shareDiff:  shareDiff,
+			targetDiff: client.TargetDifficulty,
+		}
+		client.logError(l.String())
 		return
 	}
 
@@ -1152,10 +1175,8 @@ func (client *StratumClient) logf(s string, a ...any) {
 }
 func (client *StratumClient) log(s string) {
 	sb := strings.Builder{}
-	sb.Grow(len(s) + 64)
-	sb.WriteString("[{green}")
-	sb.WriteString(client.Name())
-	sb.WriteString("{/green}] ")
+	sb.Grow(len(s) + 32)
+	sb.WriteString(client.logPrefix)
 	sb.WriteString(s)
 	globalLog(sb.String())
 }
@@ -1164,10 +1185,8 @@ func (client *StratumClient) logErrorf(s string, a ...any) {
 }
 func (client *StratumClient) logError(s string) {
 	sb := strings.Builder{}
-	sb.Grow(len(s) + 64)
-	sb.WriteString("{cyan}[{/cyan}")
-	sb.WriteString(client.Name())
-	sb.WriteString("{cyan}]{/cyan} ")
+	sb.Grow(len(s) + 32)
+	sb.WriteString(client.errLogPrefix)
 	sb.WriteString(s)
 	globalLogError(sb.String())
 }
