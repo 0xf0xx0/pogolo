@@ -658,6 +658,10 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 // aims for the .TargetShareInterval
 // TODO: we likely need a different algo for diffs <=16, if it becomes an issue
 func (client *StratumClient) calcNextDifficulty() {
+	/// ignore diffs below 1, this diff routine is optimized for high-power miners
+	if client.TargetDifficulty < 1.0 {
+		return
+	}
 	if client.stats.avgSubmissionDelta == 0 {
 		return
 	}
