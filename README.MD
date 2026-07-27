@@ -155,11 +155,9 @@ to reproduce shares/s result:
 benchmark with https://github.com/eandersson/open-pool-benchmark
 
 # TODO
-- optimize hot path further
 - link stratum and mining docs  
    waiting for bip 41  
    https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
-- option to add workername to coinbase scriptsig?
-- prometheus metrics
+- prometheus metrics (half-done)
     - block submission metrics
 - aur packages (needs a maintainer)

@@ -254,7 +254,7 @@ func (client *StratumClient) startMining() {
 	))
 
 	if defaultMiningAddr != nil && client.User.EncodeAddress() == defaultMiningAddr.EncodeAddress() {
-		client.logf("{yellow}mining to pool address")
+		client.log("{yellow}mining to pool address")
 	}
 	/// the client may have suggested a difficulty before fully initialized
 	/// if they haven't, we alert them to our default diff here
@@ -1046,7 +1046,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.stats.sharesRejected++
-		l := shareRejectLog{
+		l := diffTooLowLog{
 			shareDiff:  shareDiff,
 			targetDiff: client.TargetDifficulty,
 		}
@@ -1093,7 +1093,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		}
 
 		client.submitBlock(submission)
-		client.logf("{yellow}block candidate submitted")
+		client.log("{yellow}block candidate submitted")
 	}
 
 	if m != nil {
@@ -1111,7 +1111,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	/// vanity things
 	if shareDiff > client.stats.bestDiff {
 		client.stats.bestDiff = shareDiff
-		client.logf("{green}new best session diff!")
+		client.log("{green}new best session diff!")
 	}
 	client.stats.sharesAccepted++
 	/// update with the target diff for a more accurate estimation

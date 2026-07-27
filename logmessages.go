@@ -51,12 +51,12 @@ func (l shareAcceptLog) String() string {
 	return sb.String()
 }
 
-type shareRejectLog struct {
+type diffTooLowLog struct {
 	shareDiff  float64
 	targetDiff float64
 }
 
-func (l shareRejectLog) String() string {
+func (l diffTooLowLog) String() string {
 	sb := strings.Builder{}
 	sb.Grow(40)
 	sb.WriteString("share rejected: diff too low (")
