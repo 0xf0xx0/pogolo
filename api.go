@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -202,10 +203,15 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 
 // Takes a name (id or worker name) and returns a snapshot of the matching client, if any
 func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
-	name := req.PathValue("idOrNickname")
+	name, err := url.QueryUnescape(req.PathValue("idOrNickname"))
+	if err != nil {
+		globalLogError(fmt.Sprintf("failed to decode client name: %q", name))
+		writeError(res, http.StatusBadRequest, "failed to decode client name")
+		return
+	}
 	worker := getClientFromNameOrID(name)
 	if worker == nil {
-		globalLogError(fmt.Sprintf("failed to find client %s", name))
+		globalLogError(fmt.Sprintf("failed to find client %q", name))
 		writeError(res, http.StatusBadRequest, "failed to find client")
 		return
 	}
