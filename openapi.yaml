@@ -159,7 +159,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/InfoResponse"
 
-  /api/v1/gopher/{idOrNickname}:
+  /api/v1/gophers:
+    get:
+      summary: Get snapshot of all gophers stats
+      operationId: getInfo
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GopherInfo"
+
+  /api/v1/gophers/{idOrNickname}:
     get:
       summary: Get snapshot of a gophers stats
       operationId: getGopherInfo

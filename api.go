@@ -123,7 +123,8 @@ func initAPI() {
 	// TODO: figure out how to update metrics without creating races and/or bogging down everything else
 
 	http.HandleFunc(pfx+"/info", getInfo)
-	http.HandleFunc(pfx+"/gopher/{idOrNickname}", getWorkerInfo)
+	http.HandleFunc(pfx+"/gophers", getAllWorkerInfo)
+	http.HandleFunc(pfx+"/gophers/{idOrNickname}", getWorkerInfo)
 	http.HandleFunc("GET /openapi.yaml", func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "application/yaml")
 		writeResponse(res, embeddedSwagger)
@@ -199,6 +200,28 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		BlockHeight:   currTemplate.Height,
 		BlocksFound:   foundBlocks,
 	})
+}
+
+func getAllWorkerInfo(res http.ResponseWriter, req *http.Request) {
+	workers := clients.All()
+	info := make([]detailedWorkerInfo, len(workers))
+	for idx, worker := range workers {
+		info[idx] = detailedWorkerInfo{
+			Address:         worker.User.EncodeAddress(),
+			Nickname:        worker.Nickname,
+			UserAgent:       worker.UserAgent,
+			Extranonce1:     worker.ID.String(),
+			Hashrate:        worker.stats.HashrateMH(),
+			TargetDiff:      worker.TargetDifficulty,
+			BestDiff:        worker.stats.bestDiff,
+			AcceptedShares:  worker.stats.sharesAccepted,
+			RejectedShares:  worker.stats.sharesRejected,
+			Uptime:          worker.stats.Uptime(),
+			AvgShareTime:    worker.stats.avgSubmissionDelta,
+			ProtocolVersion: worker.protocol,
+		}
+	}
+	marshalAndWrite(res, info)
 }
 
 // Takes a name (id or worker name) and returns a snapshot of the matching client, if any
