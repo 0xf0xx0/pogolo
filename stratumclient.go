@@ -124,9 +124,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		return
 		/// perform handshake
 		pawshake := &stratumv2.HandshakeState{}
-		connWriter := bufio.NewWriter(client.conn)
-		rw := bufio.ReadWriter{Reader: r, Writer: connWriter}
-		pawshake.PerformHandshakeResponder(rw, sv2Cert, sv2StaticKeypair)
+		pawshake.PerformHandshakeResponder(client.conn, sv2Cert, sv2StaticKeypair)
 
 		/// 1. handle SetupConnection
 		frame := stratumv2.Frame{}
@@ -491,6 +489,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 			client.logErrorf("stratum decode error: %s", err)
 			return
 		}
+		// client.logErrorf("%+v", m)
 
 		switch m.GetMethod() {
 		case stratum.MethodMiningSubmit:
@@ -597,6 +596,10 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_ACCEPTED))
 					return
 				}
+				if params.Extranonce1 != nil {
+					client.ID = *params.Extranonce1
+					client.logf("got extranonce %s", client.ID)
+				}
 				responseParams := stratum.MiningSubscribeResult{
 					Subscriptions: []stratum.MiningSubscription{
 						{
@@ -637,7 +640,8 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 			}
 		case stratum.MethodMiningExtranonceSubscribe:
 			{
-				client.writeSv1Msg(m.RespondError(constants.ERROR_UNSUPP_METHOD))
+				/// we dont care
+				client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 			}
 		default:
 			{
@@ -1138,6 +1142,8 @@ func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 		client.logErrorf("failed to marshal message: %s", err)
 		return err
 	}
+
+	client.logErrorf("%s", b)
 
 	return client.writeConn(b)
 }
