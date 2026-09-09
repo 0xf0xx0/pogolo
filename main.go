@@ -358,6 +358,14 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
+	/// TODO: allow for setting static auth key
+	var err error
+	sv2AuthorityKeypair = stratumv2.GenerateKeypair()
+	sv2StaticKeypair = stratumv2.GenerateKeypair()
+	sv2Cert, err = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, stratumv2.Pubkey(sv2StaticKeypair.PublicKeyBytes()), 0, uint32(time.Now().Unix()+(2<<24)))
+	if err != nil {
+		return err
+	}
 	/// handle exit sigs
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -503,7 +511,7 @@ func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 		case conn := <-conns:
 			{
 				/// no need for a pool, pogolo will likely never handle enough clients for it to matter
-				client := CreateClient(conn, submissionChan)
+				client := createClient(conn, submissionChan)
 				go client.Run(ctx)
 			}
 		}

@@ -336,7 +336,7 @@ func validateSv1Res(req *stratum.Request, res stratum.Response, t *testing.T) {
 func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	submissionChan := make(chan blockSubmission, 8)
 	clientPipe, poolPipe := net.Pipe()
-	client := CreateClient(poolPipe, submissionChan)
+	client := createClient(poolPipe, submissionChan)
 	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(context.Background())
 	/// discard submissions

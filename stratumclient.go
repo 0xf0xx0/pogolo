@@ -90,9 +90,23 @@ type StratumClient struct {
 	submissionChan      chan<- blockSubmission
 	protocol            uint8
 	extendedChannel     bool
+	send, recv          *stratumv2.CipherState
 
 	logPrefix    string
 	errLogPrefix string
+}
+
+// shitty name, but wraps a bufio.reader and net.conn for sv2 handshake
+type wrapperRW struct {
+	r *bufio.Reader
+	c net.Conn
+}
+
+func (t *wrapperRW) Read(b []byte) (int, error) {
+	return t.r.Read(b)
+}
+func (t *wrapperRW) Write(b []byte) (int, error) {
+	return t.c.Write(b)
 }
 
 func (client *StratumClient) Run(ctx context.Context) {
@@ -118,22 +132,33 @@ func (client *StratumClient) Run(ctx context.Context) {
 		client.protocol = 1
 		client.processSv1Loop(ctx, r)
 	} else {
-		/// TODO: finish sv2 noise
-		/// for now, disable sv2 path
-		client.logError("sv2 is currently unsupported")
-		return
 		/// perform handshake
 		pawshake := &stratumv2.HandshakeState{}
-		pawshake.PerformHandshakeResponder(client.conn, sv2Cert, sv2StaticKeypair)
+		rw := &wrapperRW{
+			r: r,
+			c: client.conn,
+		}
+		recv, send, err := pawshake.PerformHandshakeResponder(rw, sv2Cert, sv2StaticKeypair)
+		if err != nil {
+			client.logErrorf("error during sv2 handshake: %s", err)
+			return
+		}
+		client.send = send
+		client.recv = recv
 
 		/// 1. handle SetupConnection
-		frame := stratumv2.Frame{}
-		if err := frame.DecodeFromReader(r); err != nil {
+
+		frame, err := recv.DecryptFrameFromReader(client.conn)
+		if err != nil {
+			client.logErrorf("error decrypting SetupConnection: %s", err)
 			return
 		}
 		if frame.MessageType != stratumv2.MessageSetupConnection {
+			client.logError("furst message not SetupConnection")
 			return
 		}
+		b, _ := frame.Encode()
+		client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 		msg := stratumv2.SetupConnection{}
 		if err = msg.Decode(frame.Payload); err != nil {
 			client.logErrorf("error decoding SetupConnection: %s", err)
@@ -141,7 +166,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		}
 
 		/// validate message
-		if msg.MaxVersion != 2 || msg.MinVersion != 2 {
+		if msg.MaxVersion != stratumv2.ProtocolVersion || msg.MinVersion != stratumv2.ProtocolVersion {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.ProtocolVersionMismatchError,
 			}, stratumv2.MessageSetupConnectionError)
@@ -156,7 +181,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 		/// thou shalt not select thy own work
-		if msg.Flags & ^stratumv2.RequiresWorkSelectionFlag != 0 {
+		if msg.Flags&stratumv2.RequiresWorkSelectionFlag != 0 {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				// TODO: extract into an UNSUPPORTED_FLAGS constant
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
@@ -166,15 +191,19 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 		/// TODO: figure out sv2 uas
-		client.UserAgent = parseUserAgent(msg.DeviceVendor)
+		client.UserAgent = fmt.Sprintf("%s/%s", msg.DeviceVendor, msg.DeviceHardwareVersion)
+		// client.UserAgent = parseUserAgent(msg.DeviceVendor)
 
 		/// write success
-		client.writeSv2Msg(&stratumv2.SetupConnectionSuccess{UsedVersion: 2}, stratumv2.MessageSetupConnectionSuccess)
+		client.writeSv2Msg(&stratumv2.SetupConnectionSuccess{UsedVersion: stratumv2.ProtocolVersion}, stratumv2.MessageSetupConnectionSuccess)
 
 		/// 2. handle channel open
-		if err := frame.DecodeFromReader(r); err != nil {
+		frame, err = recv.DecryptFrameFromReader(client.conn)
+		if err != nil {
 			return
 		}
+		b, _ = frame.Encode()
+		client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 		switch frame.MessageType {
 		case stratumv2.MessageOpenStandardMiningChannel:
 			{
@@ -241,14 +270,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 
 		client.protocol = 2
 		client.startMining()
-		client.processSv2Loop(ctx, r)
+		client.processSv2Loop(ctx, client.conn)
 	}
 }
 func (client *StratumClient) startMining() {
 	globalLog(fmt.Sprintf(
 		/// dig, cause gophers, get it?
-		"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s",
-		client.Name(), client.ID, client.Addr(),
+		"==<<>>=<<>>=<{green}%s{/green} has joined the dig!>=<<>>=<<>>==\n\tid: {green}%s{/green}\n\taddr: {green}%s{/green}\n\tprotocol: {green}sv%d",
+		client.Name(), client.ID, client.Addr(), client.protocol,
 	))
 
 	if defaultMiningAddr != nil && client.User.EncodeAddress() == defaultMiningAddr.EncodeAddress() {
@@ -303,8 +332,7 @@ func (client *StratumClient) Stop() {
 	client = nil
 }
 
-func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.Reader) {
-	var err error
+func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reader) {
 	/// this is allocated when a standard channel is opened and
 	/// is used to pad the extranonce2 field for the coinbase
 	var emptyExtranonce []byte
@@ -322,22 +350,19 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader *bufio.R
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 
-		frame := stratumv2.Frame{}
-		// if !conf.DisableSv2Encryption {
-		// 	noised := stratumv2.NoiseFrame{}
-		// 	err = noised.DecodeFromReader(reader)
-		// 	frame = noised.Frame
-		// } else {
-		err = frame.DecodeFromReader(reader)
-		// }
+		frame, err := client.recv.DecryptFrameFromReader(client.conn)
 		switch err {
 		case io.ErrClosedPipe:
 		case io.EOF:
 			return
 		case nil:
 		default:
-			client.logErrorf("failed to read frame: %s", err)
+			client.logf("failed to decrypt frame: %s", err)
+			return
 		}
+
+		b, _ := frame.Encode()
+		client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 
 		switch frame.MessageType {
 		case stratumv2.MessageSubmitSharesExtended:
@@ -904,7 +929,12 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 	}
 	client.User = decoded
 
-	/// create log prefixes
+	/// recreate log prefixes
+	client.createLogPrefixes()
+	return true
+}
+
+func (client *StratumClient) createLogPrefixes() {
 	nameLen := len(client.Name())
 	sb := strings.Builder{}
 	sb.Grow(17 + nameLen)
@@ -919,7 +949,6 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 	sb.WriteString(client.Name())
 	sb.WriteString("{cyan}]{/cyan} ")
 	client.errLogPrefix = sb.String()
-	return true
 }
 func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget stratumv2.U256, nominalHashRate float32) bool {
 	// validate max target
@@ -1159,13 +1188,14 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 		MessageLength: stratumv2.U24(len(b)),
 		Payload:       b,
 	}
-	f, err := frame.Encode()
+	f, _ := frame.Encode()
+	enc, err := client.send.EncryptFrame(frame)
 	if err != nil {
-		client.logErrorf("failed to encode frame: %s", err)
+		client.logErrorf("failed to encrypt frame: %s", err)
 		return err
 	}
-	// client.log("TX: %x", f)
-	return client.writeConn(f)
+	client.logf("{green}TX: (%x) %x", frame.MessageType, f)
+	return client.writeConn(enc)
 }
 func (client *StratumClient) writeConn(b []byte) error {
 	/// if it takes 3 seconds to write somethings fucked
@@ -1276,7 +1306,7 @@ func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff f
 }
 
 // clients are given an id, a job, and a channel to submit blocks on
-func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) *StratumClient {
+func createClient(conn net.Conn, submissionChannel chan<- blockSubmission) *StratumClient {
 	client := &StratumClient{
 		ID:             clientIDHash(conn.LocalAddr().String(), conn.RemoteAddr().String()),
 		stats:          StratumClientStats{},
@@ -1287,5 +1317,6 @@ func CreateClient(conn net.Conn, submissionChannel chan<- blockSubmission) *Stra
 		// 15 is a good starter, default config results in 12 shares per job and the map will grow as needed
 		shareHashes: make(map[chainhash.Hash]struct{}, 15),
 	}
+	client.createLogPrefixes()
 	return client
 }

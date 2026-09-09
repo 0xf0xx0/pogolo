@@ -42,6 +42,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 - \*axe family (bitaxe, nerd\*axe, etc)
 - cpuminer
 - antminers
+- braiins OS
 
 ## supported backends
 
@@ -53,7 +54,7 @@ pogolo has no tls support.
 
 ## unsupported
 
-- miners requiring extranonce.subscribe
+- whatsminers (they dont mine on the provided jobs, if you have one please test and send logs)
 - luckyminers/other non-foss axe clones
 - stratum v2 (temporarily)
 
