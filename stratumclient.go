@@ -157,8 +157,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.logError("furst message not SetupConnection")
 			return
 		}
-		b, _ := frame.Encode()
-		client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
+		// b, _ := frame.Encode()
+		// client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 		msg := stratumv2.SetupConnection{}
 		if err = msg.Decode(frame.Payload); err != nil {
 			client.logErrorf("error decoding SetupConnection: %s", err)
@@ -191,13 +191,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 		/// check flags, extendedChannel is used for channel opening later
-		// if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
-		// 	client.log("standard channel required")
-		// 	client.extendedChannel = false
-		// } else if msg.Flags&stratumv2.RequiresExtendedChannelsFlag == 1 {
-		// 	client.log("extended channel required")
-		// 	client.extendedChannel = true
-		// }
+		var requiresStandardChan, requiresExtendedChan bool
+		if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
+			client.log("standard channel required")
+			requiresStandardChan = true
+		} else if msg.Flags&stratumv2.RequiresExtendedChannelsFlag == 1 {
+			client.log("extended channel required")
+			requiresExtendedChan = true
+		}
 		/// TODO: figure out sv2 uas
 		client.UserAgent = fmt.Sprintf("%s/%s", msg.DeviceVendor, msg.DeviceHardwareVersion)
 
@@ -214,10 +215,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 		switch frame.MessageType {
 		case stratumv2.MessageOpenStandardMiningChannel:
 			{
-				// if client.extendedChannel {
-				// 	client.logError("requires extended channel but requested standard")
-				// 	return
-				// }
+				if requiresExtendedChan {
+					client.logError("requires extended channel but requested standard")
+					return
+				}
 				msg := stratumv2.OpenStandardMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
@@ -240,10 +241,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 			}
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
-				// if !client.extendedChannel {
-				// 	client.logError("requires standard channel but requested extended")
-				// 	return
-				// }
+				if requiresStandardChan {
+					client.logError("requires standard channel but requested extended")
+					return
+				}
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
