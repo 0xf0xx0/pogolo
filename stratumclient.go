@@ -181,7 +181,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 		/// thou shalt not select thy own work
-		if msg.Flags&stratumv2.RequiresWorkSelectionFlag != 0 {
+		if msg.Flags&stratumv2.RequiresWorkSelectionFlag == 1 {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				// TODO: extract into an UNSUPPORTED_FLAGS constant
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
@@ -190,9 +190,16 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.logError("unsupported feature flags")
 			return
 		}
+		/// check flags, extendedChannel is used for channel opening later
+		if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
+			client.log("standard channel required")
+			client.extendedChannel = false
+		} else if msg.Flags&stratumv2.RequiresExtendedChannelsFlag == 1 {
+			client.log("extended channel required")
+			client.extendedChannel = true
+		}
 		/// TODO: figure out sv2 uas
 		client.UserAgent = fmt.Sprintf("%s/%s", msg.DeviceVendor, msg.DeviceHardwareVersion)
-		// client.UserAgent = parseUserAgent(msg.DeviceVendor)
 
 		/// write success
 		client.writeSv2Msg(&stratumv2.SetupConnectionSuccess{UsedVersion: stratumv2.ProtocolVersion}, stratumv2.MessageSetupConnectionSuccess)
@@ -203,10 +210,14 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 		b, _ = frame.Encode()
-		client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
+		// client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 		switch frame.MessageType {
 		case stratumv2.MessageOpenStandardMiningChannel:
 			{
+				if client.extendedChannel {
+					client.logError("requires extended channel but requested standard")
+					return
+				}
 				msg := stratumv2.OpenStandardMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
@@ -229,6 +240,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 			}
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
+				if !client.extendedChannel {
+					client.logError("requires standard channel but requested extended")
+					return
+				}
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
@@ -361,8 +376,8 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			return
 		}
 
-		b, _ := frame.Encode()
-		client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
+		// b, _ := frame.Encode()
+		// client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 
 		switch frame.MessageType {
 		case stratumv2.MessageSubmitSharesExtended:
@@ -1188,13 +1203,13 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 		MessageLength: stratumv2.U24(len(b)),
 		Payload:       b,
 	}
-	f, _ := frame.Encode()
 	enc, err := client.send.EncryptFrame(frame)
 	if err != nil {
 		client.logErrorf("failed to encrypt frame: %s", err)
 		return err
 	}
-	client.logf("{green}TX: (%x) %x", frame.MessageType, f)
+	// f, _ := frame.Encode()
+	// client.logf("{green}TX: (%x) %x", frame.MessageType, f)
 	return client.writeConn(enc)
 }
 func (client *StratumClient) writeConn(b []byte) error {
