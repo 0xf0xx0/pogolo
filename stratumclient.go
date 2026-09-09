@@ -191,13 +191,13 @@ func (client *StratumClient) Run(ctx context.Context) {
 			return
 		}
 		/// check flags, extendedChannel is used for channel opening later
-		if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
-			client.log("standard channel required")
-			client.extendedChannel = false
-		} else if msg.Flags&stratumv2.RequiresExtendedChannelsFlag == 1 {
-			client.log("extended channel required")
-			client.extendedChannel = true
-		}
+		// if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
+		// 	client.log("standard channel required")
+		// 	client.extendedChannel = false
+		// } else if msg.Flags&stratumv2.RequiresExtendedChannelsFlag == 1 {
+		// 	client.log("extended channel required")
+		// 	client.extendedChannel = true
+		// }
 		/// TODO: figure out sv2 uas
 		client.UserAgent = fmt.Sprintf("%s/%s", msg.DeviceVendor, msg.DeviceHardwareVersion)
 
@@ -214,10 +214,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 		switch frame.MessageType {
 		case stratumv2.MessageOpenStandardMiningChannel:
 			{
-				if client.extendedChannel {
-					client.logError("requires extended channel but requested standard")
-					return
-				}
+				// if client.extendedChannel {
+				// 	client.logError("requires extended channel but requested standard")
+				// 	return
+				// }
 				msg := stratumv2.OpenStandardMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
@@ -240,10 +240,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 			}
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
-				if !client.extendedChannel {
-					client.logError("requires standard channel but requested extended")
-					return
-				}
+				// if !client.extendedChannel {
+				// 	client.logError("requires standard channel but requested extended")
+				// 	return
+				// }
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
@@ -1268,13 +1268,13 @@ func (stats *StratumClientStats) update(currTargetDiff float64) {
 		/// wikipedia my beloved
 		/// https://en.wikipedia.org/wiki/Exponential_smoothing
 		delta := float64(now - stats.lastSubmissionTime)
-		/// start the avg calc with the target delta, not 0
-		if stats.avgSubmissionDelta == 0 {
-			stats.avgSubmissionDelta = float64(conf.TargetShareInterval)
-		}
+
 		/// avg = smoothing*delta + (1-smoothing)*avg
 		stats.avgSubmissionDelta =
 			0.01*delta + 0.99*stats.avgSubmissionDelta
+	} else {
+		/// start the avg calc with the target delta, not 0
+		stats.avgSubmissionDelta = float64(conf.TargetShareInterval * 1000)
 	}
 
 	stats.calcHashrate(uint64(now/1000), currTargetDiff)
