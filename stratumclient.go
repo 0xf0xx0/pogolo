@@ -72,6 +72,19 @@ type blockSubmission struct {
 	ClientID stratum.ID // for lookup in client map
 }
 
+// shitty name, but wraps a bufio.reader and net.conn for sv2 handshake
+type wrapperRW struct {
+	r *bufio.Reader
+	c net.Conn
+}
+
+func (t *wrapperRW) Read(b []byte) (int, error) {
+	return t.r.Read(b)
+}
+func (t *wrapperRW) Write(b []byte) (int, error) {
+	return t.c.Write(b)
+}
+
 // aka gopher
 type StratumClient struct {
 	CurrentJob          MiningJob
@@ -94,19 +107,6 @@ type StratumClient struct {
 
 	logPrefix    string
 	errLogPrefix string
-}
-
-// shitty name, but wraps a bufio.reader and net.conn for sv2 handshake
-type wrapperRW struct {
-	r *bufio.Reader
-	c net.Conn
-}
-
-func (t *wrapperRW) Read(b []byte) (int, error) {
-	return t.r.Read(b)
-}
-func (t *wrapperRW) Write(b []byte) (int, error) {
-	return t.c.Write(b)
 }
 
 func (client *StratumClient) Run(ctx context.Context) {
@@ -177,9 +177,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				ErrorCode: stratumv2.UnsupportedProtocolError,
 			}, stratumv2.MessageSetupConnectionError)
-			client.logError("wrong SV2 protocol")
+			client.logError("wrong SV2 protocol, not mining")
 			return
 		}
+
 		/// thou shalt not select thy own work
 		if msg.Flags&stratumv2.RequiresWorkSelectionFlag == 1 {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
@@ -190,7 +191,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.logError("unsupported feature flags")
 			return
 		}
-		/// check flags, extendedChannel is used for channel opening later
+
+		/// check flags
 		var requiresStandardChan, requiresExtendedChan bool
 		if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
 			client.log("standard channel required")
@@ -199,6 +201,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 			client.log("extended channel required")
 			requiresExtendedChan = true
 		}
+
 		/// TODO: figure out sv2 uas
 		client.UserAgent = fmt.Sprintf("%s/%s", msg.DeviceVendor, msg.DeviceHardwareVersion)
 
@@ -210,21 +213,25 @@ func (client *StratumClient) Run(ctx context.Context) {
 		if err != nil {
 			return
 		}
-		b, _ = frame.Encode()
+		// b, _ = frame.Encode()
 		// client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 		switch frame.MessageType {
 		case stratumv2.MessageOpenStandardMiningChannel:
 			{
-				if requiresExtendedChan {
-					client.logError("requires extended channel but requested standard")
-					return
-				}
 				msg := stratumv2.OpenStandardMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
 					return
 				}
 
+				if requiresExtendedChan {
+					client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+						RequestID: msg.RequestID,
+						ErrorCode: "requires extended channel but requested standard",
+					}, stratumv2.MessageOpenMiningChannelError)
+					client.logError("requires extended channel but requested standard")
+					return
+				}
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
 				}
@@ -241,17 +248,25 @@ func (client *StratumClient) Run(ctx context.Context) {
 			}
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
-				if requiresStandardChan {
-					client.logError("requires standard channel but requested extended")
-					return
-				}
 				msg := stratumv2.OpenExtendedMiningChannel{}
 				if err = msg.Decode(frame.Payload); err != nil {
 					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
 					return
 				}
 
+				if requiresStandardChan {
+					client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+						RequestID: msg.RequestID,
+						ErrorCode: "requires standard channel but requested extended",
+					}, stratumv2.MessageOpenMiningChannelError)
+					client.logError("requires standard channel but requested extended")
+					return
+				}
 				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
+					client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+						RequestID: msg.RequestID,
+						ErrorCode: fmt.Sprintf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size),
+					}, stratumv2.MessageOpenMiningChannelError)
 					client.logErrorf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
 					return
 				}
@@ -280,6 +295,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 				}, stratumv2.MessageOpenExtendedMiningChannelSuccess)
 			}
 		default:
+			client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+				RequestID: 0,
+				ErrorCode: "requires extended channel but requested standard",
+			}, stratumv2.MessageOpenMiningChannelError)
 			client.logError("second message wasn't a channel open")
 			return
 		}
