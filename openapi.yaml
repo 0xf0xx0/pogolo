@@ -26,6 +26,7 @@ components:
         - totalGophers
         - totalHashrate
         - bestDifficulty
+        - networkDifficulty
         - tag
         - gophers
       properties:
@@ -47,6 +48,10 @@ components:
           description: In MH/s
         bestDifficulty:
           type: number
+          description: Best share by currently-connected clients
+        networkDifficulty:
+          type: number
+          description: Network target difficulty to solve a block
         tag:
           type: string
           description: The configured coinbase tag

@@ -52,6 +52,7 @@ type getInfoRes struct {
 	TotalWorkers  uint64           `json:"totalGophers"`
 	TotalHashrate float64          `json:"totalHashrate"`
 	BestDiff      float64          `json:"bestDifficulty"`
+	NetworkDiff   float64          `json:"networkDifficulty"`
 	Tag           string           `json:"tag"`
 	Workers       []miniWorkerInfo `json:"gophers"`
 	BlocksFound   []solvedBlock    `json:"blocksFound"`
@@ -199,6 +200,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		TotalWorkers:  uint64(len(allClients)),
 		BlockHeight:   currTemplate.Height,
 		BlocksFound:   foundBlocks,
+		NetworkDiff:   currTemplate.NetworkDiff,
 	})
 }
 
