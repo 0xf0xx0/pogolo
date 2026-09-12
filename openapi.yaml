@@ -48,7 +48,7 @@ components:
           description: In MH/s
         bestDifficulty:
           type: number
-          description: Best share by currently-connected clients
+          description: Best share by currently-connected gophers
         networkDifficulty:
           type: number
           description: Network target difficulty to solve a block
