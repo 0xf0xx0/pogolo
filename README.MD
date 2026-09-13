@@ -143,7 +143,7 @@ sudo systemctl enable --now pogolo
 # miner config
 
 host: stratum+tcp://\<your lan ip\>:5661  
-username: \<your onchain address\>[.\<worker name\>]  
+username: [your onchain address][.\<worker name\>]  
 password: [required if set in pogolo.toml]  
 suggested diff: [optional]
 

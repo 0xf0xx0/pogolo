@@ -8,8 +8,8 @@ go 1.26.2
 
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.0
-	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9
-	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260909164243-5229486a8dba
+	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10
+	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260913172413-e9085de00020
 	github.com/btcsuite/btcd v0.26.2
 	github.com/btcsuite/btcd/address/v2 v2.0.0
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.1
@@ -32,7 +32,7 @@ require (
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
-	github.com/bytedance/sonic v1.15.3 // indirect
+	github.com/bytedance/sonic v1.15.4 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
