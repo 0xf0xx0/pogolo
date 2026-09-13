@@ -20,54 +20,54 @@ components:
     InfoResponse:
       type: object
       required:
-        - uptime
-        - blocksFound
-        - blockHeight
-        - totalGophers
-        - totalHashrate
+        - activeChain
         - bestDifficulty
+        - blockHeight
+        - blocksFound
+        - gophers
         - networkDifficulty
         - tag
-        - gophers
+        - totalGophers
+        - totalHashrate
+        - uptime
         - version
-        - activeChain
       properties:
-        uptime:
+        activeChain:
+          type: string
+          description: The active chain name
+        bestDifficulty:
+          type: number
+          description: Best share by currently-connected gophers
+        blockHeight:
           type: integer
-          description: In seconds
+          description: The height the pool is mining at
         blocksFound:
           type: array
           description: Array of FoundBlockInfo
           items:
             $ref: "#/components/schemas/FoundBlockInfo"
-        blockHeight:
-          type: integer
-          description: The height the pool is mining at
-        totalGophers:
-          type: integer
-        totalHashrate:
-          type: number
-          description: In MH/s
-        bestDifficulty:
-          type: number
-          description: Best share by currently-connected gophers
+        gophers:
+          type: array
+          description: List of active gophers
+          items:
+            $ref: "#/components/schemas/MiniGopherInfo"
         networkDifficulty:
           type: number
           description: Network target difficulty to solve a block
         tag:
           type: string
           description: The configured coinbase tag
-        gophers:
-          type: array
-          description: List of active gophers
-          items:
-            $ref: "#/components/schemas/MiniGopherInfo"
+        totalGophers:
+          type: integer
+        totalHashrate:
+          type: number
+          description: In MH/s
+        uptime:
+          type: integer
+          description: In seconds
         version:
           type: string
           description: pogolo version
-        activeChain:
-          type: string
-          description: The active chain name
 
     MiniGopherInfo:
       type: object
