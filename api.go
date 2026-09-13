@@ -56,6 +56,8 @@ type getInfoRes struct {
 	Tag           string           `json:"tag"`
 	Workers       []miniWorkerInfo `json:"gophers"`
 	BlocksFound   []solvedBlock    `json:"blocksFound"`
+	Version       string           `json:"version"`
+	ActiveChain   string           `json:"activeChain"`
 }
 
 // stores solved block info
@@ -201,6 +203,8 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		BlockHeight:   currTemplate.Height,
 		BlocksFound:   foundBlocks,
 		NetworkDiff:   currTemplate.NetworkDiff,
+		Version:       VERSION,
+		ActiveChain:   backendChainParams.Name,
 	})
 }
 

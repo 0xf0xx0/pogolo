@@ -29,6 +29,8 @@ components:
         - networkDifficulty
         - tag
         - gophers
+        - version
+        - activeChain
       properties:
         uptime:
           type: integer
@@ -60,6 +62,12 @@ components:
           description: List of active gophers
           items:
             $ref: "#/components/schemas/MiniGopherInfo"
+        version:
+          type: string
+          description: pogolo version
+        activeChain:
+          type: string
+          description: The active chain name
 
     MiniGopherInfo:
       type: object
