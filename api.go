@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -48,16 +47,15 @@ type miniWorkerInfo struct {
 	ProtocolVersion uint8  `json:"protocolVersion"`
 }
 type getInfoRes struct {
-	Sv2AuthorityPubkey string           `json:"authorityPubkey"`
-	Uptime             uint64           `json:"uptime"`
-	BlockHeight        uint64           `json:"blockHeight"`
-	TotalWorkers       uint64           `json:"totalGophers"`
-	TotalHashrate      float64          `json:"totalHashrate"`
-	BestDiff           float64          `json:"bestDifficulty"`
-	NetworkDiff        float64          `json:"networkDifficulty"`
-	Tag                string           `json:"tag"`
-	Workers            []miniWorkerInfo `json:"gophers"`
-	BlocksFound        []solvedBlock    `json:"blocksFound"`
+	Uptime        uint64           `json:"uptime"`
+	BlockHeight   uint64           `json:"blockHeight"`
+	TotalWorkers  uint64           `json:"totalGophers"`
+	TotalHashrate float64          `json:"totalHashrate"`
+	BestDiff      float64          `json:"bestDifficulty"`
+	NetworkDiff   float64          `json:"networkDifficulty"`
+	Tag           string           `json:"tag"`
+	Workers       []miniWorkerInfo `json:"gophers"`
+	BlocksFound   []solvedBlock    `json:"blocksFound"`
 }
 
 // stores solved block info
@@ -194,16 +192,15 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 	}
 	marshalAndWrite(res, getInfoRes{
 		/// NOTE: compiling with -race mistakenly calls this a race condition
-		Uptime:             uint64(time.Since(serverStartTime).Seconds()),
-		Workers:            workerStats,
-		Tag:                conf.Tag,
-		TotalHashrate:      hashrateSum / 1e6,
-		BestDiff:           bestDiff,
-		TotalWorkers:       uint64(len(allClients)),
-		BlockHeight:        currTemplate.Height,
-		BlocksFound:        foundBlocks,
-		NetworkDiff:        currTemplate.NetworkDiff,
-		Sv2AuthorityPubkey: stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKeyBytes()),
+		Uptime:        uint64(time.Since(serverStartTime).Seconds()),
+		Workers:       workerStats,
+		Tag:           conf.Tag,
+		TotalHashrate: hashrateSum / 1e6,
+		BestDiff:      bestDiff,
+		TotalWorkers:  uint64(len(allClients)),
+		BlockHeight:   currTemplate.Height,
+		BlocksFound:   foundBlocks,
+		NetworkDiff:   currTemplate.NetworkDiff,
 	})
 }
 
