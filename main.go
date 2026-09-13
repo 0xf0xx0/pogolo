@@ -358,11 +358,13 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
-	/// TODO: allow for setting static auth key
 	var err error
+	/// we don't care about auth cause we're on the lan
+	/// MAYBE: store privkeys in config file?
 	sv2AuthorityKeypair = stratumv2.GenerateKeypair()
 	sv2StaticKeypair = stratumv2.GenerateKeypair()
-	sv2Cert, err = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, stratumv2.Pubkey(sv2StaticKeypair.PublicKeyBytes()), 0, uint32(time.Now().Unix()+(2<<24)))
+	/// cert lasts like a year, lol
+	sv2Cert, err = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
 	if err != nil {
 		return err
 	}
