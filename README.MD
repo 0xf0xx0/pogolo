@@ -6,12 +6,9 @@ solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet;
 start it, point your miners to it, and watch the logs roll by  
 think of this as public-pool but minimal and for self-sovereign nerds  
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
-
-![cpuminer on regtest](./showoff.png)
 [![Get pogolo on umbrelOS](https://apps.umbrel.com/api/app/pogolo/badge-dark.svg)](https://apps.umbrel.com/app/pogolo)
 
 _want a go pool you can run on the public internet? check out https://github.com/Distortions81/M45-Core-goPool!_
-
 
 - [features](#features)
 - [install](#install)
@@ -20,10 +17,12 @@ _want a go pool you can run on the public internet? check out https://github.com
     - [go](#go)
     - [manual install](#manual-install)
 
+![cpuminer on regtest](./showoff.png)
 
 # features
 
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
+- stratum v1 and stratum v2 on the same port
 - colorful and detailed logs (respects NO_COLOR)
 - read-only api
 - zmq and btcd websocket support
@@ -56,7 +55,6 @@ pogolo has no tls support.
 
 - whatsminers (they dont mine on the provided jobs, if you have one please test and send logs)
 - luckyminers/other non-foss axe clones
-- stratum v2 (temporarily)
 
 ## api
 
@@ -67,7 +65,7 @@ the api is documented in [`openapi.yaml`](./openapi.yaml), and exposed at `/open
 ## umbrel
 
 get pogolo from the umbrel app store: https://apps.umbrel.com/app/pogolo  
-then point your miners to stratum+tcp://umbrel.local:5661
+then point your miners to stratum+tcp://umbrel.local:5661 or stratum2+tcp://umbrel.local:5661
 
 ## docker
 
@@ -142,7 +140,7 @@ sudo systemctl enable --now pogolo
 
 # miner config
 
-host: stratum+tcp://\<your lan ip\>:5661  
+host: stratum[2]+tcp://\<your lan ip\>:5661  
 username: [your onchain address][.\<worker name\>]  
 password: [required if set in pogolo.toml]  
 suggested diff: [optional]

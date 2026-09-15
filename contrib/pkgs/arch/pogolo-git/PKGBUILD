@@ -1,7 +1,7 @@
 # Maintainer: 0xf0xx0 <@0x0f@lemmy.blahaj.zone>
 pkgname=pogolo-git
 pkgdesc='solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet'
-pkgver=1.1.5.r6.gf767816
+pkgver=1.1.6.r0.gc3bade1
 pkgrel=1
 arch=('x86_64' 'aarch64')
 url='https://github.com/0xf0xx0/pogolo'
