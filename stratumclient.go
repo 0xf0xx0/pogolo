@@ -239,10 +239,9 @@ func (client *StratumClient) Run(ctx context.Context) {
 				}
 
 				client.writeSv2Msg(&stratumv2.OpenStandardMiningChannelSuccess{
-					RequestID:        msg.RequestID,
-					ChannelID:        uint32(client.ID),
-					Target:           msg.MaxTarget,
-					ExtranoncePrefix: client.ID.Bytes(),
+					RequestID: msg.RequestID,
+					ChannelID: uint32(client.ID),
+					Target:    msg.MaxTarget,
 				}, stratumv2.MessageOpenStandardMiningChannelSuccess)
 			}
 		case stratumv2.MessageOpenExtendedMiningChannel:
@@ -367,13 +366,6 @@ func (client *StratumClient) Stop() {
 }
 
 func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reader) {
-	/// this is allocated when a standard channel is opened and
-	/// is used to pad the extranonce2 field for the coinbase
-	var emptyExtranonce []byte
-	if !client.extendedChannel {
-		// alloc padding
-		emptyExtranonce = make([]byte, conf.ExtraNonce2Size)
-	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -435,13 +427,12 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					break
 				}
 				s := &commonShare{
-					ChannelID:   share.ChannelID,
-					JobID:       share.JobID,
-					Time:        share.Time,
-					Version:     share.Version,
-					Nonce:       share.Nonce,
-					Extranonce2: emptyExtranonce,
-					Sequence:    share.Sequence,
+					ChannelID: share.ChannelID,
+					JobID:     share.JobID,
+					Time:      share.Time,
+					Version:   share.Version,
+					Nonce:     share.Nonce,
+					Sequence:  share.Sequence,
 				}
 				client.currentJobMutex.RLock()
 				client.validateShareSubmission(s, nil)

@@ -56,32 +56,32 @@ type MiningJob struct {
 
 // like public-pools copyAndUpdateBlock without the copy
 func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.BlockHeader, bool) {
-	if share.Extranonce2 == nil {
-		return nil, false
-	}
-	en2Len := len(share.Extranonce2)
-	if en2Len != int(conf.ExtraNonce2Size) {
-		return nil, false
-	}
+	if share.Extranonce2 != nil {
+		en2Len := len(share.Extranonce2)
+		if en2Len != int(conf.ExtraNonce2Size) {
+			return nil, false
+		}
 
-	/// mutate the coinbase script with the extranonce2 (client id is done in fillCoinbaseTx)
-	/// also mutate the coinbase bytes directly for faster merkle root calc
-	/// MAYBE: precalc len
-	sigscriptLen := len(job.CoinbaseTx.TxIn[0].SignatureScript)
-	copy(job.CoinbaseTx.TxIn[0].SignatureScript[sigscriptLen-en2Len:], share.Extranonce2)
-	copy(job.CoinbaseBytes[job.CoinbaseExtranonce2Idx:job.CoinbaseExtranonce2Idx+en2Len], share.Extranonce2)
+		/// mutate the coinbase script with the extranonce2 (client id is done in fillCoinbaseTx)
+		/// also mutate the coinbase bytes directly for faster merkle root calc
+		/// MAYBE: precalc len
+		sigscriptLen := len(job.CoinbaseTx.TxIn[0].SignatureScript)
+
+		copy(job.CoinbaseTx.TxIn[0].SignatureScript[sigscriptLen-en2Len:], share.Extranonce2)
+		copy(job.CoinbaseBytes[job.CoinbaseExtranonce2Idx:job.CoinbaseExtranonce2Idx+en2Len], share.Extranonce2)
+
+		/// coinbase was changed, thus recalc the root
+		branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
+		coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
+		branches[0] = &coinbaseTxHash
+		branches = append(branches, job.MerkleBranch...)
+		job.Header.MerkleRoot = *merkleRootFromBranches(branches)
+	}
 
 	/// update the header
 	job.Header.Nonce = share.Nonce
 	job.Header.Version = int32(share.Version)
 	job.Header.Timestamp = time.Unix(int64(share.Time), 0)
-
-	/// coinbase was changed, thus recalc the root
-	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-	coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
-	branches[0] = &coinbaseTxHash
-	branches = append(branches, job.MerkleBranch...)
-	job.Header.MerkleRoot = *merkleRootFromBranches(branches)
 
 	return &job.Header, true
 }
