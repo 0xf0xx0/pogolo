@@ -147,14 +147,14 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 
 	/// 4 bytes + ExtraNonce2Size bytes of padding, for extranonces
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)
-	/// random byte to avoid client loops if template doesn't change
+	/// random printable byte to avoid client work loops if template doesn't change
 	/// better alternative to not sending the job at all
+	/// random prime just cause
+	randByte := max(33, min(uint8(rng.Uint64()%311), 126))
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
-		/// MAYBE: remove prng, use jobid % 256?
-		AddData([]byte{uint8(rng.Uint64())}).
-		AddData([]byte(conf.Tag)).
+		AddData(append([]byte(conf.Tag), randByte)).
 		AddData(padding)
 	encodedCoinbaseScript, err := coinbaseScript.Script()
 	if err != nil {
