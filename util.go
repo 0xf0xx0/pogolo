@@ -149,8 +149,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)
 	/// random printable byte to avoid client work loops if template doesn't change
 	/// better alternative to not sending the job at all
-	/// random prime just cause
-	randByte := max(33, min(uint8(rng.Uint64()%311), 126))
+	randByte := 33 + uint8(rng.Uint64()%93)
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
