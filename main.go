@@ -502,7 +502,7 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 	}
 }
 
-// handles clients
+// spawns clients
 func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 	for {
 		select {
@@ -663,6 +663,12 @@ func backendRoutine(ctx context.Context) {
 	// queue initial job template fetch
 	triggerGBT <- struct{}{}
 
+	templateReq := &btcjson.TemplateRequest{
+		Rules:        []string{"segwit"},
+		Capabilities: []string{"proposal", "coinbasevalue" /* ,"longpoll" */},
+		Mode:         "template",
+		// LongPollID: longpollid,
+	}
 	/// main gbt loop
 	for {
 		select {
@@ -675,12 +681,7 @@ func backendRoutine(ctx context.Context) {
 		case <-triggerGBT:
 		}
 
-		template, err := backend.GetBlockTemplate(&btcjson.TemplateRequest{
-			Rules:        []string{"segwit"}, /// required by gbt
-			Capabilities: []string{"proposal", "coinbasevalue" /* "longpoll" */},
-			Mode:         "template",
-			// LongPollID:   longpollid,
-		})
+		template, err := backend.GetBlockTemplate(templateReq)
 		if err != nil {
 			globalLogError(fmt.Sprintf("error fetching template: %s", err))
 			continue
