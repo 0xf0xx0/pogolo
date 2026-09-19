@@ -32,6 +32,9 @@ var (
 		json.Unmarshal(file, &gbt)
 		return &gbt
 	}()
+	// prng seeds for template
+	MOCK_SEEDA = uint64(6436127536535422497)
+	MOCK_SEEDB = uint64(1576712319095203941)
 )
 
 var (
@@ -45,10 +48,6 @@ var (
 	MOCK_MINING_SUBMIT = `{"method": "mining.submit", "params": ["fakeminer", "1", "00000000", "6a2e0b5d", "1f8fe700"], "id":4}`
 	MOCK_NOTIFY        = `{"method":"mining.notify","params":["1","ad6009d4c54693de7ae8dc3a3c5fdb3e56dd5a77b6b3f0d9d514859700000000","01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2c012901941e2f706f676f6c6f202d20646563656e7472616c697a65206f72206469652f08","feffffff020000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf900f2052a01000000160014ed005216fe64da8d4216ceb8f539ae578952251428000000",[],"20000000","207fffff","6a2e0b5d",true]}`
 	MOCK_SHAREDIFF     = float64(0.55803) /// full float from cpuminer
-
-	// prng seeds for template
-	MOCK_SEEDA = uint64(6436127536535422497)
-	MOCK_SEEDB = uint64(1576712319095203941)
 )
 
 // params
@@ -130,24 +129,35 @@ func hexDec(s string) []byte {
 	return x
 }
 
-/*
 var (
-	MOCK_SETUPCONNECTION = func() *stratumv2.SetupConnection {
-		p := &stratumv2.SetupConnection{}
-		p.Decode(hexDec(""))
-		return p
+	MOCK_SETUPCONNECTION = func() stratumv2.Frame {
+		payload := hexDec("")
+		f := stratumv2.Frame{
+			MessageType:   stratumv2.MessageSetupConnection,
+			MessageLength: stratumv2.U24(len(payload)),
+			Payload:       payload,
+		}
+		return f
 	}()
-	MOCK_OPENEXTENDEDCHANNEL = func() *stratumv2.OpenExtendedMiningChannel {
-		p := &stratumv2.OpenExtendedMiningChannel{}
-		p.Decode(hexDec(""))
-		return p
+	MOCK_OPENEXTENDEDCHANNEL = func() stratumv2.Frame {
+		payload := hexDec("")
+		f := stratumv2.Frame{
+			MessageType:   stratumv2.MessageOpenExtendedMiningChannel,
+			MessageLength: stratumv2.U24(len(payload)),
+			Payload:       payload,
+		}
+		return f
 	}()
-	MOCK_SV2_SUBMIT = func() *stratumv2.SubmitSharesExtended {
-		p := &stratumv2.SubmitSharesExtended{}
-		p.Decode(hexDec(""))
-		return p
+	MOCK_SV2_SUBMIT = func() stratumv2.Frame {
+		payload := hexDec("")
+		f := stratumv2.Frame{
+			MessageType:   stratumv2.MessageSubmitSharesExtended,
+			MessageLength: stratumv2.U24(len(payload)),
+			Payload:       payload,
+		}
+		return f
 	}()
-)*/
+)
 
 func encodeSv2(s stratumv2.Codable, t testing.TB) []byte {
 	b, err := s.Encode()

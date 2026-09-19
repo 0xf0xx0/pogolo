@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/chaincfg/v2"
 
@@ -28,6 +29,10 @@ func TestMain(t *testing.T) {
 	b, _ := hex.DecodeString("8033d13ee81500afe03a9f48ed142b15724816dd9247c9cf55ae447a5b867449")
 	defaultMiningAddr, _ = address.NewAddressTaproot(b, backendChainParams)
 	disableLogs = true
+	sv2AuthorityKeypair = stratumv2.GenerateKeypair()
+	sv2StaticKeypair = stratumv2.GenerateKeypair()
+	/// cert lasts like a year, lol
+	sv2Cert, _ = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, 0)
 }
 
 /// stratum chatter
@@ -381,10 +386,19 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 }
 
 // TODO
-// func ezInitSv2Client(t testing.TB) net.Conn {
-// 	lpipe, c, _ := initClient()
-// 	/// reset rng
-// 	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
-// 	lpipe.Write(encodeSv2(MOCK_SETUPCONNECTION, t))
-// 	return lpipe
-// }
+func ezInitSv2Client(t testing.TB) net.Conn {
+	lpipe, _, _ := initClient()
+	/// reset rng
+	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
+	hs := &stratumv2.HandshakeState{}
+	send, recv, _, _ := hs.PerformHandshakeInitiator(lpipe, sv2AuthorityKeypair.PublicKey())
+	send.EncryptFrameToWriter(MOCK_SETUPCONNECTION, lpipe)
+	readSv2Pipe(t, recv, lpipe)
+	send.EncryptFrameToWriter(MOCK_OPENEXTENDEDCHANNEL, lpipe)
+	readSv2Pipe(t, recv, lpipe)
+	return lpipe
+}
+func readSv2Pipe(t testing.TB, recv *stratumv2.CipherState, lpipe net.Conn) stratumv2.Frame {
+	frame, _ := recv.DecryptFrameFromReader(lpipe)
+	return frame
+}
