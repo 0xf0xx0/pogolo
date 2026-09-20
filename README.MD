@@ -26,7 +26,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 - colorful and detailed logs (respects NO_COLOR)
 - read-only api
 - zmq and btcd websocket support
-- up to 160k shares/sec
+- high performance and low memory usage (160k+ shares/sec @ ~50 mib + 1kib/client)
 
 ## implemented BIPs
 
