@@ -362,6 +362,7 @@ func (client *StratumClient) Stop() {
 		atomic.AddUint64(&totalSharesPerSec, uint64(sharesPS))
 		println(fmt.Sprintf("shares/s: %f", sharesPS))
 	}
+	/// canary in the bitcoin mines
 	client = nil
 }
 
