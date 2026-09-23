@@ -328,7 +328,7 @@ func (client *StratumClient) startMining() {
 		}
 	} else {
 		if client.protocol == 2 {
-			client.logf("guessed initial difficulty {blue}%s", formatDifficulty(client.SuggestedDifficulty))
+			client.logf("guessed initial difficulty {blue}%g", client.SuggestedDifficulty)
 		}
 	}
 
