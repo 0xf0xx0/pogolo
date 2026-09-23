@@ -127,6 +127,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 	}
 
 	/// sv1 always starts with '{' and might start with whitespace
+	/// ...what are the odds of a sv2 client hittin these?
 	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
 		client.protocol = 1
 		client.processSv1Loop(ctx, r)
@@ -295,7 +296,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		default:
 			client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 				RequestID: 0,
-				ErrorCode: "requires extended channel but requested standard",
+				ErrorCode: "second message wasn't a channel open",
 			}, stratumv2.MessageOpenMiningChannelError)
 			client.logError("second message wasn't a channel open")
 			return
@@ -324,6 +325,10 @@ func (client *StratumClient) startMining() {
 			client.setDifficulty(constants.MIN_DIFFICULTY)
 		} else {
 			client.setDifficulty(conf.DefaultDifficulty)
+		}
+	} else {
+		if client.protocol == 2 {
+			client.logf("guessed initial difficulty {blue}%s", formatDifficulty(client.SuggestedDifficulty))
 		}
 	}
 
@@ -994,7 +999,6 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 		cast := float64(nominalHashRate)
 		client.SuggestedDifficulty = calcDiffFromHashrate(cast)
 		client.stats.hashrate = cast
-		client.logf("guessed initial difficulty {blue}%s", formatDifficulty(client.SuggestedDifficulty))
 	}
 	return true
 }
