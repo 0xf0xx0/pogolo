@@ -163,7 +163,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		globalLogError("pool tag too long (>100), resetting to default")
 		coinbaseScript = coinbaseScript.Reset().
 			AddInt64(height).
-			AddData([]byte(constants.DEFAULT_COINBASE_TAG)).
+			AddData(append([]byte(constants.DEFAULT_COINBASE_TAG), randByte)).
 			AddData(padding)
 		encodedCoinbaseScript, err = coinbaseScript.Script()
 		if err != nil {
@@ -177,10 +177,7 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		Sequence:         0xfffffffe, /// BIP-54
 	})
 
-	tx := btcutil.NewTx(coinbaseTxMsg)
-	tx.SetIndex(0)
-
-	return tx, nil
+	return btcutil.NewTx(coinbaseTxMsg), nil
 }
 
 // thank you btcd devs for doin all this boilerplate work
