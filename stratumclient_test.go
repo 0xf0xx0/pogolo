@@ -217,47 +217,47 @@ func TestSv1SubmitBeforeSub(t *testing.T) {
 	}
 }
 
-func TestSv1ParseIdentity(t *testing.T) {
+func TestParseIdentity(t *testing.T) {
 	var nickname string
 	var addr address.Address
 	var ok bool
 
 	// empty
 	if _, _, ok := parseIdentity("", t); ok {
-		t.Fatal("parseSv2Identity should return false for empty string")
+		t.Fatal("parseIdentity should return false for empty string")
 	}
 
 	// addr + nickname
 	if nickname, addr, ok = parseIdentity(authorizeParams.Username, t); !ok {
-		t.Fatal("parseSv2Identity errored during parse")
+		t.Fatal("parseIdentity errored during parse")
 	}
 	if addr.EncodeAddress() != authorizeParams.Address {
-		t.Fatalf("parseSv2Identity failed to parse address: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+		t.Fatalf("parseIdentity failed to parse address: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
 	}
 	if nickname != authorizeParams.Worker {
-		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+		t.Fatalf("parseIdentity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
 	}
 
 	// just addr
 	if nickname, addr, ok = parseIdentity(authorizeParams.Address, t); !ok {
-		t.Fatal("parseSv2Identity errored during parse")
+		t.Fatal("parseIdentity errored during parse")
 	}
 	if addr.EncodeAddress() != authorizeParams.Address {
-		t.Fatalf("parseSv2Identity failed to parse address: expected %s, got %s", authorizeParams.Address, addr.EncodeAddress())
+		t.Fatalf("parseIdentity failed to parse address: expected %s, got %s", authorizeParams.Address, addr.EncodeAddress())
 	}
 	if nickname != "" {
-		t.Fatalf("parseSv2Identity failed to parse worker name: expected empty, got %s", nickname)
+		t.Fatalf("parseIdentity failed to parse worker name: expected empty, got %s", nickname)
 	}
 
 	// just nickname
 	if nickname, addr, ok = parseIdentity(authorizeParams.Worker, t); !ok {
-		t.Fatal("parseSv2Identity errored during parse")
+		t.Fatal("parseIdentity errored during parse")
 	}
 	if addr.EncodeAddress() != defaultMiningAddr.EncodeAddress() {
-		t.Fatalf("parseSv2Identity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+		t.Fatalf("parseIdentity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
 	}
 	if nickname != authorizeParams.Worker {
-		t.Fatalf("parseSv2Identity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+		t.Fatalf("parseIdentity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
 	}
 }
 
@@ -284,19 +284,17 @@ func parseIdentity(userIdentity string, t *testing.T) (nickname string, decoded 
 	if userIdentity == "" {
 		return "", nil, false
 	}
-	split := strings.Split(userIdentity, ".")
-	if len(split) > 1 {
-		nickname = split[1]
+	splitPoint := strings.Index(userIdentity, ".")
+	if splitPoint != -1 {
+		nickname = userIdentity[splitPoint+1:]
+		userIdentity = userIdentity[:splitPoint]
 	}
-	decoded, err := address.DecodeAddress(split[0], backendChainParams)
+	decoded, err := address.DecodeAddress(userIdentity, backendChainParams)
 	if err != nil {
 		if defaultMiningAddr == nil {
 			return "", nil, false
 		}
-		/// assume just the workername was passed
-		if split[0] != "" {
-			nickname = split[0]
-		}
+		nickname = userIdentity
 		decoded = defaultMiningAddr
 	}
 	t.Logf("address: %q\tnickname: %q", decoded.EncodeAddress(), nickname)

@@ -104,6 +104,7 @@ type StratumClient struct {
 	protocol            uint8
 	extendedChannel     bool
 	send, recv          *stratumv2.CipherState
+	donationPercent     uint8
 
 	logPrefix    string
 	errLogPrefix string
@@ -934,13 +935,14 @@ func (client *StratumClient) Addr() net.Addr {
 
 // parses `addr[.workername]` into client.User and client.Nickname
 func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32, msg *stratum.Request) (ok bool) {
-	split := strings.Split(userIdentity, ".")
-	if len(split) > 1 {
-		client.Nickname = split[1]
+	splitPoint := strings.Index(userIdentity, ".")
+	if splitPoint != -1 {
+		client.Nickname = userIdentity[splitPoint+1:]
+		userIdentity = userIdentity[:splitPoint]
 	}
-	decoded, err := address.DecodeAddress(split[0], backendChainParams)
+	decoded, err := address.DecodeAddress(userIdentity, backendChainParams)
 	if err != nil {
-		if client.Nickname != "" || defaultMiningAddr == nil {
+		if defaultMiningAddr == nil {
 			client.logErrorf("failed decoding address: %s", err)
 			if msg != nil {
 				client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
@@ -953,9 +955,7 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 			return false
 		}
 		/// assume just the workername was passed
-		if split[0] != "" {
-			client.Nickname = split[0]
-		}
+		client.Nickname = userIdentity
 		decoded = defaultMiningAddr
 	}
 	client.User = decoded
