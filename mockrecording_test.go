@@ -2,6 +2,7 @@ package main
 
 // this file is just for storing the data as variables
 import (
+	_ "embed"
 	"testing"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
@@ -11,7 +12,6 @@ import (
 
 	"encoding/hex"
 	"encoding/json"
-	"os"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/v2"
@@ -23,13 +23,11 @@ var (
 )
 
 var (
+	//go:embed mockdata/mockemptytemplate.json
+	mockTemplateString  []byte
 	MOCK_BLOCK_TEMPLATE = func() *btcjson.GetBlockTemplateResult {
 		gbt := btcjson.GetBlockTemplateResult{}
-		file, err := os.ReadFile("./mockdata/mockemptytemplate.json")
-		if err != nil {
-			panic(err)
-		}
-		json.Unmarshal(file, &gbt)
+		json.Unmarshal(mockTemplateString, &gbt)
 		return &gbt
 	}()
 	// prng seeds for template

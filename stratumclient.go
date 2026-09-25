@@ -1049,7 +1049,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	if masked != 0 {
 		println(client.CurrentJob.Version, share.Version, masked)
 		client.stats.sharesRejected++
-		if m != nil {
+		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_INV_VER_MASK))
 		} else {
 			client.writeSv2Msg(&stratumv2.SubmitSharesError{
@@ -1067,7 +1067,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	/// submission was high enough
 	updatedHeader, ok := client.CurrentJob.UpdateHeader(client.ID, share)
 	if !ok {
-		if m != nil {
+		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 		} else {
 			client.writeSv2Msg(&stratumv2.SubmitSharesError{
@@ -1082,7 +1082,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 
 	ntime := updatedHeader.Timestamp.Unix()
 	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
-		if m != nil {
+		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_BAD_TIME))
 		} else {
 			client.writeSv2Msg(&stratumv2.SubmitSharesError{
@@ -1098,8 +1098,9 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 
 	shareHash := simdHeaderHash(updatedHeader)
 	shareDiff := calcDifficulty(shareHash)
+	/// TODO: store target diff as u256
 	if shareDiff < client.TargetDifficulty {
-		if m != nil {
+		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_LOW_DIFF))
 		} else {
 			client.writeSv2Msg(&stratumv2.SubmitSharesError{
@@ -1137,6 +1138,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	/// add to dupe map
 	client.shareHashes[shareHash] = struct{}{}
 
+	/// TODO: store net target as u256
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
 		/// copy header and coinbase to avoid overwrites
@@ -1159,7 +1161,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		client.log("{yellow}block candidate submitted")
 	}
 
-	if m != nil {
+	if client.protocol == 1 {
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		/// TODO: figure out batching
@@ -1193,6 +1195,34 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 	client.log(l.String())
 }
+
+// func (client *StratumClient) batchSv2SubmissionsRoutine(sequence uint32) {
+// 	batchSize := uint32(5) /// TODO: make configurable
+
+// 	maxRemainingTime := time.Second + 10 /// TODO: ditto
+// 	remainingTime := maxRemainingTime
+// 	lastSequence := uint32(0)
+// 	queuedSize := uint32(0)
+// 	diffSum := uint64(0)
+// 	for {
+// 		select {
+// 		case <-time.After(remainingTime):
+// 			if queuedSize >= batchSize {
+// 				client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
+// 					ChannelID:               uint32(client.ID),
+// 					LastSequenceNumber:      lastSequence,
+// 					NewSubmitsAcceptedCount: queuedSize,
+// 					NewSharesSum:            diffSum,
+// 				}, stratumv2.MessageSubmitSharesSuccess)
+// 			}
+// 		case seq := <-batchSubmissionChan:
+// 			lastSequence = int(seq.sequence)
+// 			queuedSize++
+// 			diffSum += seq.diff
+// 			remainingTime = min(remainingTime+(remainingTime/2), maxRemainingTime)
+// 		}
+// 	}
+// }
 
 // chatter
 func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
