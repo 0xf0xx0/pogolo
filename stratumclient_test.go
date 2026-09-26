@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
@@ -123,9 +122,14 @@ func TestSv1InitSequence(t *testing.T) {
 	/// notify
 	readSv1Pipe(t, lpipe)
 
-	/// WHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
-	time.Sleep(time.Millisecond)
-
+	for {
+		client.currentJobMutex.Lock()
+		if client.CurrentJob.ID != 0 {
+			client.currentJobMutex.Unlock()
+			break
+		}
+		client.currentJobMutex.Unlock()
+	}
 	if client.CurrentJob.PrevBlock == nil {
 		t.Fatal("job wasnt created, did init fail?")
 	}
@@ -270,12 +274,54 @@ func TestSv2FullSetup(t *testing.T) {
 // kinda pointless but eh
 func BenchmarkSv1Submit(b *testing.B) {
 	lpipe, _ := ezInitSv1Client(b, true)
+	sub := &stratum.MiningSubmitParams{
+		Name:        "ngoiwp",
+		JobID:       submitParams.JobID,
+		Time:        submitParams.Time,
+		Nonce:       submitParams.Nonce,
+		Extranonce2: []byte{0, 255, 0, 255},
+		VersionMask: 0xff0000,
+	}
+	bin, err := sub.ToRequest(5).Marshal()
+	if err != nil {
+		b.Fatalf("error marshalling req: %s", err)
+	}
 
-	time.Sleep(time.Millisecond)
 	for b.Loop() {
-		res := sendSv1ReqAndWaitForRes(b, submitReq, lpipe)
-		if res.Error != nil {
+		_, err = lpipe.Write(bin)
+		if err != nil {
+			b.Fatal(err.Error())
+		}
+
+		res := readSv1Pipe(b, lpipe)
+		if res.Error != nil && res.Error.Code != constants.ERROR_LOW_DIFF.Code {
 			b.Fatalf("share submission failed! code: %s", res.Error)
+		}
+	}
+}
+
+func BenchmarkSv2Submit(b *testing.B) {
+	lpipe, send, recv := ezInitSv2Client(b)
+
+	en1, _ := stratum.DecodeID(MOCK_EXTRANONCE)
+	params := &stratumv2.SubmitSharesExtended{
+		SubmitSharesStandard: stratumv2.SubmitSharesStandard{
+			ChannelID: uint32(en1),
+			Sequence:  123556,
+			JobID:     uint32(currTemplateID),
+			Nonce:     submitParams.Nonce,
+			Time:      submitParams.Time,
+			Version:   0x20beef00,
+		},
+		Extranonce: stratumv2.Bin32{0, 255, 0, 255},
+	}
+	f, _ := stratumv2.NewFrameFromParams(stratumv2.MessageSubmitSharesExtended, params)
+	for b.Loop() {
+		bin, _ := send.EncryptFrame(*f)
+		res := sendSv2ReqAndWaitForRes(b, bin, lpipe, recv)
+		if res.MessageType != stratumv2.MessageSubmitSharesSuccess &&
+			res.MessageType != stratumv2.MessageSubmitSharesError {
+			b.Fatalf("share submission failed! code: %s", res.MessageType)
 		}
 	}
 }
@@ -309,7 +355,7 @@ func sendSv1ReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) st
 		t.Fatalf("error marshalling req: %s", err)
 	}
 	// t.Logf("sending message: %s", b)
-	//time.Sleep(time.Millisecond * 100) /// if needed
+
 	_, err = lpipe.Write(b)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -443,5 +489,24 @@ func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2
 		}
 		c.currentJobMutex.Unlock()
 	}
+	c.currentJobMutex.Lock()
+	defer c.currentJobMutex.Unlock()
+	c.CurrentJob.MinTime = 0
+	c.CurrentJob.MaxTime = 0
+
 	return lpipe, send, recv
+}
+func sendSv2ReqAndWaitForRes(t testing.TB, frame []byte, lpipe net.Conn, readcrypt *stratumv2.CipherState) stratumv2.Frame {
+	_, err := lpipe.Write(frame)
+	if err != nil {
+		t.Log("write")
+		t.Fatal(err.Error())
+	}
+
+	res, err := readcrypt.DecryptFrameFromReader(lpipe)
+	if err != nil {
+		t.Log("read")
+		t.Fatal(err.Error())
+	}
+	return res
 }
