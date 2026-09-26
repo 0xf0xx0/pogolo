@@ -65,6 +65,12 @@ type commonShare struct {
 	Nonce       uint32
 }
 
+// for sv2 batching
+type batchShare struct {
+	sequence uint32
+	diff     float64
+}
+
 type blockSubmission struct {
 	Header   wire.BlockHeader
 	Coinbase *wire.MsgTx
@@ -104,6 +110,7 @@ type StratumClient struct {
 	protocol            uint8
 	extendedChannel     bool
 	send, recv          *stratumv2.CipherState
+	batchSubmissionChan chan batchShare
 	donationPercent     uint8
 
 	logPrefix    string
@@ -304,6 +311,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		}
 
 		client.protocol = 2
+		go client.batchSv2SubmissionsRoutine()
 		client.startMining()
 		client.processSv2Loop(ctx, client.conn)
 	}
@@ -1164,13 +1172,8 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	if client.protocol == 1 {
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
-		/// TODO: figure out batching
-		client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
-			ChannelID:               share.ChannelID,
-			LastSequenceNumber:      share.Sequence,
-			NewSubmitsAcceptedCount: 1,
-			NewSharesSum:            uint64(shareDiff),
-		}, stratumv2.MessageSubmitSharesSuccess)
+		/// not gonna bother batching logs, just share acks
+		client.addShareToBatch(share.Sequence, shareDiff)
 	}
 
 	/// vanity things
@@ -1196,33 +1199,52 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	client.log(l.String())
 }
 
-// func (client *StratumClient) batchSv2SubmissionsRoutine(sequence uint32) {
-// 	batchSize := uint32(5) /// TODO: make configurable
+func (client *StratumClient) addShareToBatch(sequence uint32, diff float64) {
+	client.batchSubmissionChan <- batchShare{sequence: sequence, diff: diff}
+}
 
-// 	maxRemainingTime := time.Second + 10 /// TODO: ditto
-// 	remainingTime := maxRemainingTime
-// 	lastSequence := uint32(0)
-// 	queuedSize := uint32(0)
-// 	diffSum := uint64(0)
-// 	for {
-// 		select {
-// 		case <-time.After(remainingTime):
-// 			if queuedSize >= batchSize {
-// 				client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
-// 					ChannelID:               uint32(client.ID),
-// 					LastSequenceNumber:      lastSequence,
-// 					NewSubmitsAcceptedCount: queuedSize,
-// 					NewSharesSum:            diffSum,
-// 				}, stratumv2.MessageSubmitSharesSuccess)
-// 			}
-// 		case seq := <-batchSubmissionChan:
-// 			lastSequence = int(seq.sequence)
-// 			queuedSize++
-// 			diffSum += seq.diff
-// 			remainingTime = min(remainingTime+(remainingTime/2), maxRemainingTime)
-// 		}
-// 	}
-// }
+// batch sv2 submissions into windows, each share bumping the window by a bit
+func (client *StratumClient) batchSv2SubmissionsRoutine() {
+	maxWindow := time.Second * time.Duration(conf.Sv2WindowSize) /// TODO: make configurable
+	remainingWindow := maxWindow
+	lastSequence := uint32(0)
+	queuedSize := uint32(0)
+	diffSum := uint64(0)
+
+	for {
+		startTime := time.Now()
+		select {
+		case <-time.After(remainingWindow):
+			if queuedSize >= 0 {
+				client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
+					ChannelID:               uint32(client.ID),
+					LastSequenceNumber:      lastSequence,
+					NewSubmitsAcceptedCount: queuedSize,
+					NewSharesSum:            diffSum,
+				}, stratumv2.MessageSubmitSharesSuccess)
+				diffSum = 0
+				queuedSize = 0
+				remainingWindow = maxWindow
+			}
+		case seq := <-client.batchSubmissionChan:
+			lastSequence = seq.sequence
+			diffSum += uint64(seq.diff)
+			queuedSize++
+			/// just in case
+			if queuedSize >= 65500 {
+				remainingWindow = 0
+				continue
+			}
+			elapsed := time.Since(startTime)
+			if elapsed >= remainingWindow {
+				remainingWindow = 0
+				continue
+			}
+			remainingWindow -= elapsed
+			remainingWindow = min(remainingWindow+remainingWindow/2, maxWindow)
+		}
+	}
+}
 
 // chatter
 func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
@@ -1368,11 +1390,12 @@ func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff f
 // clients are given an id, a job, and a channel to submit blocks on
 func createClient(conn net.Conn, submissionChannel chan<- blockSubmission) *StratumClient {
 	client := &StratumClient{
-		ID:             clientIDHash(conn.LocalAddr().String(), conn.RemoteAddr().String()),
-		stats:          StratumClientStats{},
-		conn:           conn,
-		templateChan:   make(chan *JobTemplate, 1),
-		submissionChan: submissionChannel,
+		ID:                  clientIDHash(conn.LocalAddr().String(), conn.RemoteAddr().String()),
+		stats:               StratumClientStats{},
+		conn:                conn,
+		templateChan:        make(chan *JobTemplate, 1),
+		submissionChan:      submissionChannel,
+		batchSubmissionChan: make(chan batchShare, 5), /// TODO: use configured size+5
 		// allocate enough space to store the expected number of share hashes before a new job is sent out
 		// 15 is a good starter, default config results in 12 shares per job and the map will grow as needed
 		shareHashes: make(map[chainhash.Hash]struct{}, 15),

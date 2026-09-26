@@ -29,6 +29,8 @@ type Backend struct {
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using websocket, and used for the connection retry interval with zmq"`
 }
+
+// TODO: reduce int sizes
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
 	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)\noverridden by POGOLO_HOST"`
@@ -40,6 +42,7 @@ type Pogolo struct {
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.16"`
 	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
+	Sv2WindowSize       uint64  `toml:"sv2_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nset to 0 to disable"`
 
 	ExtraNonce2Size uint16 `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
 	BIPVersionBits  int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
@@ -62,6 +65,7 @@ var DEFAULT_CONFIG = Config{
 		JobInterval:         60,
 		TargetShareInterval: 5,
 		ExtraNonce2Size:     constants.EXTRANONCE_SIZE,
+		Sv2WindowSize:       15,
 	},
 }
 
