@@ -269,7 +269,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 					client.logError("requires standard channel but requested extended")
 					return
 				}
-				if msg.MinExtranonceSize > conf.ExtraNonce2Size {
+				if msg.MinExtranonceSize > uint16(conf.ExtraNonce2Size) {
 					client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 						RequestID: msg.RequestID,
 						ErrorCode: fmt.Sprintf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size),

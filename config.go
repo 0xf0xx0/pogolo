@@ -21,16 +21,16 @@ type Config struct {
 	Backend `toml:"backend"`
 	Pogolo  `toml:"pogolo"`
 }
+
 type Backend struct {
 	Host         string `toml:"host" comment:"RPC host:port, overridden by POGOLO_BACKEND_HOST"`
 	Cookie       string `toml:"cookie,commented" comment:"RPC cookie path, relative is supported (takes precedence over rpcauth)"`
 	Rpcauth      string `toml:"rpcauth,commented" comment:"RPC user:pass (ignored if cookie is set)\noverridden by POGOLO_BACKEND_RPCAUTH"`
 	ZMQHost      string `toml:"zmq_host,commented" comment:"ZMQ endpoint to subscribe to 'hashblock' events\noverridden by POGOLO_BACKEND_ZMQHOST"`
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
-	PollInterval uint64 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using websocket, and used for the connection retry interval with zmq"`
+	PollInterval uint32 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using websocket, and used for the connection retry interval with zmq"`
 }
 
-// TODO: reduce int sizes
 type Pogolo struct {
 	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
 	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)\noverridden by POGOLO_HOST"`
@@ -40,11 +40,11 @@ type Pogolo struct {
 	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)\ncustomize it! add your swarm stats, like\n'/pogolo - gamma x1 - decentralize or die/'"`
 	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
 	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.16"`
-	JobInterval         uint64  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
-	TargetShareInterval uint64  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
-	Sv2WindowSize       uint64  `toml:"sv2_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nset to 0 to disable"`
+	JobInterval         uint16  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
+	TargetShareInterval uint16  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
+	Sv2WindowSize       uint16  `toml:"sv2_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nminimum: 1"`
 
-	ExtraNonce2Size uint16 `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
+	ExtraNonce2Size uint8  `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
 	BIPVersionBits  int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
 	IgnoreSuggDiff  bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff  bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
