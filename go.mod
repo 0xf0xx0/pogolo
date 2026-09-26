@@ -4,12 +4,12 @@ go 1.26.2
 
 // replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
 
-replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
+// replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
 
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.0
 	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10
-	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260926211834-bb58d5fcc15c
+	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260926235716-c1d2bd2ae64a
 	github.com/btcsuite/btcd v0.26.2
 	github.com/btcsuite/btcd/address/v2 v2.0.0
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.1

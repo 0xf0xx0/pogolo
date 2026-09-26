@@ -315,9 +315,9 @@ func BenchmarkSv2Submit(b *testing.B) {
 		},
 		Extranonce: stratumv2.Bin32{0, 255, 0, 255},
 	}
-	f, _ := stratumv2.NewFrameFromParams(stratumv2.MessageSubmitSharesExtended, params)
+	f, _ := stratumv2.NewFrameFromParams(stratumv2.MessageSubmitSharesExtended, stratumv2.ExtensionTypeCore, params)
 	for b.Loop() {
-		bin, _ := send.EncryptFrame(*f)
+		bin, _ := send.EncryptFrame(f)
 		res := sendSv2ReqAndWaitForRes(b, bin, lpipe, recv)
 		if res.MessageType != stratumv2.MessageSubmitSharesSuccess &&
 			res.MessageType != stratumv2.MessageSubmitSharesError {
@@ -496,7 +496,7 @@ func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2
 
 	return lpipe, send, recv
 }
-func sendSv2ReqAndWaitForRes(t testing.TB, frame []byte, lpipe net.Conn, readcrypt *stratumv2.CipherState) stratumv2.Frame {
+func sendSv2ReqAndWaitForRes(t testing.TB, frame []byte, lpipe net.Conn, readcrypt *stratumv2.CipherState) *stratumv2.Frame {
 	_, err := lpipe.Write(frame)
 	if err != nil {
 		t.Log("write")

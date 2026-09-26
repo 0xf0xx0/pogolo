@@ -1249,16 +1249,10 @@ func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 	return client.writeConn(b)
 }
 func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType stratumv2.MessageType) error {
-	b, err := payload.Encode()
+	frame, err := stratumv2.NewFrameFromParams(messageType, stratumv2.ExtensionTypeCore, payload)
 	if err != nil {
 		client.logErrorf("failed to encode payload: %s", err)
 		return err
-	}
-	frame := stratumv2.Frame{
-		MessageType:   messageType,
-		ExtensionType: stratumv2.ExtensionTypeCore,
-		MessageLength: stratumv2.U24(len(b)),
-		Payload:       b,
 	}
 	enc, err := client.send.EncryptFrame(frame)
 	if err != nil {

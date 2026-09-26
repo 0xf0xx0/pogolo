@@ -144,7 +144,7 @@ func hexDec(s string) []byte {
 }
 
 var (
-	MOCK_SETUPCONNECTION = func() stratumv2.Frame {
+	MOCK_SETUPCONNECTION = func() *stratumv2.Frame {
 		payload := &stratumv2.SetupConnection{
 			Protocol:              stratumv2.MiningProtocol,
 			MinVersion:            stratumv2.ProtocolVersion,
@@ -163,9 +163,9 @@ var (
 			MessageLength: stratumv2.U24(len(b)),
 			Payload:       b,
 		}
-		return f
+		return &f
 	}()
-	MOCK_OPENEXTENDEDCHANNEL = func() stratumv2.Frame {
+	MOCK_OPENEXTENDEDCHANNEL = func() *stratumv2.Frame {
 		payload := &stratumv2.OpenExtendedMiningChannel{
 			OpenStandardMiningChannel: stratumv2.OpenStandardMiningChannel{
 				RequestID:       123,
@@ -181,16 +181,16 @@ var (
 			MessageLength: stratumv2.U24(len(b)),
 			Payload:       b,
 		}
-		return f
+		return &f
 	}()
-	MOCK_SV2_SUBMIT = func() stratumv2.Frame {
+	MOCK_SV2_SUBMIT = func() *stratumv2.Frame {
 		payload := hexDec("")
 		f := stratumv2.Frame{
 			MessageType:   stratumv2.MessageSubmitSharesExtended,
 			MessageLength: stratumv2.U24(len(payload)),
 			Payload:       payload,
 		}
-		return f
+		return &f
 	}()
 )
 

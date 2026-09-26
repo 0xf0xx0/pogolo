@@ -12,6 +12,8 @@ git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260913172413-e9085de00020 h1:bhv
 git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260913172413-e9085de00020/go.mod h1:pyY71F6nNfD87EBeBAN9aU8aigWcIHeNNq4yD8wqHQE=
 git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260926211834-bb58d5fcc15c h1:i5/FDreYSuDUG7pt6gOyl0X77kWyxtmIVsf+3tQGn5E=
 git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260926211834-bb58d5fcc15c/go.mod h1:pyY71F6nNfD87EBeBAN9aU8aigWcIHeNNq4yD8wqHQE=
+git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260926235716-c1d2bd2ae64a h1:CmoKncKXfShPCrxAuFDEsjw/C/HMmbIUvX4byZC4hJA=
+git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260926235716-c1d2bd2ae64a/go.mod h1:pyY71F6nNfD87EBeBAN9aU8aigWcIHeNNq4yD8wqHQE=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.26.0 h1:yntnSshlG3+H7dTwIOR4LTFXDPojVBsFORBNN5y5c/c=
