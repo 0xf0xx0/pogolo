@@ -261,6 +261,12 @@ func TestParseIdentity(t *testing.T) {
 	}
 }
 
+// sv2 tests
+func TestSv2FullSetup(t *testing.T) {
+	ezInitSv2Client(t)
+	// lpipe, send, recv := ezInitSv2Client(t)
+}
+
 // kinda pointless but eh
 func BenchmarkSv1Submit(b *testing.B) {
 	lpipe, _ := ezInitSv1Client(b, true)
@@ -272,10 +278,6 @@ func BenchmarkSv1Submit(b *testing.B) {
 			b.Fatalf("share submission failed! code: %s", res.Error)
 		}
 	}
-}
-
-// sv2 tests
-func TestSv2SetupConnection(t *testing.T) {
 }
 
 // util
@@ -390,19 +392,56 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 }
 
 // TODO
-func ezInitSv2Client(t testing.TB) net.Conn {
-	lpipe, _, _ := initClient()
+func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2.CipherState) {
+	lpipe, c, _ := initClient()
+	_ = c
 	/// reset rng
 	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	hs := &stratumv2.HandshakeState{}
-	send, recv, _ := hs.PerformHandshakeInitiator(lpipe)
-	send.EncryptFrameToWriter(MOCK_SETUPCONNECTION, lpipe)
-	readSv2Pipe(t, recv, lpipe)
-	send.EncryptFrameToWriter(MOCK_OPENEXTENDEDCHANNEL, lpipe)
-	readSv2Pipe(t, recv, lpipe)
-	return lpipe
-}
-func readSv2Pipe(t testing.TB, recv *stratumv2.CipherState, lpipe net.Conn) stratumv2.Frame {
-	frame, _ := recv.DecryptFrameFromReader(lpipe)
-	return frame
+	send, recv, err := hs.PerformHandshakeInitiator(lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = send.EncryptFrameToWriter(MOCK_SETUPCONNECTION, lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = recv.DecryptFrameFromReader(lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = send.EncryptFrameToWriter(MOCK_OPENEXTENDEDCHANNEL, lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = recv.DecryptFrameFromReader(lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	/// settarget
+	_, err = recv.DecryptFrameFromReader(lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	/// recv job
+	_, err = recv.DecryptFrameFromReader(lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	/// recv prevhash
+	_, err = recv.DecryptFrameFromReader(lpipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		c.currentJobMutex.Lock()
+		if c.CurrentJob.ID != 0 {
+			c.currentJobMutex.Unlock()
+			break
+		}
+		c.currentJobMutex.Unlock()
+	}
+	return lpipe, send, recv
 }

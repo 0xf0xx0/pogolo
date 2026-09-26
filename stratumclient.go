@@ -201,13 +201,10 @@ func (client *StratumClient) Run(ctx context.Context) {
 		}
 
 		/// check flags
-		var requiresStandardChan, requiresExtendedChan bool
+		var requiresStandardChan bool
 		if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
 			client.log("standard channel required")
 			requiresStandardChan = true
-		} else if msg.Flags&stratumv2.RequiresExtendedChannelsFlag == 1 {
-			client.log("extended channel required")
-			requiresExtendedChan = true
 		}
 
 		/// TODO: figure out sv2 uas
@@ -232,14 +229,6 @@ func (client *StratumClient) Run(ctx context.Context) {
 					return
 				}
 
-				if requiresExtendedChan {
-					client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
-						RequestID: msg.RequestID,
-						ErrorCode: "requires extended channel but requested standard",
-					}, stratumv2.MessageOpenMiningChannelError)
-					client.logError("requires extended channel but requested standard")
-					return
-				}
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
 					return
 				}

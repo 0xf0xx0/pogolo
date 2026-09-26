@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"testing"
 
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
@@ -144,20 +145,41 @@ func hexDec(s string) []byte {
 
 var (
 	MOCK_SETUPCONNECTION = func() stratumv2.Frame {
-		payload := hexDec("")
+		payload := &stratumv2.SetupConnection{
+			Protocol:              stratumv2.MiningProtocol,
+			MinVersion:            stratumv2.ProtocolVersion,
+			MaxVersion:            stratumv2.ProtocolVersion,
+			Flags:                 stratumv2.RequiresVersionRollingFlag,
+			EndpointPort:          5661,
+			EndpointHost:          "pogolo@umbrel",
+			DeviceVendor:          "bitaxe",
+			DeviceHardwareVersion: "FTXGOXX",
+			DeviceFirmware:        "v2021-08-24",
+			DeviceID:              "",
+		}
+		b, _ := payload.Encode()
 		f := stratumv2.Frame{
 			MessageType:   stratumv2.MessageSetupConnection,
-			MessageLength: stratumv2.U24(len(payload)),
-			Payload:       payload,
+			MessageLength: stratumv2.U24(len(b)),
+			Payload:       b,
 		}
 		return f
 	}()
 	MOCK_OPENEXTENDEDCHANNEL = func() stratumv2.Frame {
-		payload := hexDec("")
+		payload := &stratumv2.OpenExtendedMiningChannel{
+			OpenStandardMiningChannel: stratumv2.OpenStandardMiningChannel{
+				RequestID:       123,
+				UserIdentity:    MOCK_ADDRESS + ".fakeminer",
+				NominalHashRate: 1234567890,
+				MaxTarget:       *constants.Target1U256,
+			},
+			MinExtranonceSize: 0,
+		}
+		b, _ := payload.Encode()
 		f := stratumv2.Frame{
 			MessageType:   stratumv2.MessageOpenExtendedMiningChannel,
-			MessageLength: stratumv2.U24(len(payload)),
-			Payload:       payload,
+			MessageLength: stratumv2.U24(len(b)),
+			Payload:       b,
 		}
 		return f
 	}()
