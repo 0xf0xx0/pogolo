@@ -582,7 +582,8 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 					Extranonce2: share.Extranonce2,
 				}
 				/// BIP-310
-				if share.VersionMask > -1 {
+				// we *could* reject here, but i want to keep validation centralized
+				if s.Version & ^constants.VERSION_ROLLING_MASK == 0 {
 					s.Version = (s.Version & ^constants.VERSION_ROLLING_MASK) | (uint32(share.VersionMask) & constants.VERSION_ROLLING_MASK)
 				}
 				client.validateShareSubmission(s, m)

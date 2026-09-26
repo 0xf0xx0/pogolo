@@ -63,7 +63,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire/v2"
-	"github.com/bytedance/sonic"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
@@ -688,10 +687,10 @@ func backendRoutine(ctx context.Context) {
 			continue
 		}
 
-		t, _ := sonic.MarshalString(&template)
-		globalLog(t)
-		globalLog(strconv.Itoa(int(seeda)))
-		globalLog(strconv.Itoa(int(seedb)))
+		// t, _ := sonic.MarshalString(&template)
+		// globalLog(t)
+		// globalLog(strconv.FormatUint(seeda, 16))
+		// globalLog(strconv.FormatUint(seedb, 16))
 
 		/// save longpoll id
 		// longpollid = template.LongPollID

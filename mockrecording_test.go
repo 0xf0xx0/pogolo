@@ -8,6 +8,7 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/wire/v2"
 
 	"encoding/hex"
@@ -31,8 +32,8 @@ var (
 		return &gbt
 	}()
 	// prng seeds for template
-	MOCK_SEEDA = uint64(6436127536535422497)
-	MOCK_SEEDB = uint64(1576712319095203941)
+	MOCK_SEEDA = uint64(0x9e6826a50ba55d27)
+	MOCK_SEEDB = uint64(0x910a50e0af0acbb5)
 )
 
 var (
@@ -42,10 +43,24 @@ var (
 	MOCK_MINING_SUGGEST_DIFFICULTY = `{"id": 3, "method": "mining.suggest_difficulty", "params": [0.16]}`
 	MOCK_MINING_SUBSCRIBE          = `{"id": 4, "method": "mining.subscribe", "params": ["bitaxe/FTXGOXX/v2021-08-24"]}`
 
-	MOCK_EXTRANONCE    = "1df729b0"
-	MOCK_MINING_SUBMIT = `{"method": "mining.submit", "params": ["fakeminer", "1", "00000000", "6a2e0b5d", "1f8fe700"], "id":4}`
-	MOCK_NOTIFY        = `{"method":"mining.notify","params":["1","ad6009d4c54693de7ae8dc3a3c5fdb3e56dd5a77b6b3f0d9d514859700000000","01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2c012901941e2f706f676f6c6f202d20646563656e7472616c697a65206f72206469652f08","feffffff020000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf900f2052a01000000160014ed005216fe64da8d4216ceb8f539ae578952251428000000",[],"20000000","207fffff","6a2e0b5d",true]}`
-	MOCK_SHAREDIFF     = float64(0.55803) /// full float from cpuminer
+	MOCK_EXTRANONCE    = "8357f44c"
+	MOCK_MINING_SUBMIT = `{"method": "mining.submit", "params": ["fakeminer", "1", "01000000", "6ab83ac5", "b268feba"], "id":4}`
+	MOCK_NOTIFY        = `{"method":"mining.notify","params":["1","16585a5708ccf4118a07ad29ad3cb72f9c8290d278830dcef941c2c100000000","01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2c027d011f2f706f676f6c6f202d20646563656e7472616c697a65206f72206469652f4408","feffffff020000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9807c814a00000000160014ed005216fe64da8d4216ceb8f539ae57895225147c010000",[],"30000000","207fffff","6ab83ac5",true],"id":null}`
+	MOCK_SHAREHASH     = func() chainhash.Hash {
+		h := &chainhash.Hash{}
+		/// damn a 122 diff on a cpu
+		shareHash := hexDec("0000000002170e9659ce1e5faa6f405d452bfba4a59846f1fe201199f27367cc")
+		for i := range 16 {
+			shareHash[i], shareHash[31-i] = shareHash[31-i], shareHash[i]
+		}
+		err := h.SetBytes(shareHash)
+		if err != nil {
+			panic(err)
+		}
+		// println(h.String(), calcDifficulty(*h))
+		return *h
+	}()
+	MOCK_SHAREDIFF = calcDifficulty(MOCK_SHAREHASH)
 )
 
 // params
