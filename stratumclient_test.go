@@ -372,8 +372,14 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 	/// notify
 	readSv1Pipe(t, lpipe)
 
-	// FIXME: race condition :\
-	time.Sleep(time.Millisecond)
+	for {
+		c.currentJobMutex.Lock()
+		if c.CurrentJob.ID != 0 {
+			c.currentJobMutex.Unlock()
+			break
+		}
+		c.currentJobMutex.Unlock()
+	}
 
 	c.currentJobMutex.Lock()
 	defer c.currentJobMutex.Unlock()
