@@ -29,8 +29,8 @@ func TestMain(t *testing.T) {
 	b, _ := hex.DecodeString("8033d13ee81500afe03a9f48ed142b15724816dd9247c9cf55ae447a5b867449")
 	defaultMiningAddr, _ = address.NewAddressTaproot(b, backendChainParams)
 	disableLogs = true
-	sv2AuthorityKeypair = stratumv2.GenerateKeypair()
-	sv2StaticKeypair = stratumv2.GenerateKeypair()
+	sv2AuthorityKeypair = stratumv2.NewKeypair()
+	sv2StaticKeypair = stratumv2.NewKeypair()
 	/// cert lasts like a year, lol
 	sv2Cert, _ = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, 0)
 }
@@ -389,7 +389,7 @@ func ezInitSv2Client(t testing.TB) net.Conn {
 	/// reset rng
 	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	hs := &stratumv2.HandshakeState{}
-	send, recv, _, _ := hs.PerformHandshakeInitiator(lpipe, sv2AuthorityKeypair.PublicKey())
+	send, recv, _ := hs.PerformHandshakeInitiator(lpipe)
 	send.EncryptFrameToWriter(MOCK_SETUPCONNECTION, lpipe)
 	readSv2Pipe(t, recv, lpipe)
 	send.EncryptFrameToWriter(MOCK_OPENEXTENDEDCHANNEL, lpipe)

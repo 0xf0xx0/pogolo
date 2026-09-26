@@ -63,6 +63,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire/v2"
+	"github.com/bytedance/sonic"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
 )
@@ -361,8 +362,8 @@ func startup(rootCtx context.Context) error {
 	var err error
 	/// we don't care about auth cause we're on the lan
 	/// MAYBE: store privkeys in config file?
-	sv2AuthorityKeypair = stratumv2.GenerateKeypair()
-	sv2StaticKeypair = stratumv2.GenerateKeypair()
+	sv2AuthorityKeypair = stratumv2.NewKeypair()
+	sv2StaticKeypair = stratumv2.NewKeypair()
 	/// cert lasts like a year, lol
 	sv2Cert, err = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
 	if err != nil {
@@ -687,8 +688,10 @@ func backendRoutine(ctx context.Context) {
 			continue
 		}
 
-		// t, _ := sonic.MarshalString(&template)
-		// log(t)
+		t, _ := sonic.MarshalString(&template)
+		globalLog(t)
+		globalLog(strconv.Itoa(int(seeda)))
+		globalLog(strconv.Itoa(int(seedb)))
 
 		/// save longpoll id
 		// longpollid = template.LongPollID
