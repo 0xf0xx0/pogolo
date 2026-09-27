@@ -168,7 +168,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		// b, _ := frame.Encode()
 		// client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
 		msg := stratumv2.SetupConnection{}
-		if err = msg.Decode(frame.Payload); err != nil {
+		if err = frame.ToParams(&msg); err != nil {
 			client.logErrorf("error decoding SetupConnection: %s", err)
 			return
 		}
@@ -224,7 +224,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		case stratumv2.MessageOpenStandardMiningChannel:
 			{
 				msg := stratumv2.OpenStandardMiningChannel{}
-				if err = msg.Decode(frame.Payload); err != nil {
+				if err = frame.ToParams(&msg); err != nil {
 					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
 					return
 				}
@@ -245,7 +245,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
 				msg := stratumv2.OpenExtendedMiningChannel{}
-				if err = msg.Decode(frame.Payload); err != nil {
+				if err = frame.ToParams(&msg); err != nil {
 					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
 					return
 				}
@@ -402,7 +402,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					break
 				}
 				share := stratumv2.SubmitSharesExtended{}
-				if err = share.Decode(frame.Payload); err != nil {
+				if err = frame.ToParams(&share); err != nil {
 					client.logErrorf("error decoding SubmitSharesExtended: %s", err)
 					break
 				}
@@ -426,7 +426,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					break
 				}
 				share := stratumv2.SubmitSharesStandard{}
-				if err = share.Decode(frame.Payload); err != nil {
+				if err = frame.ToParams(&share); err != nil {
 					client.logErrorf("error decoding SubmitSharesStandard: %s", err)
 					break
 				}
@@ -445,7 +445,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 		case stratumv2.MessageUpdateChannel:
 			{
 				msg := stratumv2.UpdateChannel{}
-				if err = msg.Decode(frame.Payload); err != nil {
+				if err = frame.ToParams(&msg); err != nil {
 					client.logErrorf("error decoding UpdateChannel: %s", err)
 					return
 				}
@@ -484,7 +484,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 		case stratumv2.MessageCloseChannel:
 			{
 				msg := stratumv2.CloseChannel{}
-				if err = msg.Decode(frame.Payload); err != nil {
+				if err = frame.ToParams(&msg); err != nil {
 					client.logErrorf("error decoding CloseChannel: %s", err)
 					return
 				}

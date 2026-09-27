@@ -31,7 +31,7 @@ func TestMain(t *testing.T) {
 	sv2AuthorityKeypair = stratumv2.NewKeypair()
 	sv2StaticKeypair = stratumv2.NewKeypair()
 	/// cert lasts like a year, lol
-	sv2Cert, _ = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, 0)
+	sv2Cert, _ = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, 0)
 }
 
 /// stratum chatter

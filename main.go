@@ -364,7 +364,7 @@ func startup(rootCtx context.Context) error {
 	sv2AuthorityKeypair = stratumv2.NewKeypair()
 	sv2StaticKeypair = stratumv2.NewKeypair()
 	/// cert lasts like a year, lol
-	sv2Cert, err = stratumv2.NewAuthoritySignature(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
+	sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
 	if err != nil {
 		return err
 	}
