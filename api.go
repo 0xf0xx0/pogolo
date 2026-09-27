@@ -197,6 +197,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 			TotalWorkers: uint64(len(allClients)),
 			Version:      VERSION,
 			AuthorityKey: authorityKey,
+			BlocksFound:  []solvedBlock{},
 		})
 		return
 	}

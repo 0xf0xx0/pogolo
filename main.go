@@ -582,6 +582,28 @@ func backendRoutine(ctx context.Context) {
 		}
 	}
 
+	/// wait for sync
+	for {
+		select {
+		case <-ctx.Done():
+			{
+				return
+			}
+		default:
+		}
+		req, err := backend.GetBlockChainInfo()
+		if err != nil {
+			globalLogError(fmt.Sprintf("error fetching GetBlockChainInfo: %s", err))
+			time.Sleep(time.Millisecond * time.Duration(conf.PollInterval))
+			continue
+		}
+		if !req.InitialBlockDownload || req.VerificationProgress > 0.99 {
+			break
+		}
+		globalLogError(fmt.Sprintf("waiting for backend to sync (%.2f%%)...", req.VerificationProgress*100))
+		time.Sleep(time.Millisecond * time.Duration(conf.PollInterval))
+	}
+
 	/// block notifications
 	if conf.Backend.Websocket {
 		/// wait for new blocks to come in
@@ -673,7 +695,7 @@ func backendRoutine(ctx context.Context) {
 		}
 	}()
 
-	// queue initial job template fetch
+	/// queue initial job template fetch
 	triggerGBT <- struct{}{}
 
 	templateReq := &btcjson.TemplateRequest{
