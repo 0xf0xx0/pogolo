@@ -44,12 +44,13 @@ type Pogolo struct {
 	TargetShareInterval uint16  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
 	Sv2WindowSize       uint16  `toml:"sv2_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nminimum: 1"`
 
-	ExtraNonce2Size uint8  `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
-	BIPVersionBits  int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
-	IgnoreSuggDiff  bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
-	DisableVarDiff  bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
-	Benchmarking    bool   `toml:"benchmark,omitempty"`
-	LogFile         string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
+	ExtraNonce2Size     uint8  `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
+	BIPVersionBits      int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
+	IgnoreSuggDiff      bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
+	DisableVarDiff      bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
+	Benchmarking        bool   `toml:"benchmark,omitempty"`
+	Sv2AuthorityKeypair string `toml:"sv2_authority_keypair,commented" comment:"encoded stratumv2.Keypair for the authority key"`
+	LogFile             string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
 }
 
 var DEFAULT_CONFIG = Config{

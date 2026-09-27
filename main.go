@@ -360,8 +360,21 @@ func main() {
 func startup(rootCtx context.Context) error {
 	var err error
 	/// we don't care about auth cause we're on the lan
-	/// MAYBE: store privkeys in config file?
-	sv2AuthorityKeypair = stratumv2.NewKeypair()
+	if conf.Sv2AuthorityKeypair != "" {
+		sv2AuthorityKeypair = &stratumv2.Keypair{}
+		bytes, err := hex.DecodeString(conf.Sv2AuthorityKeypair)
+		if err != nil {
+			globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
+			return err
+		}
+		if err := sv2AuthorityKeypair.Decode(bytes); err != nil {
+			globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
+			return err
+		}
+		globalLog(fmt.Sprintf("using sv2 authority key {green}%s", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
+	} else {
+		sv2AuthorityKeypair = stratumv2.NewKeypair()
+	}
 	sv2StaticKeypair = stratumv2.NewKeypair()
 	/// cert lasts like a year, lol
 	sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))

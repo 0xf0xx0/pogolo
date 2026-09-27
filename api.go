@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -47,17 +48,18 @@ type miniWorkerInfo struct {
 	ProtocolVersion uint8  `json:"protocolVersion"`
 }
 type getInfoRes struct {
-	Uptime        uint64           `json:"uptime"`
 	BlockHeight   uint64           `json:"blockHeight"`
 	TotalWorkers  uint64           `json:"totalGophers"`
 	TotalHashrate float64          `json:"totalHashrate"`
 	BestDiff      float64          `json:"bestDifficulty"`
 	NetworkDiff   float64          `json:"networkDifficulty"`
 	Tag           string           `json:"tag"`
+	AuthorityKey  string           `json:"authorityKey,omitempty"`
+	ActiveChain   string           `json:"activeChain"`
+	Version       string           `json:"version"`
+	Uptime        uint64           `json:"uptime"`
 	Workers       []miniWorkerInfo `json:"gophers"`
 	BlocksFound   []solvedBlock    `json:"blocksFound"`
-	Version       string           `json:"version"`
-	ActiveChain   string           `json:"activeChain"`
 }
 
 // stores solved block info
@@ -178,6 +180,10 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		bestDiff = max(bestDiff, client.stats.bestDiff)
 		hashrateSum += client.stats.HashrateH()
 	}
+	authorityKey := ""
+	if conf.Sv2AuthorityKeypair != "" && sv2AuthorityKeypair != nil {
+		authorityKey = stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())
+	}
 	currTemplateLock.RLock()
 	defer currTemplateLock.RUnlock()
 	if currTemplate == nil {
@@ -189,6 +195,8 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 			Workers:      workerStats,
 			Tag:          conf.Tag,
 			TotalWorkers: uint64(len(allClients)),
+			Version:      VERSION,
+			AuthorityKey: authorityKey,
 		})
 		return
 	}
@@ -205,6 +213,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		NetworkDiff:   currTemplate.NetworkDiff,
 		Version:       VERSION,
 		ActiveChain:   backendChainParams.Name,
+		AuthorityKey:  authorityKey,
 	})
 }
 
