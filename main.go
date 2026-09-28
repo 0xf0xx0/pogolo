@@ -597,7 +597,7 @@ func backendRoutine(ctx context.Context) {
 			time.Sleep(time.Millisecond * time.Duration(conf.PollInterval))
 			continue
 		}
-		if !req.InitialBlockDownload || req.VerificationProgress > 0.99 {
+		if !req.InitialBlockDownload && req.VerificationProgress > 0.99 {
 			break
 		}
 		globalLogError(fmt.Sprintf("waiting for backend to sync (%.2f%%)...", req.VerificationProgress*100))
