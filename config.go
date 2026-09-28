@@ -49,7 +49,7 @@ type Pogolo struct {
 	IgnoreSuggDiff      bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 	Benchmarking        bool   `toml:"benchmark,omitempty"`
-	Sv2AuthorityKeypair string `toml:"sv2_authority_keypair,commented" comment:"encoded stratumv2.Keypair for the authority key"`
+	Sv2AuthorityKeypair string `toml:"sv2_authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key"`
 	LogFile             string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
 }
 
