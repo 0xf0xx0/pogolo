@@ -238,6 +238,10 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 	return diff
 }
 
+// func calcDifficultyHash(hash chainhash.Hash) stratumv2.U256 {
+// 	return *constants.Target1U256.Clone().Div(stratumv2.U256(hash))
+// }
+
 // port of public-pools calculateNetworkDifficulty
 func calcNetworkDifficulty(nBits uint32) float64 {
 	/// unpack the target from the compact nBits

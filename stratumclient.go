@@ -93,25 +93,26 @@ func (t *wrapperRW) Write(b []byte) (int, error) {
 
 // aka gopher
 type StratumClient struct {
-	CurrentJob          MiningJob
-	stats               StratumClientStats
-	conn                net.Conn
-	User                address.Address
-	Nickname            string
-	UserAgent           string
-	TargetDifficulty    float64
-	SuggestedDifficulty float64                     // overloaded, initially set by client (optional) then used by diff adjust
-	ID                  stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
-	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
-	shareHashMutex      sync.Mutex
-	currentJobMutex     sync.RWMutex
-	templateChan        chan *JobTemplate
-	submissionChan      chan<- blockSubmission
-	protocol            uint8
-	extendedChannel     bool
-	send, recv          *stratumv2.CipherState
-	batchSubmissionChan chan batchShare
-	donationPercent     uint8
+	CurrentJob           MiningJob
+	stats                StratumClientStats
+	conn                 net.Conn
+	User                 address.Address
+	Nickname             string
+	UserAgent            string
+	TargetDifficulty     float64 // i am NOT implementing math on a goddamn U256, pay me if you need it LOL
+	TargetDifficultyU256 stratumv2.U256
+	SuggestedDifficulty  float64                     // overloaded, initially set by client (optional) then used by diff adjust
+	ID                   stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
+	shareHashes          map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
+	shareHashMutex       sync.Mutex
+	currentJobMutex      sync.RWMutex
+	templateChan         chan *JobTemplate
+	submissionChan       chan<- blockSubmission
+	protocol             uint8
+	extendedChannel      bool
+	send, recv           *stratumv2.CipherState
+	batchSubmissionChan  chan batchShare
+	donationPercent      uint8
 
 	logPrefix    string
 	errLogPrefix string
@@ -457,9 +458,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					}, stratumv2.MessageUpdateChannelError)
 					break
 				}
-				newTargetIsOld := constants.Target1U256.IsEqual(&msg.MaxTarget)
-				newTargetMeetsMin := constants.Target1U256.IsMetBy(&msg.MaxTarget)
-				if newTargetIsOld {
+				if constants.Target1U256.IsEqual(msg.MaxTarget) {
 					/// calc the new difficulty from the new hashrate and switch immediately
 					if msg.NominalHashRate > 0 {
 						client.setDifficulty(calcDiffFromHashrate(float64(msg.NominalHashRate)))
@@ -467,7 +466,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					break
 				}
 				/// if its too large, error
-				if !newTargetMeetsMin {
+				if !constants.Target1U256.IsMetBy(&msg.MaxTarget) {
 					client.logError("new target difficulty too low")
 					client.writeSv2Msg(&stratumv2.UpdateChannelError{
 						ChannelID: msg.ChannelID,
@@ -491,7 +490,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 				client.logf("leaving: %s", msg.ReasonCode)
 				return
 			}
-
 		// ignored
 		case stratumv2.MessageSetupConnection:
 		case stratumv2.MessageOpenStandardMiningChannel:
@@ -768,6 +766,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		}
 	}
 	client.TargetDifficulty = newDiff
+	client.TargetDifficultyU256 = diffToTarget(newDiff)
 	client.logf("adjusting share target to {blue}%g", newDiff)
 	return nil
 }
@@ -1096,6 +1095,9 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 
 	shareHash := simdHeaderHash(updatedHeader)
 	shareDiff := calcDifficulty(shareHash)
+	// println(fmt.Sprintf("%x, %x, %f, %f, %f", client.TargetDifficultyU256[:], shareHash[:], calcDifficulty(chainhash.Hash(client.TargetDifficultyU256)), client.TargetDifficulty, shareDiff))
+	// println(shareHash.String())
+	// if !client.TargetDifficultyU256.IsMetByHash(&shareHash) {
 	/// TODO: store target diff as u256
 	if shareDiff < client.TargetDifficulty {
 		if client.protocol == 1 {
