@@ -1200,38 +1200,41 @@ func (client *StratumClient) batchSv2SubmissionsRoutine() {
 	maxWindow := time.Second * time.Duration(conf.Sv2WindowSize)
 	remainingWindow := maxWindow
 	lastSequence := uint32(0)
-	queuedSize := uint32(0)
+	batchSize := uint32(0)
 	diffSum := uint64(0)
 
 	for {
 		startTime := time.Now()
 		select {
 		case <-time.After(remainingWindow):
-			if queuedSize > 0 {
+			if batchSize > 0 {
 				client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
 					ChannelID:               uint32(client.ID),
 					LastSequenceNumber:      lastSequence,
-					NewSubmitsAcceptedCount: queuedSize,
+					NewSubmitsAcceptedCount: batchSize,
 					NewSharesSum:            diffSum,
 				}, stratumv2.MessageSubmitSharesSuccess)
 				diffSum = 0
-				queuedSize = 0
+				batchSize = 0
 				remainingWindow = maxWindow
 			}
 		case seq := <-client.batchSubmissionChan:
 			lastSequence = seq.sequence
 			diffSum += uint64(seq.diff)
-			queuedSize++
+			batchSize++
+
 			/// just in case
-			if queuedSize >= 65500 {
+			if batchSize >= 65500 {
 				remainingWindow = 0
 				continue
 			}
+
 			elapsed := time.Since(startTime)
 			if elapsed >= remainingWindow {
 				remainingWindow = 0
 				continue
 			}
+
 			remainingWindow -= elapsed
 			remainingWindow = min(remainingWindow+remainingWindow/2, maxWindow)
 		}
