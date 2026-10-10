@@ -17,7 +17,7 @@ _want a go pool you can run on the public internet? check out https://github.com
     - [go](#go)
     - [manual install](#manual-install)
 
-![cpuminer on regtest](./showoff.png)
+![cpuminer on regtest](./imgs/showoff.png)
 
 # features
 
