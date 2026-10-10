@@ -843,7 +843,9 @@ func (client *StratumClient) readTemplateChanRoutine() {
 					CoinbasePrefix:        newJob.CoinbasePart1,
 					CoinbaseSuffix:        newJob.CoinbasePart2,
 				}
-				client.writeSv2Msg(job, stratumv2.MessageNewExtendedMiningJob)
+				if err := client.writeSv2Msg(job, stratumv2.MessageNewExtendedMiningJob); err != nil {
+					client.logError(err.Error())
+				}
 			} else {
 				job := &stratumv2.NewMiningJob{
 					ChannelID:  uint32(client.ID),
@@ -852,9 +854,13 @@ func (client *StratumClient) readTemplateChanRoutine() {
 					Version:    uint32(newJob.Version),
 					MerkleRoot: stratumv2.U256(newJob.Header.MerkleRoot),
 				}
-				client.writeSv2Msg(job, stratumv2.MessageNewMiningJob)
+				if err := client.writeSv2Msg(job, stratumv2.MessageNewMiningJob); err != nil {
+					client.logError(err.Error())
+				}
 			}
-			client.writeSv2Msg(prevhash, stratumv2.MessageSetNewPrevHash)
+			if err := client.writeSv2Msg(prevhash, stratumv2.MessageSetNewPrevHash); err != nil {
+				client.logError(err.Error())
+			}
 		}
 
 		/// reset dupe share map
@@ -982,8 +988,10 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	// validate max target
 	// TODO: verify Target1U256 is a valid maximum
 	// maybe "steal" from a different pool lol
-	if !constants.Target1U256.IsMetBy(&maxTarget) {
+	if constants.Target1U256.Compare(&maxTarget) == 1 {
 		client.logError("provided max target is out of range")
+		client.logError(maxTarget.String())
+		client.logError(constants.Target1U256.String())
 		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 			RequestID: requestID,
 			ErrorCode: stratumv2.MaxTargetOutOfRangeError,

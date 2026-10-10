@@ -313,7 +313,7 @@ func BenchmarkSv2Submit(b *testing.B) {
 			Time:      submitParams.Time,
 			Version:   0x20beef00,
 		},
-		Extranonce: stratumv2.Bin32{0, 255, 0, 255},
+		Extranonce: []byte{0, 255, 0, 255},
 	}
 	f, _ := stratumv2.NewFrameFromParams(stratumv2.MessageSubmitSharesExtended, stratumv2.ExtensionTypeCore, params)
 	for b.Loop() {

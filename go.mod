@@ -4,12 +4,12 @@ go 1.26.2
 
 // replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
 
-replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
+// replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
 
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.0
 	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10
-	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20260927183620-1071d2318058
+	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261010185643-19d4ecc60b0f
 	github.com/btcsuite/btcd v0.26.2
 	github.com/btcsuite/btcd/address/v2 v2.0.0
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.1
@@ -47,10 +47,10 @@ require (
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	golang.org/x/arch v0.31.0 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
 
