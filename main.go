@@ -174,6 +174,11 @@ func main() {
 				Name:  "writedefaultconf",
 				Usage: "write default config to `path` and exit",
 			},
+			&cli.BoolFlag{
+				Name:    "generate-authority-key",
+				Aliases: []string{"genauthkey"},
+				Usage:   "generate a static SV2 authority key",
+			},
 			&cli.StringFlag{
 				Name:    "prof",
 				Aliases: []string{"profile"},
@@ -221,8 +226,15 @@ func main() {
 				oigiki.NoColor = true
 			}
 
+			/// one-shot commands
 			if cmd.String("writedefaultconf") != "" {
 				return WriteDefaultConfig(cmd.String("writedefaultconf"))
+			}
+			if cmd.Bool("generate-authority-key") {
+				keypair := stratumv2.NewKeypair()
+				bytes, _ := keypair.Encode()
+				globalLog(fmt.Sprintf("{bold}Authority Pubkey: %s{/bold}\nSave this string as {bluebright}authority_keypair{/bluebright} in your config file:\n\n{yellow}%x", stratumv2.SerializeAuthorityKey(keypair.PublicKey()), bytes))
+				return nil
 			}
 
 			/// set defaults
