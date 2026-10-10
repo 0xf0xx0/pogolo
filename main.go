@@ -46,6 +46,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -72,6 +73,28 @@ const (
 	NAME    = "pogolo"
 	VERSION = "1.1.6"
 )
+
+var (
+	COMMIT = ""
+	DIRTY  = ""
+)
+
+var _ = func() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				COMMIT = setting.Value[:7]
+			}
+			if setting.Key == "vcs.modified" {
+				if setting.Value == "true" {
+					DIRTY = "-dirty"
+				}
+			}
+		}
+	}
+
+	return ""
+}()
 
 const commandHelpTemplate = `Usage:
    {green}{{.Name}} {blue}[options]{/}
@@ -119,7 +142,7 @@ func main() {
 	cli.RootCommandHelpTemplate = oigiki.ProcessTags(commandHelpTemplate)
 	app := &cli.Command{
 		Name:                   NAME,
-		Version:                VERSION,
+		Version:                fmt.Sprintf("%s-%s%s", VERSION, COMMIT, DIRTY),
 		Usage:                  "Decentralize or die",
 		UseShortOptionHandling: true,
 		MutuallyExclusiveFlags: []cli.MutuallyExclusiveFlags{
@@ -344,10 +367,10 @@ func main() {
 			}
 
 			/// start
-			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, cmd.Version, cmd.Usage))
+			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, VERSION, cmd.Usage))
 			globalLog(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
 			if conf.Sv1Password != "" {
-				globalLog(fmt.Sprintf("%q set as stratum v1 password", conf.Sv1Password))
+				globalLog(fmt.Sprintf("\"{green}%s{/green}\" set as stratum v1 password", conf.Sv1Password))
 			}
 			return startup(rootCtx)
 		},
