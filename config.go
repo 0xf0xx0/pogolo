@@ -32,24 +32,24 @@ type Backend struct {
 }
 
 type Pogolo struct {
-	Interface           string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
-	Host                string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)\noverridden by POGOLO_HOST"`
-	Port                uint16  `toml:"port" comment:"use 0 to pick a random port"`
-	HTTPPort            uint16  `toml:"http_port" comment:"port for the api"`
-	Sv1Password         string  `toml:"password,commented" comment:"optional, required from sv1 clients if set"`
-	Tag                 string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)\ncustomize it! add your swarm stats, like\n'/pogolo - gamma x1 - decentralize or die/'"`
-	PoolAddress         string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
-	DefaultDifficulty   float64 `toml:"default_difficulty" comment:"minimum 0.16"`
-	JobInterval         uint16  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
-	TargetShareInterval uint16  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
-	Sv2WindowSize       uint16  `toml:"sv2_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nminimum: 1"`
+	Interface            string  `toml:"interface" comment:"will listen on all interface ips (takes precedence over ip)"`
+	Host                 string  `toml:"host,commented" comment:"ipv4, v6, or domain (domain will resolve all ips) (ignored if interface is set)\noverridden by POGOLO_HOST"`
+	Port                 uint16  `toml:"port" comment:"use 0 to pick a random port"`
+	HTTPPort             uint16  `toml:"http_port" comment:"port for the api"`
+	Sv1Password          string  `toml:"password,commented" comment:"optional, required from sv1 clients if set"`
+	Tag                  string  `toml:"tag" comment:"will be replaced by default tag if too long (about 86 chars)\ncustomize it! add your swarm stats, like\n'/pogolo - gamma x1 - decentralize or die/'"`
+	PoolAddress          string  `toml:"pool_address,commented" comment:"default on-chain address to mine to if not provided by client"`
+	DefaultDifficulty    float64 `toml:"default_difficulty" comment:"minimum 0.16"`
+	JobInterval          uint16  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
+	TargetShareInterval  uint16  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
+	ShareBatchWindowSize uint16  `toml:"share_batch_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nminimum: 1"`
 
 	ExtraNonce2Size     uint8  `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
 	BIPVersionBits      int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
 	IgnoreSuggDiff      bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 	Benchmarking        bool   `toml:"benchmark,omitempty"`
-	Sv2AuthorityKeypair string `toml:"sv2_authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key"`
+	Sv2AuthorityKeypair string `toml:"authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key"`
 	LogFile             string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
 }
 
@@ -59,14 +59,14 @@ var DEFAULT_CONFIG = Config{
 		PollInterval: 500,
 	},
 	Pogolo: Pogolo{
-		Port:                5661,
-		HTTPPort:            5662,
-		Tag:                 constants.DEFAULT_COINBASE_TAG,
-		DefaultDifficulty:   constants.DEFAULT_DIFFICULTY,
-		JobInterval:         60,
-		TargetShareInterval: 5,
-		ExtraNonce2Size:     constants.EXTRANONCE_SIZE,
-		Sv2WindowSize:       15,
+		Port:                 5661,
+		HTTPPort:             5662,
+		Tag:                  constants.DEFAULT_COINBASE_TAG,
+		DefaultDifficulty:    constants.DEFAULT_DIFFICULTY,
+		JobInterval:          60,
+		TargetShareInterval:  5,
+		ExtraNonce2Size:      constants.EXTRANONCE_SIZE,
+		ShareBatchWindowSize: 15,
 	},
 }
 

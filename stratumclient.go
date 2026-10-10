@@ -1197,7 +1197,7 @@ func (client *StratumClient) addShareToBatch(sequence uint32, diff float64) {
 
 // batch sv2 submissions into windows, each share bumping the window by a bit
 func (client *StratumClient) batchSv2SubmissionsRoutine() {
-	maxWindow := time.Second * time.Duration(conf.Sv2WindowSize)
+	maxWindow := time.Second * time.Duration(conf.ShareBatchWindowSize)
 	remainingWindow := maxWindow
 	lastSequence := uint32(0)
 	batchSize := uint32(0)
