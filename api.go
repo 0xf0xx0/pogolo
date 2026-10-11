@@ -126,8 +126,6 @@ func initAPI() {
 			Help:      "Total number of blocks found",
 		}),
 	}
-	// TODO: figure out how to update metrics without creating races and/or bogging down everything else
-
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gophers", getAllWorkerInfo)
 	http.HandleFunc(pfx+"/gophers/{idOrNickname}", getWorkerInfo)
@@ -142,7 +140,7 @@ func initAPI() {
 	})
 	http.HandleFunc("GET /metrics", func(res http.ResponseWriter, req *http.Request) {
 		allClientStats := clients.AllStats()
-		allClientsLen := clients.Len()
+		allClientsLen := len(allClientStats)
 		hashrateSum := float64(0)
 		bestDiff := float64(0)
 		for _, stats := range allClientStats {
