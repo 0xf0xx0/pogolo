@@ -155,7 +155,7 @@ var (
 			DeviceVendor:          "bitaxe",
 			DeviceHardwareVersion: "FTXGOXX",
 			DeviceFirmware:        "v2021-08-24",
-			DeviceID:              "",
+			DeviceID:              "D-Vize",
 		}
 		b, _ := payload.Encode()
 		f := stratumv2.Frame{

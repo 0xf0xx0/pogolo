@@ -272,6 +272,77 @@ func TestParseIdentity(t *testing.T) {
 }
 
 // sv2 tests
+
+func TestSv2Ident(t *testing.T) {
+	init := func(setup stratumv2.SetupConnection) *StratumClient {
+		lpipe, c, _ := initClient()
+		defer lpipe.Close()
+		hs := &stratumv2.HandshakeState{}
+		send, recv, err := hs.PerformHandshakeInitiator(lpipe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := &stratumv2.Frame{}
+		f.FromParams(stratumv2.MessageSetupConnection, &setup)
+		_, err = send.EncryptFrameToWriter(f, lpipe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = recv.DecryptFrameFromReader(lpipe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+
+	setup := stratumv2.SetupConnection{
+		Protocol:     stratumv2.MiningProtocol,
+		MinVersion:   stratumv2.ProtocolVersion,
+		MaxVersion:   stratumv2.ProtocolVersion,
+		Flags:        stratumv2.RequiresVersionRollingFlag,
+		EndpointPort: 5661,
+		EndpointHost: "pogolo@umbrel",
+		// DeviceVendor:          "bitaxe",
+		// DeviceHardwareVersion: "FTXGOXX",
+		// DeviceFirmware:        "v2021-08-24",
+		// DeviceID:              "",
+	}
+
+	cocli := init(setup)
+	EXPECTED := "unknown"
+	if cocli.UserAgent != EXPECTED {
+		t.Fatalf("useragent mismatch: expected %q, got %q", EXPECTED, cocli.UserAgent)
+	}
+
+	setup.DeviceVendor = "bitaxe"
+	cocli = init(setup)
+	EXPECTED = "bitaxe"
+	if cocli.UserAgent != EXPECTED {
+		t.Fatalf("useragent mismatch: expected %q, got %q", EXPECTED, cocli.UserAgent)
+	}
+
+	setup.DeviceID = "D-Vize"
+	cocli = init(setup)
+	EXPECTED = "bitaxe/D-Vize"
+	if cocli.UserAgent != EXPECTED {
+		t.Fatalf("useragent mismatch: expected %q, got %q", EXPECTED, cocli.UserAgent)
+	}
+
+	setup.DeviceVendor = ""
+	setup.DeviceHardwareVersion = "BM1370"
+	cocli = init(setup)
+	EXPECTED = "BM1370/D-Vize"
+	if cocli.UserAgent != EXPECTED {
+		t.Fatalf("useragent mismatch: expected %q, got %q", EXPECTED, cocli.UserAgent)
+	}
+
+	setup.DeviceID = ""
+	cocli = init(setup)
+	EXPECTED = "BM1370"
+	if cocli.UserAgent != EXPECTED {
+		t.Fatalf("useragent mismatch: expected %q, got %q", EXPECTED, cocli.UserAgent)
+	}
+}
 func TestSv2FullSetup(t *testing.T) {
 	ezInitSv2Client(t)
 	// lpipe, send, recv := ezInitSv2Client(t)
@@ -443,7 +514,6 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 	return lpipe, c
 }
 
-// TODO
 func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2.CipherState) {
 	lpipe, c, _ := initClient()
 	_ = c

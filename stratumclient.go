@@ -211,8 +211,24 @@ func (client *StratumClient) Run(ctx context.Context) {
 			requiresStandardChan = true
 		}
 
-		/// TODO: figure out sv2 uas
-		client.UserAgent = fmt.Sprintf("%s/%s", msg.DeviceVendor, msg.DeviceHardwareVersion)
+		client.UserAgent = fmt.Sprintf("%s/%s/%s/%s",
+			msg.DeviceVendor, msg.DeviceHardwareVersion, msg.DeviceFirmware, msg.DeviceID)
+
+		/* NOTE reasoning: worst-case scenario is Vendor!="" && ID!=""
+		 * resulting in "vendor///id"
+		 * replace "///", "vendor///id" -> "vendor/id"
+		 * replace "//", "/hwver//id" -> "/hwver/id"
+		 * then trim "/hwver//id" -> "hwver/id"
+		 */
+		client.UserAgent = strings.Trim(
+			strings.ReplaceAll(
+				strings.ReplaceAll(client.UserAgent, "///", "/"),
+				"//", "/"),
+			"/")
+
+		if client.UserAgent == "" {
+			client.UserAgent = "unknown"
+		}
 
 		/// write success
 		client.writeSv2Msg(&stratumv2.SetupConnectionSuccess{UsedVersion: stratumv2.ProtocolVersion}, stratumv2.MessageSetupConnectionSuccess)
