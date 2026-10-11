@@ -511,6 +511,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			}
 		// ignored
 		case stratumv2.MessageSetupConnection:
+		/// MAYBE: allow for multiple channels + grouping
 		case stratumv2.MessageOpenStandardMiningChannel:
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
