@@ -1,3 +1,4 @@
 /pogolo
 logs/
 pkgs/arch/
+*.prof
