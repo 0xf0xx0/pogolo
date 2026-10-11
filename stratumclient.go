@@ -126,9 +126,11 @@ func (client *StratumClient) Run(ctx context.Context) {
 	client.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
 	/// MAYBE: figure out how to start with a small 128 byte buffer and grow when a larger message comes in?
-	/// the largest message we'll handle is an sv2 SetupConnection frame, at a max of ~1288 bytes
+	/// the sv2 path reads directly from the conn, so we're just buffering sv1
 	/// shares are sub-128 bytes, everything else is sub-512, if not -256
-	r := bufio.NewReaderSize(client.conn, 660)
+	/// EX: our mining.authorize weights in at 114 bytes
+	/// TODO: use this only for the peek
+	r := bufio.NewReaderSize(client.conn, 256)
 	/// peek to determine protocol
 	b, err := r.Peek(1)
 	if err != nil {
@@ -507,13 +509,14 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
+	scanner := bufio.NewScanner(reader)
 
 	/// processing loop
 	/// this should be async but
 	/// 1) it complicates shutdown and
 	/// 2) theres no point imo, everything gets handled in order anyway
 	/// its fast enough
-	for {
+	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
 			return
@@ -521,19 +524,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 		}
 
 		/// messages are newline separated (either lf or crlf)
-		line, err := reader.ReadBytes('\n')
-		if err != nil {
-			switch err {
-			case io.ErrClosedPipe:
-			case io.EOF:
-			case err.(*net.OpError):
-				ne := err.(*net.OpError)
-				client.logErrorf("%s", ne.Err)
-			default:
-				client.logErrorf("read error: %s", err)
-			}
-			return
-		}
+		line := scanner.Bytes()
 
 		/// process the message
 		m, err := decodeStratumMessage(line)
@@ -712,6 +703,19 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.R
 
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
+	}
+
+	if err := scanner.Err(); err != nil {
+		switch err {
+		case io.ErrClosedPipe:
+		case io.EOF:
+		case err.(*net.OpError):
+			ne := err.(*net.OpError)
+			client.logErrorf("%s", ne.Err)
+		default:
+			client.logErrorf("read error: %s", err)
+		}
+		return
 	}
 }
 
