@@ -155,16 +155,22 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 	}
 }
 
+// TODO: why is this broken? how to fix? validation is correct :\
 func TestVersionValidationEdgeCase(t *testing.T) {
 	/// set job version
-	// conf.BIPVersionBits = 0x30000000
+	conf.BIPVersionBits = 0x00000000
 	lpipe, _ := ezInitSv1Client(t, true)
+	// t.Logf("%x", c.CurrentJob.Header.Version)
 
 	/// explicitly set version mask to 0
 	submitParams.VersionMask = 0
 	r := submitParams.ToRequest(20)
 	/// expected hash: 00000001cac12f82479784bf2687b6cf5f455f5912b3c88e0c6e97bf6dc643c3
 	res := sendSv1ReqAndWaitForRes(t, r, lpipe)
+	// t.Logf("%x", c.CurrentJob.Header.Version)
+	// nVersion := ((uint32(currTemplate.Header.Version) | uint32(conf.BIPVersionBits)) & ^constants.VERSION_ROLLING_MASK) | (uint32(submitParams.VersionMask) & constants.VERSION_ROLLING_MASK)
+	// recovered := (^uint32(c.CurrentJob.Version) & nVersion) | (nVersion & constants.VERSION_ROLLING_MASK)
+	// t.Logf("%x %x", nVersion, recovered)
 	/// reset state for later tests
 	submitParams.VersionMask = -1
 	conf.BIPVersionBits = 0
