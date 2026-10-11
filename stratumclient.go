@@ -79,6 +79,7 @@ type blockSubmission struct {
 }
 
 // shitty name, but wraps a bufio.reader and net.conn for sv2 handshake
+// is dropped afterwards
 type wrapperRW struct {
 	r *bufio.Reader
 	c net.Conn
@@ -93,26 +94,26 @@ func (t *wrapperRW) Write(b []byte) (int, error) {
 
 // aka gopher
 type StratumClient struct {
-	CurrentJob           MiningJob
-	stats                StratumClientStats
-	conn                 net.Conn
-	User                 address.Address
-	Nickname             string
-	UserAgent            string
-	TargetDifficulty     float64 // i am NOT implementing math on a goddamn U256, pay me if you need it LOL
-	TargetDifficultyU256 stratumv2.U256
-	SuggestedDifficulty  float64                     // overloaded, initially set by client (optional) then used by diff adjust
-	ID                   stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
-	shareHashes          map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
-	shareHashMutex       sync.Mutex
-	currentJobMutex      sync.RWMutex
-	templateChan         chan *JobTemplate
-	submissionChan       chan<- blockSubmission
-	protocol             uint8
-	extendedChannel      bool
-	send, recv           *stratumv2.CipherState
-	batchSubmissionChan  chan batchShare
-	donationPercent      uint8
+	CurrentJob       MiningJob
+	stats            StratumClientStats
+	conn             net.Conn
+	User             address.Address
+	Nickname         string
+	UserAgent        string
+	TargetDifficulty float64
+	// TargetDifficultyU256 stratumv2.U256
+	SuggestedDifficulty float64                     // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
+	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
+	shareHashMutex      sync.Mutex
+	currentJobMutex     sync.RWMutex
+	templateChan        chan *JobTemplate
+	submissionChan      chan<- blockSubmission
+	protocol            uint8
+	extendedChannel     bool
+	send, recv          *stratumv2.CipherState
+	batchSubmissionChan chan batchShare
+	donationPercent     uint8
 
 	logPrefix    string
 	errLogPrefix string
@@ -770,7 +771,7 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		}
 	}
 	client.TargetDifficulty = newDiff
-	client.TargetDifficultyU256 = diffToTarget(newDiff)
+	// client.TargetDifficultyU256 = diffToTarget(newDiff)
 	client.logf("adjusting share target to {blue}%g", newDiff)
 	return nil
 }
@@ -1203,6 +1204,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	client.log(l.String())
 }
 
+// sends a share over a channel to be batched
 func (client *StratumClient) addShareToBatch(sequence uint32, diff float64) {
 	client.batchSubmissionChan <- batchShare{sequence: sequence, diff: diff}
 }
