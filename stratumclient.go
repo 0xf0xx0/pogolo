@@ -995,8 +995,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	// maybe "steal" from a different pool lol
 	if constants.Target1U256.Compare(&maxTarget) == 1 {
 		client.logError("provided max target is out of range")
-		client.logError(maxTarget.String())
-		client.logError(constants.Target1U256.String())
+		client.logErrorf("{red}%s{/red} > {green}%s", maxTarget.String(), constants.Target1U256.String())
 		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 			RequestID: requestID,
 			ErrorCode: stratumv2.MaxTargetOutOfRangeError,
