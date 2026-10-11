@@ -159,4 +159,4 @@ benchmark with https://github.com/eandersson/open-pool-benchmark
    https://web.archive.org/web/20201130051808/https://braiins.com/stratum-v1/docs
 - prometheus metrics (half-done)
     - block submission metrics
-- aur packages (needs a maintainer)
+- aur packages (under [contrib/pkgs/arch](./contrib/pkgs/arch), needs a maintainer)
