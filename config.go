@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
+	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
@@ -29,6 +31,7 @@ type Backend struct {
 	ZMQHost      string `toml:"zmq_host,commented" comment:"ZMQ endpoint to subscribe to 'hashblock' events\noverridden by POGOLO_BACKEND_ZMQHOST"`
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint32 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using websocket, and used for the connection retry interval with zmq"`
+	WaitForSync  bool   `toml:"wait_for_sync" comment:"whether to wait for the backend to sync before creating the first job (default: false)"`
 }
 
 type Pogolo struct {
@@ -86,8 +89,14 @@ func WriteDefaultConfig(path string) error {
 	/// done here to not fuck up runtime
 	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
 	DEFAULT_CONFIG.Backend.Rpcauth = "bitte:axtuh"
+	DEFAULT_CONFIG.Backend.WaitForSync = true
 	DEFAULT_CONFIG.Pogolo.Interface = ""
 	DEFAULT_CONFIG.Pogolo.Host = "[::]"
+	DEFAULT_CONFIG.Pogolo.ShareBatchWindowSize = 15
+
+	/// generate a keypair on the fly
+	b, _ := stratumv2.NewKeypair().Encode()
+	DEFAULT_CONFIG.Pogolo.Sv2AuthorityKeypair = hex.EncodeToString(b)
 
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {

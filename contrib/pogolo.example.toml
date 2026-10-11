@@ -14,6 +14,8 @@ host = '[::1]:8332'
 # how quickly to poll for block updates, in milliseconds
 # ignored if using websocket, and used for the connection retry interval with zmq
 poll_interval = 500
+# whether to wait for the backend to sync before creating the first job (default: false)
+wait_for_sync = true
 
 [pogolo]
 # will listen on all interface ips (takes precedence over ip)

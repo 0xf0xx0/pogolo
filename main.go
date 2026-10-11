@@ -618,7 +618,7 @@ func backendRoutine(ctx context.Context) {
 	}
 
 	/// wait for sync
-	for {
+	for conf.WaitForSync {
 		select {
 		case <-ctx.Done():
 			{
