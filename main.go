@@ -107,6 +107,23 @@ Version:
 
 Home page:
    {green}{underline}https://git.0xf0xx0.eth.limo/0xf0xx0/{{.Name}}{/}
+
+Copyright (C) 2026  {bg#262638}{#f04651}Hex{#deaf8e}fox{/}
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+A copy of the GNU Affero General Public License is
+embedded within this program. It can be acquired via {green}{{.Name}} {blue}--license{/} and
+the API endpoint {green}/license.txt{/green}.
+Otherwise, see {green}{underline}https://www.gnu.org/licenses/{/}.
 `
 
 // global state
@@ -188,6 +205,10 @@ func main() {
 				Name:  "logfile",
 				Usage: "write logs to `file`",
 			},
+			&cli.BoolFlag{
+				Name:  "license",
+				Usage: "print the GNU AGPL license.",
+			},
 
 			// env config overrides, same format as their related keys
 			&cli.StringFlag{
@@ -227,6 +248,10 @@ func main() {
 			}
 
 			/// one-shot commands
+			if cmd.Bool("license") {
+				globalLog(string(embeddedLicense))
+				return nil
+			}
 			if cmd.String("writedefaultconf") != "" {
 				return WriteDefaultConfig(cmd.String("writedefaultconf"))
 			}
