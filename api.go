@@ -27,6 +27,9 @@ const METRICS_NAMESPACE = "pogolo"
 //go:embed openapi.yaml
 var embeddedSwagger []byte
 
+//go:embed LICENSE
+var embeddedLicense []byte
+
 type detailedWorkerInfo struct {
 	Extranonce1     string  `json:"extranonce1"`
 	Address         string  `json:"address"`
@@ -129,6 +132,12 @@ func initAPI() {
 	http.HandleFunc(pfx+"/info", getInfo)
 	http.HandleFunc(pfx+"/gophers", getAllWorkerInfo)
 	http.HandleFunc(pfx+"/gophers/{idOrNickname}", getWorkerInfo)
+
+	/// embedded files
+	http.HandleFunc("GET /license.txt", func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Content-Type", "text/plain")
+		writeResponse(res, embeddedLicense)
+	})
 	http.HandleFunc("GET /openapi.yaml", func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "application/yaml")
 		writeResponse(res, embeddedSwagger)
