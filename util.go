@@ -29,9 +29,10 @@ import (
 )
 
 var (
-	seeda = rand.Uint64()
-	seedb = rand.Uint64()
-	rng   = rand.NewPCG(seeda, seedb)
+	seeda    = rand.Uint64()
+	seedb    = rand.Uint64()
+	rng      = rand.NewPCG(seeda, seedb)
+	randByte = 33 + uint8(rng.Uint64()%93)
 
 	maxTargetFloat = float64(math.Pow(2, 208) * 65535)
 )
@@ -149,7 +150,8 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 	padding := make([]byte, constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)
 	/// random printable byte to avoid client work loops if template doesn't change
 	/// better alternative to not sending the job at all
-	randByte := 33 + uint8(rng.Uint64()%93)
+	/// also roll the byte for greater rng
+	randByte = 33 + (randByte-33+1)%93
 	coinbaseScript := txscript.NewScriptBuilder().
 		/// bip-34
 		AddInt64(height).
