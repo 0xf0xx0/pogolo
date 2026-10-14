@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
-	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/urfave/cli/v3"
@@ -52,7 +50,7 @@ type Pogolo struct {
 	IgnoreSuggDiff      bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
 	Benchmarking        bool   `toml:"benchmark,omitempty"`
-	Sv2AuthorityKeypair string `toml:"authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key"`
+	Sv2AuthorityKeypair string `toml:"authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key\ncan be generated with '--generate-authority-key'"`
 	LogFile             string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
 }
 
@@ -93,10 +91,6 @@ func WriteDefaultConfig(path string) error {
 	DEFAULT_CONFIG.Pogolo.Interface = ""
 	DEFAULT_CONFIG.Pogolo.Host = "[::]"
 	DEFAULT_CONFIG.Pogolo.ShareBatchWindowSize = 15
-
-	/// generate a keypair on the fly
-	b, _ := stratumv2.NewKeypair().Encode()
-	DEFAULT_CONFIG.Pogolo.Sv2AuthorityKeypair = hex.EncodeToString(b)
 
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
 	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {

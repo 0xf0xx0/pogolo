@@ -53,6 +53,7 @@ share_batch_window = 15
 # disable automatic difficulty adjustment
 # disable_vardiff = false
 # the encoded stratumv2.Keypair used for the authority key
+# can be generated with '--generate-authority-key'
 # authority_keypair = ''
 # file to log to (path resolution same as cookie)
 # log_file = ''
