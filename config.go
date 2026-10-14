@@ -45,7 +45,7 @@ type Pogolo struct {
 	DefaultDifficulty    float64 `toml:"default_difficulty" comment:"minimum 0.16"`
 	JobInterval          uint16  `toml:"job_interval" comment:"how often to send new work to clients, in seconds"`
 	TargetShareInterval  uint16  `toml:"target_share_interval" comment:"how often we want shares on average, in seconds"`
-	ShareBatchWindowSize uint16  `toml:"share_batch_window_size" comment:"maximum time pogolo will wait for a new share before acknowledging the batch, in seconds\nminimum: 1"`
+	ShareBatchWindowSize uint16  `toml:"share_batch_window" comment:"maximum time pogolo will wait for the next share before acknowledging the batch, in seconds\nminimum: 1"`
 
 	ExtraNonce2Size     uint8  `toml:"extranonce2_size,commented" comment:"extranonce2 size in bytes, usually shouldnt be touched"`
 	BIPVersionBits      int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`

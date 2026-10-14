@@ -41,9 +41,9 @@ default_difficulty = 1024.0
 job_interval = 60
 # how often we want shares on average, in seconds
 target_share_interval = 5
-# maximum time pogolo will wait for a new share before acknowledging the batch, in seconds
+# maximum time pogolo will wait for the next share before acknowledging the batch, in seconds
 # minimum: 1
-share_batch_window_size = 15
+share_batch_window = 15
 # extranonce2 size in bytes, usually shouldnt be touched
 # extranonce2_size = 4
 # version bits as int32, ORed with the template version
