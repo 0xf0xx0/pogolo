@@ -39,6 +39,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -319,6 +320,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 		client.protocol = 2
 		go client.batchSv2SubmissionsRoutine()
 		client.startMining()
+		/// set deadline for furst share
+		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 		client.processSv2Loop(ctx, client.conn)
 	}
 }
@@ -387,15 +390,13 @@ func (client *StratumClient) Stop() {
 }
 
 func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reader) {
+	handledMessages := 0 /// for goroutine yielding under pressure
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-
-		/// deadline is a minute + 10x target share interval
-		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 
 		frame, err := client.recv.DecryptFrameFromReader(client.conn)
 		switch err {
@@ -518,12 +519,22 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			client.logErrorf("unknown method: %x", frame.MessageType)
 			continue
 		}
+
+		/// deadline is a minute + 10x target share interval
+		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
+
+		/// 96 messages appears to be the sweet spot
+		if handledMessages++; handledMessages%96 == 0 {
+			runtime.Gosched()
+			handledMessages = 0
+		}
 	}
 }
 func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reader) {
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
+	handledMessages := 0 /// for goroutine yielding under pressure
 	scanner := bufio.NewScanner(reader)
 
 	/// processing loop
@@ -718,6 +729,11 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
+		/// 96 messages appears to be the sweet spot
+		if handledMessages++; handledMessages%96 == 0 {
+			runtime.Gosched()
+			handledMessages = 0
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
