@@ -27,7 +27,7 @@ func TestMain(t *testing.T) {
 	backendChainParams = &chaincfg.RegressionNetParams
 	b, _ := hex.DecodeString("8033d13ee81500afe03a9f48ed142b15724816dd9247c9cf55ae447a5b867449")
 	defaultMiningAddr, _ = address.NewAddressTaproot(b, backendChainParams)
-	disableLogs = true
+	conf.DisableLogs = true
 	sv2AuthorityKeypair = stratumv2.NewKeypair()
 	sv2StaticKeypair = stratumv2.NewKeypair()
 	/// cert lasts like a year, lol

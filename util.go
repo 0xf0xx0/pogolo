@@ -468,7 +468,7 @@ func formatHashrate(value float64) string {
 }
 
 func globalLog(s string) {
-	if disableLogs {
+	if conf.DisableLogs {
 		return
 	}
 	s = oigiki.ProcessTags(oigiki.TagString(s, "cyan"))
@@ -479,7 +479,7 @@ func globalLog(s string) {
 	fmt.Fprintln(os.Stdout, s)
 }
 func globalLogError(s string) {
-	if disableLogs {
+	if conf.DisableLogs {
 		return
 	}
 	s = oigiki.ProcessTags(oigiki.TagString(s, "red"))

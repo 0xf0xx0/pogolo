@@ -152,7 +152,6 @@ var (
 
 	/// debug shit
 	totalSharesPerSec = uint64(0)
-	disableLogs       = false /// used for tests
 )
 
 func main() {

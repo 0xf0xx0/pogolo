@@ -52,6 +52,7 @@ type Pogolo struct {
 	Benchmarking        bool   `toml:"benchmark,omitempty"`
 	Sv2AuthorityKeypair string `toml:"authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key\ncan be generated with '--generate-authority-key'"`
 	LogFile             string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
+	DisableLogs         bool   `toml:"disable_logs,commented" comment:"disables logging entirely"`
 }
 
 var DEFAULT_CONFIG = Config{
