@@ -28,5 +28,4 @@ EXPOSE 5661
 EXPOSE 5662
 
 # expects a /config dir with a pogolo.toml
-ENTRYPOINT [ "/pogolo" ]
-CMD ["--conf", "/config/pogolo.toml"]
+CMD ["/pogolo", "--conf", "/config/pogolo.toml"]
