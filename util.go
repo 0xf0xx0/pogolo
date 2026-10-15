@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -475,7 +476,7 @@ func globalLog(s string) {
 		fmt.Fprintln(logFile, s)
 		return
 	}
-	fmt.Println(s)
+	fmt.Fprintln(os.Stdout, s)
 }
 func globalLogError(s string) {
 	if disableLogs {
@@ -486,7 +487,7 @@ func globalLogError(s string) {
 		fmt.Fprintln(logFile, s)
 		return
 	}
-	println(s)
+	fmt.Fprintln(os.Stderr, s)
 }
 
 func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {

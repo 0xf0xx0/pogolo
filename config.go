@@ -101,7 +101,7 @@ func WriteDefaultConfig(path string) error {
 func getConfigDir() string {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
-		println(fmt.Sprintf("error getting config dir: %s", err))
+		globalLogError(fmt.Sprintf("error getting config dir: %s", err))
 	}
 	return filepath.Join(userConfigDir, "./pogolo")
 }
