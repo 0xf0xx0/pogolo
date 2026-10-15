@@ -5,7 +5,7 @@ case $1 in
 "testing")
     docker buildx build --no-cache --platform linux/amd64,linux/arm64 \
         -f contrib/pkgs/docker/Dockerfile --tag 0xf0xx0/pogolo:testing \
-        .
+        --output "type=registry" .
 ;;
 "release")
     tag="$(git describe --tags --abbrev=0)"

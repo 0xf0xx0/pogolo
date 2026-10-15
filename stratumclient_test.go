@@ -136,6 +136,7 @@ func TestSv1InitSequence(t *testing.T) {
 	client.Stop()
 }
 
+// TODO: figure out how to integrate a cpu miner
 func TestSv1Submit(t *testing.T) {
 	lpipe, _ := ezInitSv1Client(t, true)
 
