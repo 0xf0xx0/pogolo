@@ -81,7 +81,7 @@ type blockSubmission struct {
 // shitty name, but wraps a bufio.reader and net.conn for sv2 handshake
 // is dropped afterwards
 type wrapperRW struct {
-	r *bufio.Reader
+	r io.Reader
 	c net.Conn
 }
 
@@ -126,28 +126,26 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// 5 secs to init
 	client.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
-	/// MAYBE: figure out how to start with a small 128 byte buffer and grow when a larger message comes in?
-	/// the sv2 path reads directly from the conn, so we're just buffering sv1
-	/// shares are sub-128 bytes, everything else is sub-512, if not -256
-	/// EX: our mining.authorize weights in at 114 bytes
-	/// TODO: use this only for the peek
-	r := bufio.NewReaderSize(client.conn, 256)
+	/// FIXME: figure out why we cant read less than 64 bytes without sv2 setupconnection read failing
 	/// peek to determine protocol
-	b, err := r.Peek(1)
+	peekBuffer := make([]byte, 1)
+	_, err := io.ReadFull(client.conn, peekBuffer)
 	if err != nil {
 		return
 	}
+	/// ensure we dont lose the peeked byte
+	reader := io.MultiReader(bytes.NewReader(peekBuffer), client.conn)
 
 	/// sv1 always starts with '{' and might start with whitespace
-	/// ...what are the odds of a sv2 client hittin these?
-	if b[0] == '{' || b[0] == ' ' || b[0] == '\n' || b[0] == '\r' {
+	/// ...what are the odds of a sv2 client hittin these? pretty low but ive done it
+	if peekBuffer[0] == '{' || peekBuffer[0] == ' ' || peekBuffer[0] == '\n' || peekBuffer[0] == '\r' {
 		client.protocol = 1
-		client.processSv1Loop(ctx, r)
+		client.processSv1Loop(ctx, reader)
 	} else {
 		/// perform handshake
 		pawshake := &stratumv2.HandshakeState{}
 		rw := &wrapperRW{
-			r: r,
+			r: reader,
 			c: client.conn,
 		}
 		recv, send, err := pawshake.PerformHandshakeResponder(rw, sv2Cert, sv2StaticKeypair)
@@ -218,7 +216,7 @@ func (client *StratumClient) Run(ctx context.Context) {
 		 * resulting in "vendor///id"
 		 * replace "///", "vendor///id" -> "vendor/id"
 		 * replace "//", "/hwver//id" -> "/hwver/id"
-		 * then trim "/hwver//id" -> "hwver/id"
+		 * then trim "/hwver/id" -> "hwver/id"
 		 */
 		client.UserAgent = strings.Trim(
 			strings.ReplaceAll(
@@ -523,7 +521,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 		}
 	}
 }
-func (client *StratumClient) processSv1Loop(ctx context.Context, reader *bufio.Reader) {
+func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reader) {
 	stratumInited := false
 	isAuthed := false
 	isSubscribed := false
