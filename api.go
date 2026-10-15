@@ -58,7 +58,7 @@ type getInfoRes struct {
 	BestDiff      float64          `json:"bestDifficulty"`
 	NetworkDiff   float64          `json:"networkDifficulty"`
 	Tag           string           `json:"tag"`
-	AuthorityKey  string           `json:"authorityKey"`
+	AuthorityKey  string           `json:"authorityPubkey"`
 	ActiveChain   string           `json:"activeChain"`
 	Version       string           `json:"version"`
 	Uptime        uint64           `json:"uptime"`

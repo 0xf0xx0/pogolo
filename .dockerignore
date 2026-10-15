@@ -1,5 +1,7 @@
-/pogolo
+.git/
 contrib/
 imgs/
 mockdata/
+/pogolo
+*.prof
 *_test.go

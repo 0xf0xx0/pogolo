@@ -126,7 +126,6 @@ func (client *StratumClient) Run(ctx context.Context) {
 	/// 5 secs to init
 	client.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
-	/// FIXME: figure out why we cant read less than 64 bytes without sv2 setupconnection read failing
 	/// peek to determine protocol
 	peekBuffer := make([]byte, 1)
 	_, err := io.ReadFull(client.conn, peekBuffer)
@@ -909,6 +908,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	/// copy the coinbase, we don't wanna share it now x3
+	/// MAYBE: allow for clients to append their workername to the tag
 	coinbaseTx := addCoinbasePayout(client.ID, client.User, template.CoinbaseTx.Copy(), template.Subsidy)
 
 	/// serialized without the witness, we handle that on submission

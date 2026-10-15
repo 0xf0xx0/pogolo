@@ -21,6 +21,7 @@ components:
       type: object
       required:
         - activeChain
+        - authorityPubkey
         - bestDifficulty
         - blockHeight
         - blocksFound
@@ -35,6 +36,9 @@ components:
         activeChain:
           type: string
           description: The active chain name
+        authorityPubkey:
+          type: string
+          description: The SV2 authority public key, set when a static authority key is configured
         bestDifficulty:
           type: number
           description: Best share by currently-connected gophers
