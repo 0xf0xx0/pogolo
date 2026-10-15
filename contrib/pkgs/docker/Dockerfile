@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -12,10 +12,10 @@ ARG GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly 
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY --exclude=contrib/ --exclude=mockdata/ --exclude=*_test.go ./ ./
+COPY --exclude=contrib/ --exclude=mockdata/ --exclude=imgs/ --exclude=*_test.go ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
-FROM alpine:3.24
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 WORKDIR /
 
