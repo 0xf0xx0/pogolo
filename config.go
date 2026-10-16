@@ -29,7 +29,6 @@ type Backend struct {
 	ZMQHost      string `toml:"zmq_host,commented" comment:"ZMQ endpoint to subscribe to 'hashblock' events\noverridden by POGOLO_BACKEND_ZMQHOST"`
 	Websocket    bool   `toml:"websocket,commented" comment:"whether to use the btcd websocket interface"`
 	PollInterval uint32 `toml:"poll_interval" comment:"how quickly to poll for block updates, in milliseconds\nignored if using websocket, and used for the connection retry interval with zmq"`
-	WaitForSync  bool   `toml:"wait_for_sync" comment:"whether to wait for the backend to sync before creating the first job (default: false)"`
 }
 
 type Pogolo struct {
@@ -49,6 +48,7 @@ type Pogolo struct {
 	BIPVersionBits      int32  `toml:"bip_version_bits,commented" comment:"version bits as int32, ORed with the template version"`
 	IgnoreSuggDiff      bool   `toml:"ignore_suggested_difficulty,commented" comment:"ignore the client-suggested difficulty"`
 	DisableVarDiff      bool   `toml:"disable_vardiff,commented" comment:"disable automatic difficulty adjustment"`
+	WaitForSync         bool   `toml:"wait_for_sync" comment:"whether to wait for the backend to sync before creating the first job"`
 	Benchmarking        bool   `toml:"benchmark,omitempty"`
 	Sv2AuthorityKeypair string `toml:"authority_keypair,commented" comment:"the encoded stratumv2.Keypair used for the authority key\ncan be generated with '--generate-authority-key'"`
 	LogFile             string `toml:"log_file,commented" comment:"file to log to (path resolution same as cookie)"`
@@ -88,7 +88,7 @@ func WriteDefaultConfig(path string) error {
 	/// done here to not fuck up runtime
 	DEFAULT_CONFIG.Backend.Cookie = "~/.bitcoin/.cookie"
 	DEFAULT_CONFIG.Backend.Rpcauth = "bitte:axtuh"
-	DEFAULT_CONFIG.Backend.WaitForSync = true
+	DEFAULT_CONFIG.Pogolo.WaitForSync = true
 	DEFAULT_CONFIG.Pogolo.Interface = ""
 	DEFAULT_CONFIG.Pogolo.Host = "[::]"
 	DEFAULT_CONFIG.Pogolo.ShareBatchWindowSize = 15
