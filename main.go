@@ -257,7 +257,7 @@ func main() {
 			if cmd.Bool("generate-authority-key") {
 				keypair := stratumv2.NewKeypair()
 				bytes, _ := keypair.Encode()
-				globalLog(fmt.Sprintf("{bold}Authority Pubkey: %s{/bold}\nSave this string as {bluebright}authority_keypair{/bluebright} in your config file:\n\n{yellow}%x", stratumv2.SerializeAuthorityKey(keypair.PublicKey()), bytes))
+				globalLog(fmt.Sprintf("{/}{bold}Authority Pubkey: {green}%s{/}\nSave this as {bluebright}[pogolo].authority_keypair{/bluebright} in your config file:\n\n{yellow}%x", stratumv2.SerializeAuthorityKey(keypair.PublicKey()), bytes))
 				return nil
 			}
 
