@@ -980,11 +980,12 @@ func (client *StratumClient) Addr() net.Addr {
 // parses `addr[.workername]` into client.User and client.Nickname
 func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32, msg *stratum.Request) (ok bool) {
 	splitPoint := strings.Index(userIdentity, ".")
+	maybAddr := ""
 	if splitPoint != -1 {
 		client.Nickname = userIdentity[splitPoint+1:]
-		userIdentity = userIdentity[:splitPoint]
+		maybAddr = userIdentity[:splitPoint]
 	}
-	decoded, err := address.DecodeAddress(userIdentity, backendChainParams)
+	decoded, err := address.DecodeAddress(maybAddr, backendChainParams)
 	if err != nil {
 		if defaultMiningAddr == nil {
 			client.logErrorf("failed decoding address: %s", err)
