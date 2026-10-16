@@ -393,6 +393,9 @@ func main() {
 				}
 			}
 
+			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, VERSION, cmd.Usage))
+			globalLog(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
+
 			/// decode the default mining address
 			if conf.PoolAddress != "" {
 				addr, err := address.DecodeAddress(conf.PoolAddress, backendChainParams)
@@ -403,12 +406,34 @@ func main() {
 				globalLog(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.PoolAddress))
 			}
 
-			/// start
-			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, VERSION, cmd.Usage))
-			globalLog(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
 			if conf.Sv1Password != "" {
 				globalLog(fmt.Sprintf("\"{green}%s{/green}\" set as stratum v1 password", conf.Sv1Password))
 			}
+
+			/// we don't care about auth cause we're on the lan
+			if conf.Sv2AuthorityKeypair != "" {
+				sv2AuthorityKeypair = &stratumv2.Keypair{}
+				bytes, err := hex.DecodeString(conf.Sv2AuthorityKeypair)
+				if err != nil {
+					globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
+					return err
+				}
+				if err := sv2AuthorityKeypair.Decode(bytes); err != nil {
+					globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
+					return err
+				}
+				globalLog(fmt.Sprintf("using sv2 authority key {green}%s", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
+			} else {
+				sv2AuthorityKeypair = stratumv2.NewKeypair()
+			}
+			sv2StaticKeypair = stratumv2.NewKeypair()
+			/// cert lasts like a year, lol
+			sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
+			if err != nil {
+				return err
+			}
+
+			/// start
 			return startup(rootCtx)
 		},
 	}
@@ -418,29 +443,6 @@ func main() {
 }
 
 func startup(rootCtx context.Context) error {
-	var err error
-	/// we don't care about auth cause we're on the lan
-	if conf.Sv2AuthorityKeypair != "" {
-		sv2AuthorityKeypair = &stratumv2.Keypair{}
-		bytes, err := hex.DecodeString(conf.Sv2AuthorityKeypair)
-		if err != nil {
-			globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
-			return err
-		}
-		if err := sv2AuthorityKeypair.Decode(bytes); err != nil {
-			globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
-			return err
-		}
-		globalLog(fmt.Sprintf("using sv2 authority key {green}%s", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
-	} else {
-		sv2AuthorityKeypair = stratumv2.NewKeypair()
-	}
-	sv2StaticKeypair = stratumv2.NewKeypair()
-	/// cert lasts like a year, lol
-	sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
-	if err != nil {
-		return err
-	}
 	/// handle exit sigs
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
