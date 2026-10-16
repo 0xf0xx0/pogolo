@@ -342,7 +342,7 @@ func main() {
 				return cli.Exit("did you forget to configure the backend auth? (no auth found)", constants.EXIT_CONFIG)
 			}
 			var err error
-			globalLog("connecting to backend...")
+			globalLog("{yellow}connecting to backend...")
 			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 				/// we do not care
 				/// FIXME: this makes gbt fail and cause a hang randomly?
