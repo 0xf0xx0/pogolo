@@ -536,6 +536,11 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 	isSubscribed := false
 	handledMessages := 0 /// for goroutine yielding under pressure
 	scanner := bufio.NewScanner(reader)
+	/// reduce scan buffer size, sv1 client messages rarely get close to 128 bytes
+	/// this should result in a single 256-byte buffer for each client instead of the default 4096
+	/// we also dont need to scan up to 65535 bytes, 512 gives plenty of headroom
+	scanBuf := make([]byte, 0, 256)
+	scanner.Buffer(scanBuf, 512)
 
 	/// processing loop
 	/// this should be async but
