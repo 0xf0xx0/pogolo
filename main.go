@@ -422,7 +422,7 @@ func main() {
 					globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
 					return err
 				}
-				globalLog(fmt.Sprintf("using sv2 authority key {green}%s", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
+				globalLog(fmt.Sprintf("{green}%s{/green} set as sv2 authority pubkey", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
 			} else {
 				sv2AuthorityKeypair = stratumv2.NewKeypair()
 			}
