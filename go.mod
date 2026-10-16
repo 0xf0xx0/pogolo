@@ -7,7 +7,7 @@ go 1.26.2
 // replace git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 => ../stratumv2
 
 require (
-	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.0
+	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.1
 	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10
 	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261015025428-ef1237e649ba
 	github.com/btcsuite/btcd v0.26.2
@@ -40,7 +40,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/kcalvinalvin/anet v0.0.0-20251112173137-d8ddc1f6dbee // indirect
-	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.1 // indirect

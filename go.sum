@@ -2,6 +2,8 @@ git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0 h1:A9PQ+Tx64d97N7s1QeRbWqWqcHNC+l94fi
 git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.3.0/go.mod h1:0/T+yirG7BckgCWvPxXP6RMnDWulVm7qhbgjcHAX+Xs=
 git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.0 h1:OHdER4HBK3AyOzhWOJqszbrvIHJgb49HP2AvwceAhIM=
 git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.0/go.mod h1:0/T+yirG7BckgCWvPxXP6RMnDWulVm7qhbgjcHAX+Xs=
+git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.1 h1:Vl7szuaRbLsbVOOYBwB2C3I0+1Zocw6JvV8rwe3a7Lc=
+git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.1/go.mod h1:0/T+yirG7BckgCWvPxXP6RMnDWulVm7qhbgjcHAX+Xs=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9 h1:whlb73u+NT7FI/pebVsJ7BnFlb42dDRSrmpLXqlmZCg=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.9/go.mod h1:2qD1Qfwrx6byk+rFMaamLKOoYDFghuhQfq/yKDXdgcU=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10 h1:ZaGhNYy3Tv/zuh2vB4oDrUS7ostgKRdS2mKmKPIbLbY=
@@ -91,6 +93,8 @@ github.com/klauspost/compress v1.19.1 h1:VsB4HPswih7mmZ8WleSFQ75c/Ui1M4trX5oAsJn
 github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=
 github.com/klauspost/cpuid/v2 v2.4.0 h1:S6Hrbc7+ywsr0r+RLapfGBHfyefhCTwEh3A0tV913Dw=
 github.com/klauspost/cpuid/v2 v2.4.0/go.mod h1:19jmZ9mjzoF//ddRSUsv0zfBTJWh3QJh9FNxZTMrGxU=
+github.com/klauspost/cpuid/v2 v2.4.1 h1:I9KxadAkvo+QjtcEE2f2tyfEvmIla/T0m+14PrZNl0U=
+github.com/klauspost/cpuid/v2 v2.4.1/go.mod h1:19jmZ9mjzoF//ddRSUsv0zfBTJWh3QJh9FNxZTMrGxU=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/minio/sha256-simd v1.0.1 h1:6kaan5IFmwTNynnKKpDHe6FWHohJOHhCPchzK49dzMM=

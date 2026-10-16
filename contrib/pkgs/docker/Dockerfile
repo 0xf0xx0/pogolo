@@ -12,7 +12,7 @@ ARG GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly 
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY --exclude=contrib/ --exclude=mockdata/ --exclude=imgs/ --exclude=*_test.go ./ ./
+COPY --exclude=contrib/ --exclude=go.mod --exclude=go.sum --exclude=mockdata/ --exclude=imgs/ --exclude=*_test.go ./ ./
 RUN go build -ldflags="-s -w -buildid="
 
 FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
