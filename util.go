@@ -416,7 +416,7 @@ func parseUserAgent(ua string) string {
 	ua = strings.Split(ua, "-")[0]
 	return ua
 }
-func parseIdentity(userIdentity string) (addr address.Address, nickname string, err error) {
+func parseUserIdentity(userIdentity string) (addr address.Address, nickname string, err error) {
 	if len(userIdentity) == 0 {
 		err = errors.New("empty input")
 		return

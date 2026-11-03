@@ -979,7 +979,7 @@ func (client *StratumClient) Addr() net.Addr {
 
 // parses `addr[.workername]` into client.User and client.Nickname
 func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32, msg *stratum.Request) (ok bool) {
-	addr, nick, err := parseIdentity(userIdentity)
+	addr, nick, err := parseUserIdentity(userIdentity)
 	if err != nil {
 		client.logErrorf("failed decoding address: %s", err)
 		if msg != nil {

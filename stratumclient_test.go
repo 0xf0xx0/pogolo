@@ -416,7 +416,7 @@ func BenchmarkSv2Submit(b *testing.B) {
 
 func parseIdentityTest(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
 	t.Log(userIdentity)
-	decoded, nickname, err := parseIdentity(userIdentity)
+	decoded, nickname, err := parseUserIdentity(userIdentity)
 	if err == nil {
 		ok = true
 	} else {
