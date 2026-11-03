@@ -43,7 +43,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
@@ -370,7 +369,6 @@ func (client *StratumClient) Stop() {
 		}
 	default:
 	}
-	close(client.templateChan)
 
 	/// remove ourselves from the client map
 	if client.ID != 0 {
@@ -380,13 +378,7 @@ func (client *StratumClient) Stop() {
 
 	client.conn.Close()
 
-	if conf.Benchmarking {
-		sharesPS := float64(client.stats.sharesAccepted+client.stats.sharesRejected) / float64(client.stats.Uptime())
-		atomic.AddUint64(&totalSharesPerSec, uint64(sharesPS))
-		println(fmt.Sprintf("shares/s: %f", sharesPS))
-	}
-	/// canary in the bitcoin mines
-	client = nil
+	close(client.templateChan)
 }
 
 func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reader) {
@@ -863,7 +855,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		} else {
 			prevhash := &stratumv2.SetNewPrevHash{
 				ChannelID: uint32(client.ID),
-				JobID:     uint32(currTemplateID),
+				JobID:     uint32(template.ID),
 				PrevHash:  stratumv2.U256(*newJob.PrevBlock),
 				MinTime:   uint32(newJob.Header.Timestamp.Unix()), /// should be equiv to Clean=true
 				Bits:      newJob.Header.Bits,
@@ -875,7 +867,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				}
 				job := &stratumv2.NewExtendedMiningJob{
 					ChannelID:             uint32(client.ID),
-					JobID:                 uint32(currTemplateID),
+					JobID:                 uint32(template.ID),
 					MinTime:               []uint32{ /* empty,provided by setprevhash */ },
 					Version:               uint32(newJob.Version),
 					MerklePath:            merklePath,
@@ -889,7 +881,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			} else {
 				job := &stratumv2.NewMiningJob{
 					ChannelID:  uint32(client.ID),
-					JobID:      uint32(currTemplateID),
+					JobID:      uint32(template.ID),
 					MinTime:    []uint32{ /* provided by setprevhash */ },
 					Version:    uint32(newJob.Version),
 					MerkleRoot: stratumv2.U256(newJob.Header.MerkleRoot),
