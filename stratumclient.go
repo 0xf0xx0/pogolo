@@ -664,6 +664,12 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 					return
 				}
 				if params.Extranonce1 != nil {
+					if _, ok := clients.Get(*params.Extranonce1); ok {
+						client.logError("requested extranonce is in use")
+						/// TODO: do we need to error and close?
+						client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
+						return
+					}
 					client.ID = *params.Extranonce1
 					client.logf("got extranonce %s", client.ID)
 				}
