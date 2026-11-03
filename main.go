@@ -709,6 +709,9 @@ func backendRoutine(ctx context.Context) {
 			case submission := <-submissionChan:
 				{
 					block := btcutil.NewBlock(submission.MsgBlock)
+					currTemplateLock.RLock()
+					block.SetHeight(int32(currTemplate.Height))
+					currTemplateLock.RUnlock()
 					msgBlock := block.MsgBlock()
 					msgBlock.Header = submission.Header
 					/// this is scary because all the clients share one msgblock

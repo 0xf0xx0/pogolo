@@ -430,10 +430,7 @@ func parseUserIdentity(userIdentity string) (addr address.Address, nickname stri
 	addr, err = address.DecodeAddress(maybAddr, backendChainParams)
 	if err != nil {
 		/// assume just the workername was passed if unknown format
-		if defaultMiningAddr == nil &&
-			(errors.Is(err, address.ErrChecksumMismatch) ||
-				errors.Is(err, address.ErrUnknownAddressType) ||
-				err.Error() != "decoded address is of unknown format") {
+		if defaultMiningAddr == nil {
 			return
 		}
 		err = nil
