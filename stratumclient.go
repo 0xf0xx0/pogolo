@@ -148,6 +148,12 @@ func (client *StratumClient) Run(ctx context.Context) {
 			r: reader,
 			c: client.conn,
 		}
+		/// MAYBE: might sign new certs on-the-fly
+		// sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
+		// if err != nil {
+		// 	client.logErrorf("error creating cert: %s", err)
+		// 	return
+		// }
 		recv, send, err := pawshake.PerformHandshakeResponder(rw, sv2Cert, sv2StaticKeypair)
 		if err != nil {
 			client.logErrorf("error during sv2 handshake: %s", err)
