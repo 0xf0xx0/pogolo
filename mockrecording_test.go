@@ -1,7 +1,8 @@
 package main
 
-// this file is just for storing the data as variables
+// this file is just for storing the data and initing test state
 import (
+	"crypto/rand"
 	_ "embed"
 	"testing"
 
@@ -9,7 +10,6 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
-	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/wire/v2"
 
 	"encoding/hex"
@@ -17,11 +17,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/v2"
-)
-
-// recorded from/with pogolo!
-var (
-	MOCK_CHAIN = &chaincfg.RegressionNetParams
 )
 
 var (
@@ -32,36 +27,15 @@ var (
 		json.Unmarshal(mockTemplateString, &gbt)
 		return &gbt
 	}()
-	// prng seeds for template
-	MOCK_SEEDA = uint64(0x9e6826a50ba55d27)
-	MOCK_SEEDB = uint64(0x910a50e0af0acbb5)
+	MOCK_CHAIN = &chaincfg.RegressionNetParams
 )
 
 var (
-	MOCK_ADDRESS                   = "bcrt1qa5q9y9h7vndg6sske6u02wdw27y4yfg578unks"
-	MOCK_MINING_AUTHORIZE          = `{"id": 1, "method": "mining.authorize", "params": ["bcrt1qa5q9y9h7vndg6sske6u02wdw27y4yfg578unks.fakeminer", "x"]}`
+	MOCK_MINING_AUTHORIZE          = `{"id": 1, "method": "mining.authorize", "params": ["fakeminer", "x"]}`
 	MOCK_MINING_CONFIGURE          = `{"id": 2, "method": "mining.configure", "params": [["version-rolling"], {"version-rolling.mask": "ffffffff"}]}`
 	MOCK_MINING_SUGGEST_DIFFICULTY = `{"id": 3, "method": "mining.suggest_difficulty", "params": [0.16]}`
 	MOCK_MINING_SUBSCRIBE          = `{"id": 4, "method": "mining.subscribe", "params": ["bitaxe/FTXGOXX/v2021-08-24"]}`
-
-	MOCK_EXTRANONCE    = "8357f44c"
-	MOCK_MINING_SUBMIT = `{"method": "mining.submit", "params": ["fakeminer", "1", "01000000", "6ab83ac5", "b268feba"], "id":4}`
-	MOCK_NOTIFY        = `{"method":"mining.notify","params":["1","16585a5708ccf4118a07ad29ad3cb72f9c8290d278830dcef941c2c100000000","01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2c027d011f2f706f676f6c6f202d20646563656e7472616c697a65206f72206469652f4408","feffffff020000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9807c814a00000000160014ed005216fe64da8d4216ceb8f539ae57895225147c010000",[],"30000000","207fffff","6ab83ac5",true],"id":null}`
-	MOCK_SHAREHASH     = func() chainhash.Hash {
-		h := &chainhash.Hash{}
-		/// damn a 122 diff on a cpu
-		shareHash := hexDec("0000000002170e9659ce1e5faa6f405d452bfba4a59846f1fe201199f27367cc")
-		for i := range 16 {
-			shareHash[i], shareHash[31-i] = shareHash[31-i], shareHash[i]
-		}
-		err := h.SetBytes(shareHash)
-		if err != nil {
-			panic(err)
-		}
-		// println(h.String(), calcDifficulty(*h))
-		return *h
-	}()
-	MOCK_SHAREDIFF = calcDifficulty(MOCK_SHAREHASH)
+	MOCK_MINING_SUBMIT             = `{"method": "mining.submit", "params": ["fakeminer", "1", "01000000", "6ab83ac5", "b268feba"], "id":4}`
 )
 
 // params
@@ -96,14 +70,6 @@ var (
 		}
 		return params
 	}()
-	notifyParams = func() stratum.MiningNotifyParams {
-		params := stratum.MiningNotifyParams{}
-		err := params.FromNotification(notiFrom(MOCK_NOTIFY))
-		if err != nil {
-			panic(err)
-		}
-		return params
-	}()
 )
 
 // requests
@@ -112,9 +78,6 @@ var (
 	configureReq         = configureParams.ToRequest(2)
 	suggestDifficultyReq = suggestDiffParams.ToRequest(3)
 	subscribeReq         = subscribeParams.ToRequest(4)
-
-	notifyReq = notifyParams.ToNotification()
-	submitReq = submitParams.ToRequest(5)
 )
 
 func reqFrom(r string) *stratum.Request {
@@ -128,14 +91,16 @@ func notiFrom(r string) *stratum.Notification {
 	return &req
 }
 func getAddr() address.Address {
-	addr, _ := address.DecodeAddress(MOCK_ADDRESS, MOCK_CHAIN)
+	prog := make([]byte, 32)
+	rand.Read(prog)
+
+	addr, _ := address.NewAddressTaproot(prog, MOCK_CHAIN)
 	return addr
 }
 func getCoinbaseTx() *wire.MsgTx {
 	addr := getAddr()
 	job, _ := CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	en1, _ := stratum.DecodeID(MOCK_EXTRANONCE)
-	tx := addCoinbasePayout(en1, addr, job.CoinbaseTx, job.Subsidy)
+	tx := addCoinbasePayout(stratum.ID(17), addr, job.CoinbaseTx, job.Subsidy)
 	return tx
 }
 func hexDec(s string) []byte {
@@ -169,7 +134,7 @@ var (
 		payload := &stratumv2.OpenExtendedMiningChannel{
 			OpenStandardMiningChannel: stratumv2.OpenStandardMiningChannel{
 				RequestID:       123,
-				UserIdentity:    MOCK_ADDRESS + ".fakeminer",
+				UserIdentity:    getAddr().EncodeAddress() + ".fakeminer",
 				NominalHashRate: 1234567890,
 				MaxTarget:       *constants.Target1U256,
 			},
@@ -183,15 +148,6 @@ var (
 		}
 		return &f
 	}()
-	MOCK_SV2_SUBMIT = func() *stratumv2.Frame {
-		payload := hexDec("")
-		f := stratumv2.Frame{
-			MessageType:   stratumv2.MessageSubmitSharesExtended,
-			MessageLength: stratumv2.U24(len(payload)),
-			Payload:       payload,
-		}
-		return &f
-	}()
 )
 
 func encodeSv2(s stratumv2.Codable, t testing.TB) []byte {
@@ -200,4 +156,26 @@ func encodeSv2(s stratumv2.Codable, t testing.TB) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+func TestMain(m *testing.M) {
+	conf = DEFAULT_CONFIG
+	conf.DisableLogs = true
+
+	backendChainParams = &chaincfg.RegressionNetParams
+	defaultMiningAddr = getAddr()
+
+	currTemplateID = 0
+	var err error
+	currTemplate, err = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
+	if err != nil {
+		panic(err)
+	}
+	sv2AuthorityKeypair = stratumv2.NewKeypair()
+	sv2StaticKeypair = stratumv2.NewKeypair()
+	/// cert lasts like a year, lol
+	sv2Cert, _ = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, 0)
+
+	clients.Init()
+	m.Run()
 }

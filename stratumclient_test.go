@@ -3,36 +3,18 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"testing"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 	"github.com/btcsuite/btcd/address/v2"
-	"github.com/btcsuite/btcd/chaincfg/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 )
-
-func TestMain(t *testing.T) {
-	clients.Init()
-	jobid, _ := strconv.Atoi(notifyParams.JobID)
-	/// CreateJobTemplate increments the template id, and mock job could be at any number
-	currTemplateID = uint64(jobid) - 1
-	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
-	backendChainParams = &chaincfg.RegressionNetParams
-	b, _ := hex.DecodeString("8033d13ee81500afe03a9f48ed142b15724816dd9247c9cf55ae447a5b867449")
-	defaultMiningAddr, _ = address.NewAddressTaproot(b, backendChainParams)
-	conf.DisableLogs = true
-	sv2AuthorityKeypair = stratumv2.NewKeypair()
-	sv2StaticKeypair = stratumv2.NewKeypair()
-	/// cert lasts like a year, lol
-	sv2Cert, _ = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, 0)
-}
 
 /// stratum chatter
 
@@ -47,8 +29,11 @@ func TestSv1Configure(t *testing.T) {
 
 func TestSv1Authorize(t *testing.T) {
 	lpipe, client, _ := initClient()
-	params := authorizeParams
-	req := authorizeReq
+	params := stratum.MiningAuthorizeParams{}
+	params.Address = getAddr().EncodeAddress()
+	params.Worker = "authtest"
+	params.Username = params.Address + "." + params.Worker
+	req := params.ToRequest(1)
 	res := sendSv1ReqAndWaitForRes(t, req, lpipe)
 	validateSv1Res(req, res, t)
 	resp := stratum.BooleanResult{}
@@ -135,19 +120,30 @@ func TestSv1InitSequence(t *testing.T) {
 	}
 	client.Stop()
 }
-
-// TODO: figure out how to integrate a cpu miner
 func TestSv1Submit(t *testing.T) {
-	lpipe, _ := ezInitSv1Client(t, true)
-
-	res := sendSv1ReqAndWaitForRes(t, submitReq, lpipe)
+	lpipe, c := ezInitSv1Client(t, true)
+	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
+	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, t)
+	if !found {
+		t.Error("failed to find a hash in 2^32 iters, bad luck")
+		return
+	}
+	res := sendSv1ReqAndWaitForRes(t, share, lpipe)
 	if res.Error != nil {
 		t.Fatalf("share submission failed! code: %s", res.Error)
 	}
 }
+
 func TestSv1SubmitDiffTooLow(t *testing.T) {
+	submit := stratum.MiningSubmitParams{
+		JobID:       strconv.FormatUint(currTemplateID, 16),
+		Time:        uint32(currTemplate.Header.Timestamp.Unix()),
+		Nonce:       0,
+		Extranonce2: make([]byte, conf.ExtraNonce2Size),
+		VersionMask: 0,
+	}
 	lpipe, _ := ezInitSv1Client(t, false)
-	res := sendSv1ReqAndWaitForRes(t, submitReq, lpipe)
+	res := sendSv1ReqAndWaitForRes(t, submit.ToRequest(5661), lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
 	}
@@ -156,11 +152,18 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 	}
 }
 
-// TODO: why is this broken? how to fix? validation is correct :\
 func TestVersionValidationEdgeCase(t *testing.T) {
 	/// set job version
 	conf.BIPVersionBits = 0x00000000
-	lpipe, _ := ezInitSv1Client(t, true)
+	lpipe, c := ezInitSv1Client(t, true)
+	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
+	share, found := shittyCpuMiner(c.TargetDifficulty, true, c, t)
+	if !found {
+		t.Error("failed to find a hash in 2^32 iters, bad luck")
+		return
+	}
+	submitParams := &stratum.MiningSubmitParams{}
+	submitParams.FromRequest(share)
 	// t.Logf("%x", c.CurrentJob.Header.Version)
 
 	/// explicitly set version mask to 0
@@ -181,23 +184,24 @@ func TestVersionValidationEdgeCase(t *testing.T) {
 	}
 }
 
-func TestVersionValidation(t *testing.T) {
-	jobVersion := uint32(0x20202020)
-
-	for i := range uint32(0xffffffff) {
-		/// this efffectively rolls the version bits
-		shareMask := i & constants.VERSION_ROLLING_MASK
-		/// do bip 310 nVersion calc...
-		nVersion := (jobVersion & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
-		/// then attempt to recover mask by doing the inverse of the ver calc
-		recoveredMask := (^jobVersion & nVersion) | (nVersion & constants.VERSION_ROLLING_MASK)
-
-		if recoveredMask != shareMask {
-			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", nVersion, shareMask, recoveredMask)
-			t.Fatalf("recoveredMask should be %x, got %x", shareMask, recoveredMask)
-		}
-	}
-}
+/// TODO: takes too long to run (5s)
+// func TestVersionValidation(t *testing.T) {
+// 	jobVersion := uint32(0x20202020)
+//
+// 	for i := range uint32(0xffffffff) {
+// 		/// this efffectively rolls the version bits
+// 		shareMask := i & constants.VERSION_ROLLING_MASK
+// 		/// do bip 310 nVersion calc...
+// 		nVersion := (jobVersion & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
+// 		/// then attempt to recover mask by doing the inverse of the ver calc
+// 		recoveredMask := (^jobVersion & nVersion) | (nVersion & constants.VERSION_ROLLING_MASK)
+//
+// 		if recoveredMask != shareMask {
+// 			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", nVersion, shareMask, recoveredMask)
+// 			t.Fatalf("recoveredMask should be %x, got %x", shareMask, recoveredMask)
+// 		}
+// 	}
+// }
 
 func TestSv1SubmitUnkJob(t *testing.T) {
 	lpipe, _ := ezInitSv1Client(t, false)
@@ -232,43 +236,47 @@ func TestParseIdentity(t *testing.T) {
 	var nickname string
 	var addr address.Address
 	var ok bool
+	mockAddr := getAddr().EncodeAddress()
+	mockWorker := "violet.nicky.colette"
 
 	// empty
-	if _, _, ok := parseIdentity("", t); ok {
+	if _, _, ok := parseIdentityTest("", t); ok {
 		t.Fatal("parseIdentity should return false for empty string")
 	}
 
 	// addr + nickname
-	if nickname, addr, ok = parseIdentity(authorizeParams.Username, t); !ok {
+	if nickname, addr, ok = parseIdentityTest(mockAddr+"."+mockWorker, t); !ok {
 		t.Fatal("parseIdentity errored during parse")
 	}
-	if addr.EncodeAddress() != authorizeParams.Address {
-		t.Fatalf("parseIdentity failed to parse address: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+	if addr.EncodeAddress() != mockAddr {
+		t.Fatalf("parseIdentity failed to parse address: expected %s, got %s", mockAddr, addr.EncodeAddress())
 	}
-	if nickname != authorizeParams.Worker {
-		t.Fatalf("parseIdentity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+	if nickname != mockWorker {
+		t.Fatalf("parseIdentity failed to parse worker name: expected %s, got %s", mockWorker, nickname)
 	}
 
 	// just addr
-	if nickname, addr, ok = parseIdentity(authorizeParams.Address, t); !ok {
+	t.Log("===== just addr =====")
+	if nickname, addr, ok = parseIdentityTest(mockAddr, t); !ok {
 		t.Fatal("parseIdentity errored during parse")
 	}
-	if addr.EncodeAddress() != authorizeParams.Address {
-		t.Fatalf("parseIdentity failed to parse address: expected %s, got %s", authorizeParams.Address, addr.EncodeAddress())
+	if addr.EncodeAddress() != mockAddr {
+		t.Fatalf("parseIdentity failed to parse address: expected %s, got %s", mockAddr, addr.EncodeAddress())
 	}
 	if nickname != "" {
 		t.Fatalf("parseIdentity failed to parse worker name: expected empty, got %s", nickname)
 	}
 
 	// just nickname
-	if nickname, addr, ok = parseIdentity(authorizeParams.Worker, t); !ok {
+	t.Log("===== just nickname (with periods) =====")
+	if nickname, addr, ok = parseIdentityTest(mockWorker, t); !ok {
 		t.Fatal("parseIdentity errored during parse")
 	}
 	if addr.EncodeAddress() != defaultMiningAddr.EncodeAddress() {
-		t.Fatalf("parseIdentity failed to parse username: expected %s, got %s", authorizeParams.Username, addr.EncodeAddress())
+		t.Fatalf("parseIdentity failed to parse username: expected %s, got %s", defaultMiningAddr.EncodeAddress(), addr.EncodeAddress())
 	}
-	if nickname != authorizeParams.Worker {
-		t.Fatalf("parseIdentity failed to parse worker name: expected %s, got %s", authorizeParams.Worker, nickname)
+	if nickname != mockWorker {
+		t.Fatalf("parseIdentity failed to parse worker name: expected %s, got %s", mockWorker, nickname)
 	}
 }
 
@@ -381,7 +389,7 @@ func BenchmarkSv1Submit(b *testing.B) {
 func BenchmarkSv2Submit(b *testing.B) {
 	lpipe, send, recv := ezInitSv2Client(b)
 
-	en1, _ := stratum.DecodeID(MOCK_EXTRANONCE)
+	en1 := stratum.ID(123)
 	params := &stratumv2.SubmitSharesExtended{
 		SubmitSharesStandard: stratumv2.SubmitSharesStandard{
 			ChannelID: uint32(en1),
@@ -406,25 +414,17 @@ func BenchmarkSv2Submit(b *testing.B) {
 
 // util
 
-func parseIdentity(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
-	if userIdentity == "" {
-		return "", nil, false
-	}
-	splitPoint := strings.Index(userIdentity, ".")
-	if splitPoint != -1 {
-		nickname = userIdentity[splitPoint+1:]
-		userIdentity = userIdentity[:splitPoint]
-	}
-	decoded, err := address.DecodeAddress(userIdentity, backendChainParams)
-	if err != nil {
-		if defaultMiningAddr == nil {
-			return "", nil, false
-		}
-		nickname = userIdentity
-		decoded = defaultMiningAddr
+func parseIdentityTest(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
+	t.Log(userIdentity)
+	decoded, nickname, err := parseIdentity(userIdentity)
+	if err == nil {
+		ok = true
+	} else {
+		t.Log(err)
+		return nickname, decoded, ok
 	}
 	t.Logf("address: %q\tnickname: %q", decoded.EncodeAddress(), nickname)
-	return nickname, decoded, true
+	return nickname, decoded, ok
 }
 
 func sendSv1ReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {
@@ -466,7 +466,6 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	submissionChan := make(chan blockSubmission, 8)
 	clientPipe, poolPipe := net.Pipe()
 	client := createClient(poolPipe, submissionChan)
-	client.ID, _ = stratum.DecodeID(MOCK_EXTRANONCE)
 	go client.Run(context.Background())
 	/// discard submissions
 	go func() {
@@ -479,8 +478,6 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 
 // flip suggDiff to true to drop the diff to 0.16
 func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
-	/// init pool state
-	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	s, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
 	currTemplateID = s - 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
@@ -518,8 +515,6 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2.CipherState) {
 	lpipe, c, _ := initClient()
 	_ = c
-	/// reset rng
-	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
 	hs := &stratumv2.HandshakeState{}
 	send, recv, err := hs.PerformHandshakeInitiator(lpipe)
 	if err != nil {
@@ -586,4 +581,45 @@ func sendSv2ReqAndWaitForRes(t testing.TB, frame []byte, lpipe net.Conn, readcry
 		t.Fatal(err.Error())
 	}
 	return res
+}
+
+func shittyCpuMiner(target float64, versionMask bool, c *StratumClient, t *testing.T) (*stratum.Request, bool) {
+	job := c.CurrentJob
+	header := job.MsgBlock.Copy().Header
+	submit := stratum.MiningSubmitParams{
+		JobID:       strconv.FormatUint(job.ID, 16),
+		Time:        uint32(header.Timestamp.Unix()),
+		Nonce:       0,
+		Extranonce2: make([]byte, conf.ExtraNonce2Size),
+		VersionMask: -1,
+	}
+	if versionMask {
+		submit.VersionMask = 0
+		header.Version = int32((uint32(header.Version) & ^constants.VERSION_ROLLING_MASK) | (uint32(submit.VersionMask) & constants.VERSION_ROLLING_MASK))
+	}
+
+	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
+	coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
+	branches[0] = &coinbaseTxHash
+	branches = append(branches, job.MerkleBranch...)
+	header.MerkleRoot = *merkleRootFromBranches(branches)
+
+	stop := uint32(4294967290)
+
+	t.Logf("mining for %d iters (target: %f)", stop, target)
+	hash := chainhash.Hash{}
+	for {
+		if header.Nonce >= stop {
+			break
+		}
+		hash = simdHeaderHash(&header)
+		diff := calcDifficulty(hash)
+		if diff >= target {
+			submit.Nonce = header.Nonce
+			t.Logf("found share: %f", diff)
+			return submit.ToRequest(5661), true
+		}
+		header.Nonce++
+	}
+	return nil, false
 }

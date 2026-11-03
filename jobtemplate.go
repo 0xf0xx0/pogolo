@@ -18,6 +18,7 @@ import (
 
 //////
 /// public-pool my beloved
+/// pogolo still has its genes
 
 // a JobTemplate is built from a getblocktemplate call,
 // and is sent to clients to be turned into a MiningJob

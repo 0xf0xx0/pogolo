@@ -20,13 +20,16 @@ usage:
 
 options:
 
-	--conf path, --config path, -c path  config file path (default: "$XDG_CONFIG_HOME/pogolo/pogolo.toml")
-	--writedefaultconf path              write default config to path and exit
-	--prof dir, --profile dir            write cpu and memory profiles to dir
-	--help, -h                           show help
-	--version, -v                        print the version
-	--color                              force enable color output
-	--nocolor                            force disable color output
+	--conf path, --config path, -c path     config file path (default: "$XDG_CONFIG_HOME/pogolo/pogolo.toml")
+	--writedefaultconf path                 write default config to path and exit
+	--generate-authority-key, --genauthkey  generate a static SV2 authority key
+	--prof dir, --profile dir               write cpu and memory profiles to dir
+	--logfile file                          write logs to file
+	--license                               print the GNU AGPL license
+	--help, -h                              show help
+	--version, -v                           print the version
+	--color                                 force enable color output
+	--nocolor                               force disable color output
 
 environment overrides:
 

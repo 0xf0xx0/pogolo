@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -39,18 +38,18 @@ func TestCreateJobTemplate(t *testing.T) {
 }
 
 func TestJobMinTime(t *testing.T) {
-	template := MOCK_BLOCK_TEMPLATE
+	template := *MOCK_BLOCK_TEMPLATE
 	template.MinTime = time.Now().Unix() + 6000
-	_, err := CreateJobTemplate(template)
+	_, err := CreateJobTemplate(&template)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 }
 func TestJobmaxTime(t *testing.T) {
-	template := MOCK_BLOCK_TEMPLATE
+	template := *MOCK_BLOCK_TEMPLATE
 	template.MinTime = 0
 	template.MaxTime = 6000
-	_, err := CreateJobTemplate(template)
+	_, err := CreateJobTemplate(&template)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -70,18 +69,24 @@ func TestValidateCoinbaseScript(t *testing.T) {
 
 // this needs to be re-done every time something about the block structure changes
 func TestUpdateBlock(t *testing.T) {
-	rng.Seed(MOCK_SEEDA, MOCK_SEEDB)
-	conf = DEFAULT_CONFIG
-	template := MOCK_BLOCK_TEMPLATE
-	expectedShareDiff := MOCK_SHAREDIFF
-	id, _ := stratum.DecodeID(MOCK_EXTRANONCE)
+	template := *MOCK_BLOCK_TEMPLATE
+	targetShareDiff := 0.000069
 	client := &StratumClient{
-		ID:   id,
+		ID:   stratum.ID(1234567890),
 		User: getAddr(),
 	}
 
-	tml, _ := CreateJobTemplate(template)
+	tml, _ := CreateJobTemplate(&template)
 	job := client.createJob(tml)
+	client.CurrentJob = job
+
+	share, found := shittyCpuMiner(targetShareDiff, false, client, t)
+	if !found {
+		t.Error("failed to find a hash in 2^32 iters, bad luck")
+		return
+	}
+	submitParams := &stratum.MiningSubmitParams{}
+	submitParams.FromRequest(share)
 	jobID, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
 	s := &commonShare{
 		ChannelID:   0,
@@ -100,8 +105,8 @@ func TestUpdateBlock(t *testing.T) {
 
 	t.Logf("%+v\n", hdr)
 	shareDiff := calcDifficulty(hdr.BlockHash())
-	if math.Abs(shareDiff-expectedShareDiff) > 0.001 {
-		t.Errorf("share diff mismatch: expected %f, got %f", expectedShareDiff, shareDiff)
+	if shareDiff < targetShareDiff {
+		t.Errorf("bad share diff: expected >=%f, got %f", targetShareDiff, shareDiff)
 		return
 	}
 

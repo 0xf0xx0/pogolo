@@ -14,8 +14,6 @@ host = '[::1]:8332'
 # how quickly to poll for block updates, in milliseconds
 # ignored if using websocket, and used for the connection retry interval with zmq
 poll_interval = 500
-# whether to wait for the backend to sync before creating the first job (default: false)
-wait_for_sync = true
 
 [pogolo]
 # will listen on all interface ips (takes precedence over ip)
@@ -52,8 +50,12 @@ share_batch_window = 15
 # ignore_suggested_difficulty = false
 # disable automatic difficulty adjustment
 # disable_vardiff = false
+# whether to wait for the backend to sync before creating the first job
+wait_for_sync = true
 # the encoded stratumv2.Keypair used for the authority key
 # can be generated with '--generate-authority-key'
 # authority_keypair = ''
 # file to log to (path resolution same as cookie)
 # log_file = ''
+# disables logging entirely
+# disable_logs = false

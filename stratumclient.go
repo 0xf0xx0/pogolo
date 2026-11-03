@@ -979,31 +979,21 @@ func (client *StratumClient) Addr() net.Addr {
 
 // parses `addr[.workername]` into client.User and client.Nickname
 func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32, msg *stratum.Request) (ok bool) {
-	splitPoint := strings.Index(userIdentity, ".")
-	maybAddr := ""
-	if splitPoint != -1 {
-		client.Nickname = userIdentity[splitPoint+1:]
-		maybAddr = userIdentity[:splitPoint]
-	}
-	decoded, err := address.DecodeAddress(maybAddr, backendChainParams)
+	addr, nick, err := parseIdentity(userIdentity)
 	if err != nil {
-		if defaultMiningAddr == nil {
-			client.logErrorf("failed decoding address: %s", err)
-			if msg != nil {
-				client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
-			} else {
-				client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
-					RequestID: requestID,
-					ErrorCode: stratumv2.UnknownUserError,
-				}, stratumv2.MessageOpenMiningChannelError)
-			}
-			return false
+		client.logErrorf("failed decoding address: %s", err)
+		if msg != nil {
+			client.writeSv1Msg(msg.RespondError(constants.ERROR_UNPROCESSABLE))
+		} else {
+			client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+				RequestID: requestID,
+				ErrorCode: stratumv2.UnknownUserError,
+			}, stratumv2.MessageOpenMiningChannelError)
 		}
-		/// assume just the workername was passed
-		client.Nickname = userIdentity
-		decoded = defaultMiningAddr
+		return false
 	}
-	client.User = decoded
+	client.User = addr
+	client.Nickname = nick
 
 	/// recreate log prefixes
 	client.createLogPrefixes()

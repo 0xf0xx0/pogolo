@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -414,6 +415,33 @@ func parseUserAgent(ua string) string {
 	ua = strings.Split(ua, "v")[0]
 	ua = strings.Split(ua, "-")[0]
 	return ua
+}
+func parseIdentity(userIdentity string) (addr address.Address, nickname string, err error) {
+	if len(userIdentity) == 0 {
+		err = errors.New("empty input")
+		return
+	}
+	splitPoint := strings.Index(userIdentity, ".")
+	maybAddr := userIdentity
+	if splitPoint != -1 {
+		nickname = userIdentity[splitPoint+1:]
+		maybAddr = userIdentity[:splitPoint]
+	}
+	addr, err = address.DecodeAddress(maybAddr, backendChainParams)
+	if err != nil {
+		/// assume just the workername was passed if unknown format
+		if defaultMiningAddr == nil &&
+			(errors.Is(err, address.ErrChecksumMismatch) ||
+				errors.Is(err, address.ErrUnknownAddressType) ||
+				err.Error() != "decoded address is of unknown format") {
+			return
+		}
+		err = nil
+		nickname = userIdentity
+		addr = defaultMiningAddr
+	}
+
+	return
 }
 
 // pretty-print difficulty
