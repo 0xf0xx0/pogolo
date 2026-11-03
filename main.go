@@ -705,13 +705,11 @@ func backendRoutine(ctx context.Context) {
 				}
 			case submission := <-submissionChan:
 				{
-					currTemplateLock.RLock()
-					block := btcutil.NewBlock(currTemplate.MsgBlock.Copy())
-					block.SetHeight(int32(currTemplate.Height))
-					currTemplateLock.RUnlock()
-
+					block := btcutil.NewBlock(submission.MsgBlock)
 					msgBlock := block.MsgBlock()
 					msgBlock.Header = submission.Header
+					/// this is scary because all the clients share one msgblock
+					/// but this function is serial so itll be fine lol
 					msgBlock.Transactions[0] = submission.Coinbase
 
 					err := backend.SubmitBlock(block, nil)

@@ -25,7 +25,7 @@ type JobTemplate struct {
 	Header       wire.BlockHeader // copied by clients
 	MerkleBranch []*chainhash.Hash
 	CoinbaseTx   *wire.MsgTx    // copied by clients
-	MsgBlock     *wire.MsgBlock /// used on block submission only
+	MsgBlock     *wire.MsgBlock // used on block submission only, NOT copied or modified by clients
 	NetworkDiff  float64
 	ID           uint64
 	Subsidy      int64
@@ -46,6 +46,7 @@ type MiningJob struct {
 	CoinbaseBytes          []byte            // for faster merkle root calc
 	CoinbaseExtranonce2Idx int               // for faster merkle root calc
 	PrevBlock              *chainhash.Hash   // pointer to hash in header
+	MsgBlock               *wire.MsgBlock    // used on block submission only, NOT copied or modified by clients
 	NetworkDiff            float64
 	ID                     uint64
 	MinTime                int64

@@ -73,6 +73,7 @@ type batchShare struct {
 
 type blockSubmission struct {
 	Header   wire.BlockHeader
+	MsgBlock *wire.MsgBlock
 	Coinbase *wire.MsgTx
 	Share    *commonShare
 	ClientID stratum.ID // for lookup in client map
@@ -955,6 +956,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		MaxTime:                template.MaxTime,
 		NetworkDiff:            template.NetworkDiff,
 		PrevBlock:              &blockHeader.PrevBlock,
+		MsgBlock:               template.MsgBlock,
 		CoinbasePart1:          serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
 		CoinbasePart2:          serializedCoinbaseTx[partOneIndex:],
 		Bits:                   template.Bits,
@@ -1200,6 +1202,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		submission := blockSubmission{
 			ClientID: client.ID,
 			Header:   h,
+			MsgBlock: client.CurrentJob.MsgBlock,
 			Coinbase: client.CurrentJob.CoinbaseTx.Copy(),
 			Share:    share,
 		}

@@ -490,6 +490,7 @@ func globalLogError(s string) {
 	fmt.Fprintln(os.Stderr, s)
 }
 
+// replacement for [wire.BlockHeader.BlockHash]
 func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 	h := sha256.New()
 	header.Serialize(h)
@@ -500,6 +501,7 @@ func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 	return chainhash.Hash(h.Sum(temp))
 }
 
+// replacement for *.Hash() methods
 func simdSha256d(data []byte) chainhash.Hash {
 	a := sha256.Sum256(data)
 	return sha256.Sum256(a[:])
