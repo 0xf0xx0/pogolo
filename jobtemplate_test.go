@@ -20,7 +20,7 @@ func TestCreateJobTemplate(t *testing.T) {
 		t.FailNow()
 		return
 	}
-	if job.Height != uint64(template.Height) {
+	if job.Height != template.Height {
 		t.Errorf("job height mismatch: expected %d, got job: %d", template.Height, job.Height)
 	}
 	if job.Subsidy != *template.CoinbaseValue {

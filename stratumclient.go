@@ -73,6 +73,7 @@ type batchShare struct {
 
 type blockSubmission struct {
 	Header   wire.BlockHeader
+	Height   int32
 	MsgBlock *wire.MsgBlock
 	Coinbase *wire.MsgTx
 	Share    *commonShare
@@ -953,6 +954,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	return MiningJob{
 		ID:                     template.ID,
 		Header:                 blockHeader,
+		Height:                 int32(template.Height),
 		CoinbaseTx:             *coinbaseTx,
 		CoinbaseBytes:          serializedCoinbaseTx,
 		CoinbaseExtranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
@@ -1353,7 +1355,7 @@ func createClient(conn net.Conn, submissionChannel chan<- blockSubmission) *Stra
 		conn:                conn,
 		templateChan:        make(chan *JobTemplate, 1),
 		submissionChan:      submissionChannel,
-		batchSubmissionChan: make(chan batchShare, 5), /// TODO: use configured size+5
+		batchSubmissionChan: make(chan batchShare, 5),
 		// allocate enough space to store the expected number of share hashes before a new job is sent out
 		// 15 is a good starter, default config results in 12 shares per job and the map will grow as needed
 		shareHashes: make(map[chainhash.Hash]struct{}, 15),

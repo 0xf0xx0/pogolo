@@ -30,7 +30,7 @@ type JobTemplate struct {
 	NetworkDiff  float64
 	ID           uint64
 	Subsidy      int64
-	Height       uint64
+	Height       int64
 	MinTime      int64
 	MaxTime      int64
 	Bits         [4]byte
@@ -53,6 +53,7 @@ type MiningJob struct {
 	MinTime                int64
 	MaxTime                int64
 	Version                int32 // the original job version
+	Height                 int32 // used on block submission only, NOT copied or modified by clients
 	Bits                   [4]byte
 }
 
@@ -183,7 +184,7 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		Bits:         [4]byte(bits),
 		NetworkDiff:  calcNetworkDifficulty(headerBits),
 		Subsidy:      *template.CoinbaseValue,
-		Height:       uint64(template.Height),
+		Height:       template.Height,
 		/// pass min and max time through for share validation
 		MinTime: template.MinTime,
 		MaxTime: template.MaxTime,

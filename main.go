@@ -152,9 +152,6 @@ var (
 	sv2Cert             *stratumv2.SIGNATURE_NOISE_MESSAGE
 	sv2AuthorityKeypair *stratumv2.Keypair
 	sv2StaticKeypair    *stratumv2.Keypair
-
-	/// debug shit
-	totalSharesPerSec = uint64(0)
 )
 
 func main() {
@@ -307,6 +304,7 @@ func main() {
 				logFile = file
 			}
 
+			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, VERSION, cmd.Usage))
 			if profileDir := cmd.String("profile"); profileDir != "" {
 				globalLog(fmt.Sprintf("{bold}{yellow}==<<!>=<<!>=<<!>>=<profiling>=<<!>=<<!>=<<!>>==\nwriting cpu.prof and mem.prof to: {green}%s", profileDir))
 				profileFile, err := os.Create(filepath.Join(profileDir, "./cpu.prof"))
@@ -322,120 +320,6 @@ func main() {
 				defer pprof.StopCPUProfile()
 			}
 
-			if conf.Benchmarking {
-				globalLog("{bold}{yellow}==<<!>=<<!>=<<!>>=<benchmarking>=<<!>=<<!>=<<!>>==")
-			}
-
-			/// init backend
-			backendConnConf := &rpcclient.ConnConfig{
-				Host:         conf.Backend.Host,
-				DisableTLS:   true,
-				HTTPPostMode: !conf.Websocket,
-			}
-			if conf.Websocket {
-				backendConnConf.Endpoint = "ws"
-			}
-			if conf.Cookie != "" {
-				backendConnConf.CookiePath = conf.Cookie
-			} else if conf.Rpcauth != "" && strings.Contains(conf.Rpcauth, ":") {
-				auth := strings.Split(conf.Rpcauth, ":")
-				backendConnConf.User = auth[0]
-				backendConnConf.Pass = auth[1]
-			} else {
-				return cli.Exit("did you forget to configure the backend auth? (no auth found)", constants.EXIT_CONFIG)
-			}
-			var err error
-			globalLog("{yellow}connecting to backend...")
-			backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
-				/// we do not care
-				/// FIXME: this makes gbt fail and cause a hang randomly?
-				/// FIXME: stalls shutdown on certain errors? prolly related to longpolling
-				OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
-					/// ok we kinda care
-					globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
-					triggerGBT <- struct{}{}
-				},
-				OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
-				/// only needed for the backend.NotifyBlocks() call later
-			})
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.EXIT_BACKEND)
-			}
-
-			chainInfo, err := backend.GetBlockChainInfo()
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to get chain info: %s", err), constants.EXIT_BACKEND)
-			}
-
-			switch chainInfo.Chain {
-			case "mainnet":
-				fallthrough
-			case "main":
-				{
-					backendChainParams = &chaincfg.MainNetParams
-				}
-			case "test":
-				{
-					backendChainParams = &chaincfg.TestNet3Params
-				}
-			case "testnet4":
-				{
-					backendChainParams = &chaincfg.TestNet4Params
-				}
-			case "regtest":
-				{
-					backendChainParams = &chaincfg.RegressionNetParams
-				}
-			case "signet":
-				{
-					backendChainParams = &chaincfg.SigNetParams
-				}
-			default:
-				{
-					return cli.Exit(fmt.Sprintf("what's a %q? (unknown backend chain)", chainInfo.Chain), constants.EXIT_BACKEND)
-				}
-			}
-
-			globalLog(fmt.Sprintf("===<<{bold}{blue}%s {green}v%s{/green} - %s{/blue}{/bold}>>===", cmd.Name, VERSION, cmd.Usage))
-			globalLog(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
-
-			/// decode the default mining address
-			if conf.PoolAddress != "" {
-				addr, err := address.DecodeAddress(conf.PoolAddress, backendChainParams)
-				if err != nil {
-					return cli.Exit(err.Error(), constants.EXIT_CONFIG)
-				}
-				defaultMiningAddr = addr
-				globalLog(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.PoolAddress))
-			}
-
-			if conf.Sv1Password != "" {
-				globalLog(fmt.Sprintf("\"{green}%s{/green}\" set as stratum v1 password", conf.Sv1Password))
-			}
-
-			/// we don't care about auth cause we're on the lan
-			if conf.Sv2AuthorityKeypair != "" {
-				sv2AuthorityKeypair = &stratumv2.Keypair{}
-				bytes, err := hex.DecodeString(conf.Sv2AuthorityKeypair)
-				if err != nil {
-					globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
-					return err
-				}
-				if err := sv2AuthorityKeypair.Decode(bytes); err != nil {
-					globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
-					return err
-				}
-				globalLog(fmt.Sprintf("{green}%s{/green} set as sv2 authority pubkey", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
-			} else {
-				sv2AuthorityKeypair = stratumv2.NewKeypair()
-			}
-			sv2StaticKeypair = stratumv2.NewKeypair()
-			/// cert lasts like 600 years, lol
-			sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<28)))
-			if err != nil {
-				return err
-			}
-
 			/// start
 			return startup(rootCtx)
 		},
@@ -449,7 +333,6 @@ func startup(rootCtx context.Context) error {
 	/// handle exit sigs
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
 	/// waitgroup for clean shutdown
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
@@ -457,6 +340,118 @@ func startup(rootCtx context.Context) error {
 	/// ditto for context, to kill clients cleanly
 	ctx, cancel := context.WithCancel(rootCtx)
 	defer cancel()
+
+	/// init backend
+	backendConnConf := &rpcclient.ConnConfig{
+		Host:         conf.Backend.Host,
+		DisableTLS:   true,
+		HTTPPostMode: !conf.Websocket,
+	}
+	if conf.Websocket {
+		backendConnConf.Endpoint = "ws"
+	}
+	if conf.Cookie != "" {
+		backendConnConf.CookiePath = conf.Cookie
+	} else if conf.Rpcauth != "" && strings.Contains(conf.Rpcauth, ":") {
+		auth := strings.Split(conf.Rpcauth, ":")
+		backendConnConf.User = auth[0]
+		backendConnConf.Pass = auth[1]
+	} else {
+		return cli.Exit("did you forget to configure the backend auth? (no auth found)", constants.EXIT_CONFIG)
+	}
+	var err error
+	globalLog("{yellow}connecting to backend...")
+	backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
+		/// we do not care
+		/// FIXME: this makes gbt fail and cause a hang randomly?
+		/// FIXME: stalls shutdown on certain errors? prolly related to longpolling
+		OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
+			/// ok we kinda care
+			globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
+			select {
+			case triggerGBT <- struct{}{}:
+			default:
+			}
+		},
+		OnFilteredBlockDisconnected: func(_ int32, _ *wire.BlockHeader) {},
+		/// only needed for the backend.NotifyBlocks() call later
+	})
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to connect to backend: %s", err), constants.EXIT_BACKEND)
+	}
+
+	chainInfo, err := backend.GetBlockChainInfo()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to get chain info: %s", err), constants.EXIT_BACKEND)
+	}
+
+	switch chainInfo.Chain {
+	case "mainnet":
+		fallthrough
+	case "main":
+		{
+			backendChainParams = &chaincfg.MainNetParams
+		}
+	case "test":
+		{
+			backendChainParams = &chaincfg.TestNet3Params
+		}
+	case "testnet4":
+		{
+			backendChainParams = &chaincfg.TestNet4Params
+		}
+	case "regtest":
+		{
+			backendChainParams = &chaincfg.RegressionNetParams
+		}
+	case "signet":
+		{
+			backendChainParams = &chaincfg.SigNetParams
+		}
+	default:
+		{
+			return cli.Exit(fmt.Sprintf("what's a %q? (unknown backend chain)", chainInfo.Chain), constants.EXIT_BACKEND)
+		}
+	}
+
+	globalLog(fmt.Sprintf("mining on {green}%s", backendChainParams.Name))
+
+	/// decode the default mining address
+	if conf.PoolAddress != "" {
+		addr, err := address.DecodeAddress(conf.PoolAddress, backendChainParams)
+		if err != nil {
+			return cli.Exit(err.Error(), constants.EXIT_CONFIG)
+		}
+		defaultMiningAddr = addr
+		globalLog(fmt.Sprintf("default mining address configured! mining to {green}%s", conf.PoolAddress))
+	}
+
+	if conf.Sv1Password != "" {
+		globalLog(fmt.Sprintf("\"{green}%s{/green}\" set as stratum v1 password", conf.Sv1Password))
+	}
+
+	/// we don't care about auth cause we're on the lan
+	if conf.Sv2AuthorityKeypair != "" {
+		sv2AuthorityKeypair = &stratumv2.Keypair{}
+		bytes, err := hex.DecodeString(conf.Sv2AuthorityKeypair)
+		if err != nil {
+			globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
+			return err
+		}
+		if err := sv2AuthorityKeypair.Decode(bytes); err != nil {
+			globalLogError(fmt.Sprintf("failed to decode authority keypair: %s", err))
+			return err
+		}
+		globalLog(fmt.Sprintf("{green}%s{/green} set as sv2 authority pubkey", stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())))
+	} else {
+		sv2AuthorityKeypair = stratumv2.NewKeypair()
+	}
+	sv2StaticKeypair = stratumv2.NewKeypair()
+	/// cert lasts like 600 years, lol
+	sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<28)))
+	if err != nil {
+		return err
+	}
 
 	/// ws shutdown handler
 	if conf.Backend.Websocket {
@@ -532,9 +527,6 @@ func startup(rootCtx context.Context) error {
 	<-sigs
 
 	globalLog("\n{yellow}stopping")
-	if conf.Benchmarking {
-		println(fmt.Sprintf("total shares/s: %d", totalSharesPerSec))
-	}
 	return nil
 }
 
@@ -635,7 +627,7 @@ func backendRoutine(ctx context.Context) {
 				{
 					if count, err := backend.GetBlockCount(); err == nil {
 						currTemplateLock.RLock()
-						if uint64(count) >= currTemplate.Height {
+						if count >= currTemplate.Height {
 							triggerGBT <- struct{}{}
 						}
 						currTemplateLock.RUnlock()
@@ -709,9 +701,7 @@ func backendRoutine(ctx context.Context) {
 			case submission := <-submissionChan:
 				{
 					block := btcutil.NewBlock(submission.MsgBlock)
-					currTemplateLock.RLock()
-					block.SetHeight(int32(currTemplate.Height))
-					currTemplateLock.RUnlock()
+					block.SetHeight(submission.Height)
 					msgBlock := block.MsgBlock()
 					msgBlock.Header = submission.Header
 					/// this is scary because all the clients share one msgblock

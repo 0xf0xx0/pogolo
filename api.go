@@ -217,7 +217,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		TotalHashrate: hashrateSum / 1e6,
 		BestDiff:      bestDiff,
 		TotalWorkers:  uint64(len(allClients)),
-		BlockHeight:   currTemplate.Height,
+		BlockHeight:   uint64(currTemplate.Height),
 		BlocksFound:   foundBlocks,
 		NetworkDiff:   currTemplate.NetworkDiff,
 		Version:       VERSION,
