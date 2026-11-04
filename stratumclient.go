@@ -1251,7 +1251,7 @@ func (client *StratumClient) batchSv2SubmissionsRoutine() {
 	remainingWindow := maxWindow
 	lastSequence := uint32(0)
 	batchSize := uint32(0)
-	diffSum := uint64(0)
+	diffSum := float64(0)
 
 	for {
 		startTime := time.Now()
@@ -1262,7 +1262,7 @@ func (client *StratumClient) batchSv2SubmissionsRoutine() {
 					ChannelID:               uint32(client.ID),
 					LastSequenceNumber:      lastSequence,
 					NewSubmitsAcceptedCount: batchSize,
-					NewSharesSum:            diffSum,
+					NewSharesSum:            uint64(diffSum),
 				}, stratumv2.MessageSubmitSharesSuccess)
 				diffSum = 0
 				batchSize = 0
@@ -1270,7 +1270,7 @@ func (client *StratumClient) batchSv2SubmissionsRoutine() {
 			}
 		case seq := <-client.batchSubmissionChan:
 			lastSequence = seq.sequence
-			diffSum += uint64(seq.diff)
+			diffSum += seq.diff
 			batchSize++
 
 			/// just in case
@@ -1286,7 +1286,7 @@ func (client *StratumClient) batchSv2SubmissionsRoutine() {
 			}
 
 			remainingWindow -= elapsed
-			remainingWindow = min(remainingWindow+remainingWindow/2, maxWindow)
+			remainingWindow = min((remainingWindow+elapsed/2)-1, maxWindow)
 		}
 	}
 }
