@@ -1200,6 +1200,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		submission := blockSubmission{
 			ClientID: client.ID,
 			Header:   h,
+			Height:   client.CurrentJob.Height,
 			MsgBlock: client.CurrentJob.MsgBlock,
 			Coinbase: client.CurrentJob.CoinbaseTx.Copy(),
 			Share:    share,
