@@ -466,7 +466,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 	submissionChan := make(chan blockSubmission, 8)
 	clientPipe, poolPipe := net.Pipe()
 	client := createClient(poolPipe, submissionChan)
-	go client.Run(context.Background())
+	go client.Start(context.Background())
 	/// discard submissions
 	go func() {
 		for {

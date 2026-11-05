@@ -584,7 +584,7 @@ func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 			{
 				/// no need for a pool, pogolo will likely never handle enough clients for it to matter
 				client := createClient(conn, submissionChan)
-				go client.Run(ctx)
+				go client.Start(ctx)
 			}
 		}
 	}

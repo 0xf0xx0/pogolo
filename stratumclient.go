@@ -121,7 +121,8 @@ type StratumClient struct {
 	errLogPrefix string
 }
 
-func (client *StratumClient) Run(ctx context.Context) {
+// handles init and protocol sniffing
+func (client *StratumClient) Start(ctx context.Context) {
 	defer client.Stop()
 	go client.readTemplateChanRoutine()
 
@@ -332,6 +333,8 @@ func (client *StratumClient) Run(ctx context.Context) {
 		client.processSv2Loop(ctx, client.conn)
 	}
 }
+
+// kicks off mining
 func (client *StratumClient) startMining() {
 	globalLog(fmt.Sprintf(
 		/// dig, cause gophers, get it?
@@ -1313,8 +1316,7 @@ func (client *StratumClient) writeConn(b []byte) error {
 
 // logging
 func (client *StratumClient) logf(s string, a ...any) {
-	s = fmt.Sprintf(s, a...)
-	client.log(s)
+	client.log(fmt.Sprintf(s, a...))
 }
 func (client *StratumClient) log(s string) {
 	sb := strings.Builder{}
