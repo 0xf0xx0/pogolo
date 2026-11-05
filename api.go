@@ -136,11 +136,11 @@ func initAPI() {
 	/// embedded files
 	http.HandleFunc("GET /license.txt", func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "text/plain")
-		writeResponse(res, embeddedLicense)
+		writeResponse(res, 0, embeddedLicense)
 	})
 	http.HandleFunc("GET /openapi.yaml", func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "application/yaml")
-		writeResponse(res, embeddedSwagger)
+		writeResponse(res, 0, embeddedSwagger)
 	})
 
 	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{
@@ -281,11 +281,11 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 }
 
 func writeError(res http.ResponseWriter, code int, msg string) error {
-	res.WriteHeader(code)
 	if msg != "" {
 		res.Header().Set("Content-Type", "application/json")
-		return writeResponse(res, fmt.Appendf(nil, `{"error":%q}`, msg))
+		return writeResponse(res, code, fmt.Appendf(nil, `{"error":%q}`, msg))
 	}
+	res.WriteHeader(code)
 	return nil
 }
 func marshalAndWrite(res http.ResponseWriter, v any) error {
@@ -295,13 +295,17 @@ func marshalAndWrite(res http.ResponseWriter, v any) error {
 		return err
 	}
 	res.Header().Set("Content-Type", "application/json")
-	return writeResponse(res, x)
+	return writeResponse(res, 0, x)
 }
 
-func writeResponse(res http.ResponseWriter, x []byte) error {
+func writeResponse(res http.ResponseWriter, code int, x []byte) error {
 	res.Header().Set("Server", NAME+"/"+VERSION)
 	res.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	res.Header().Set("Content-Length", strconv.Itoa(len(x)))
+	res.Header()["Date"] = nil
+	if code > 0 {
+		res.WriteHeader(code)
+	}
 	_, err := res.Write(x)
 	return err
 }
