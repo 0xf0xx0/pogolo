@@ -970,9 +970,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		Bits:                   template.Bits,
 	}
 }
-func (client *StratumClient) submitBlock(block blockSubmission) {
-	client.submissionChan <- block
-}
 
 // returns the nickname if set and falls back to the id
 func (client *StratumClient) Name() string {
@@ -1206,7 +1203,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 			Share:    share,
 		}
 
-		client.submitBlock(submission)
+		client.submissionChan <- submission
 		client.log("{yellow}block candidate submitted")
 	}
 
@@ -1214,7 +1211,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		/// not gonna bother batching logs, just share acks
-		client.addShareToBatch(share.Sequence, shareDiff)
+		client.batchSubmissionChan <- batchShare{sequence: share.Sequence, diff: shareDiff}
 	}
 
 	/// vanity things
@@ -1238,11 +1235,6 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		delta:      client.stats.avgSubmissionDelta / 1000,
 	}
 	client.log(l.String())
-}
-
-// sends a share over a channel to be batched
-func (client *StratumClient) addShareToBatch(sequence uint32, diff float64) {
-	client.batchSubmissionChan <- batchShare{sequence: sequence, diff: diff}
 }
 
 // batch sv2 submissions into windows, each share bumping the window by a bit
