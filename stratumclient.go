@@ -96,26 +96,26 @@ func (t *wrapperRW) Write(b []byte) (int, error) {
 
 // aka gopher
 type StratumClient struct {
-	CurrentJob       MiningJob
-	stats            StratumClientStats
-	conn             net.Conn
-	User             address.Address
-	Nickname         string
-	UserAgent        string
-	TargetDifficulty float64
+	CurrentJob MiningJob
+	stats      StratumClientStats
+	conn       net.Conn
+	send, recv *stratumv2.CipherState
+	User       address.Address
+	Nickname   string
+	UserAgent  string
 	// TargetDifficultyU256 stratumv2.U256
+	TargetDifficulty    float64
 	SuggestedDifficulty float64                     // overloaded, initially set by client (optional) then used by diff adjust
 	ID                  stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
 	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
 	shareHashMutex      sync.Mutex
 	currentJobMutex     sync.RWMutex
+	stopOnce            sync.Once
 	templateChan        chan *JobTemplate
 	submissionChan      chan<- blockSubmission
+	batchSubmissionChan chan batchShare
 	protocol            uint8
 	extendedChannel     bool
-	send, recv          *stratumv2.CipherState
-	batchSubmissionChan chan batchShare
-	donationPercent     uint8
 
 	logPrefix    string
 	errLogPrefix string
@@ -369,24 +369,17 @@ func (client *StratumClient) startMining() {
 	client.stats.startTime = uint64(time.Now().Unix())
 }
 func (client *StratumClient) Stop() {
-	select {
-	/// we've already stopped, avoid a panic
-	case _, ok := <-client.templateChan:
-		if !ok {
-			return
+	client.stopOnce.Do(func() {
+		/// remove ourselves from the client map
+		if client.ID != 0 {
+			clients.Delete(client.ID)
+			globalLog(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
 		}
-	default:
-	}
 
-	/// remove ourselves from the client map
-	if client.ID != 0 {
-		clients.Delete(client.ID)
-		globalLog(fmt.Sprintf("==<<>>=<<>>=<{green}%s{/green} has left the dig!>=<<>>=<<>>==", client.Name()))
-	}
+		client.conn.Close()
 
-	client.conn.Close()
-
-	close(client.templateChan)
+		close(client.templateChan)
+	})
 }
 
 func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reader) {
@@ -1044,6 +1037,8 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	return true
 }
 func (client *StratumClient) validateShareSubmission(share *commonShare, m *stratum.Request) {
+	client.currentJobMutex.RLock()
+	defer client.currentJobMutex.RUnlock()
 	if share.JobID != uint32(client.CurrentJob.ID) {
 		client.stats.sharesRejected++
 		if share.JobID == uint32(client.CurrentJob.ID-1) {
