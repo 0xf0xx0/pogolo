@@ -157,6 +157,7 @@ func TestVersionValidationEdgeCase(t *testing.T) {
 	conf.BIPVersionBits = 0x00000000
 	lpipe, c := ezInitSv1Client(t, true)
 	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
+	/// explicitly set version mask to 0
 	share, found := shittyCpuMiner(c.TargetDifficulty, true, c, t)
 	if !found {
 		t.Error("failed to find a hash in 2^32 iters, bad luck")
@@ -166,42 +167,15 @@ func TestVersionValidationEdgeCase(t *testing.T) {
 	submitParams.FromRequest(share)
 	// t.Logf("%x", c.CurrentJob.Header.Version)
 
-	/// explicitly set version mask to 0
-	submitParams.VersionMask = 0
 	r := submitParams.ToRequest(20)
-	/// expected hash: 00000001cac12f82479784bf2687b6cf5f455f5912b3c88e0c6e97bf6dc643c3
 	res := sendSv1ReqAndWaitForRes(t, r, lpipe)
-	// t.Logf("%x", c.CurrentJob.Header.Version)
-	// nVersion := ((uint32(currTemplate.Header.Version) | uint32(conf.BIPVersionBits)) & ^constants.VERSION_ROLLING_MASK) | (uint32(submitParams.VersionMask) & constants.VERSION_ROLLING_MASK)
-	// recovered := (^uint32(c.CurrentJob.Version) & nVersion) | (nVersion & constants.VERSION_ROLLING_MASK)
-	// t.Logf("%x %x", nVersion, recovered)
 	/// reset state for later tests
-	submitParams.VersionMask = -1
 	conf.BIPVersionBits = 0
 
 	if res.Error != nil {
 		t.Fatalf("share submission failed: %s", res.Error)
 	}
 }
-
-/// TODO: takes too long to run (5s)
-// func TestVersionValidation(t *testing.T) {
-// 	jobVersion := uint32(0x20202020)
-//
-// 	for i := range uint32(0xffffffff) {
-// 		/// this efffectively rolls the version bits
-// 		shareMask := i & constants.VERSION_ROLLING_MASK
-// 		/// do bip 310 nVersion calc...
-// 		nVersion := (jobVersion & ^constants.VERSION_ROLLING_MASK) | (shareMask & constants.VERSION_ROLLING_MASK)
-// 		/// then attempt to recover mask by doing the inverse of the ver calc
-// 		recoveredMask := (^jobVersion & nVersion) | (nVersion & constants.VERSION_ROLLING_MASK)
-//
-// 		if recoveredMask != shareMask {
-// 			t.Logf("ver: %x, shareMask: %x, recoveredMask: %x", nVersion, shareMask, recoveredMask)
-// 			t.Fatalf("recoveredMask should be %x, got %x", shareMask, recoveredMask)
-// 		}
-// 	}
-// }
 
 func TestSv1SubmitUnkJob(t *testing.T) {
 	lpipe, _ := ezInitSv1Client(t, false)
