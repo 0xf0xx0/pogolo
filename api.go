@@ -158,6 +158,7 @@ func initAPI() {
 		}
 
 		metrics.Uptime.Set(time.Since(serverStartTime).Seconds())
+		metrics.TemplateHeight.Set(float64(currTemplateID))
 		metrics.TotalWorkers.Set(float64(allClientsLen))
 		metrics.TotalHashrate.Set(hashrateSum)
 		metrics.BestDiff.Set(bestDiff)

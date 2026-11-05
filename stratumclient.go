@@ -1186,17 +1186,16 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
 		/// copy header and coinbase to avoid overwrites
-		h := wire.BlockHeader{
-			Version:    updatedHeader.Version,
-			PrevBlock:  chainhash.Hash(updatedHeader.PrevBlock.CloneBytes()),
-			MerkleRoot: chainhash.Hash(updatedHeader.MerkleRoot.CloneBytes()),
-			Timestamp:  updatedHeader.Timestamp,
-			Bits:       updatedHeader.Bits,
-			Nonce:      updatedHeader.Nonce,
-		}
 		submission := blockSubmission{
 			ClientID: client.ID,
-			Header:   h,
+			Header: wire.BlockHeader{
+				Version:    updatedHeader.Version,
+				PrevBlock:  chainhash.Hash(updatedHeader.PrevBlock.CloneBytes()),
+				MerkleRoot: chainhash.Hash(updatedHeader.MerkleRoot.CloneBytes()),
+				Timestamp:  updatedHeader.Timestamp,
+				Bits:       updatedHeader.Bits,
+				Nonce:      updatedHeader.Nonce,
+			},
 			Height:   client.CurrentJob.Height,
 			MsgBlock: client.CurrentJob.MsgBlock,
 			Coinbase: client.CurrentJob.CoinbaseTx.Copy(),
