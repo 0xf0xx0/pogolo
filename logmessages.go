@@ -25,7 +25,7 @@ type shareAcceptLog struct {
 
 func (l shareAcceptLog) String() string {
 	sb := strings.Builder{}
-	sb.Grow(341 + int(conf.ExtraNonce2Size))
+	sb.Grow(355 + int(conf.ExtraNonce2Size))
 	sb.WriteString("diff {blue}")
 	sb.WriteString(formatDifficulty(l.shareDiff))
 	sb.WriteString("{/blue} of {blue}")
@@ -34,7 +34,7 @@ func (l shareAcceptLog) String() string {
 	sb.WriteString(formatDifficulty(l.bestDiff))
 	sb.WriteString("{/bluebright})\n{blackbright}")
 	sb.WriteString(l.shareHash)
-	sb.WriteString("\n\tversion: {blue}")
+	sb.WriteString("{/blackbright}\n\tversion: {blue}")
 	sb.WriteString(strconv.FormatInt(int64(l.version), 16))
 	sb.WriteString("{/blue} nonce: {green}")
 	sb.WriteString(strconv.FormatInt(int64(l.nonce), 16))
