@@ -134,6 +134,22 @@ func TestSv1Submit(t *testing.T) {
 	}
 }
 
+func TestSv1SubmitVersionBits(t *testing.T) {
+	lpipe, c := ezInitSv1Client(t, true)
+	conf.BIPVersionBits = 0x
+	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
+	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, t)
+	if !found {
+		t.Error("failed to find a hash in 2^32 iters, bad luck")
+		return
+	}
+	res := sendSv1ReqAndWaitForRes(t, share, lpipe)
+	if res.Error != nil {
+		t.Fatalf("share submission failed! code: %s", res.Error)
+	}
+}
+
+
 func TestSv1SubmitDiffTooLow(t *testing.T) {
 	submit := stratum.MiningSubmitParams{
 		JobID:       strconv.FormatUint(currTemplateID, 16),

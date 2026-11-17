@@ -478,14 +478,9 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					}, stratumv2.MessageUpdateChannelError)
 					break
 				}
-				if constants.Target1U256.IsEqual(msg.MaxTarget) {
-					/// calc the new difficulty from the new hashrate and switch immediately
-					if msg.NominalHashRate > 0 {
-						client.setDifficulty(calcDiffFromHashrate(float64(msg.NominalHashRate)))
-					}
-					break
-				}
 				/// if its too large, error
+				/// intentionally loose; if the client wants to UpdateChannel
+				/// with the same value thats on them
 				if !constants.Target1U256.IsMetBy(&msg.MaxTarget) {
 					client.logError("new target difficulty too low")
 					client.writeSv2Msg(&stratumv2.UpdateChannelError{
@@ -494,7 +489,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					}, stratumv2.MessageUpdateChannelError)
 					break
 				}
-
+				/// calc the new difficulty from the new MaxTarget and switch immediately
 				/// "When maximum_target is smaller than currently used maximum target
 				///  for the channel, upstream node MUST reflect the client’s request
 				///  (and send appropriate SetTarget message)."
@@ -526,6 +521,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 		/// deadline is a minute + 10x target share interval
 		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
 
+		/// yield to ensure everyone gets a slot on the cpu
 		/// 96 messages appears to be the sweet spot
 		if handledMessages++; handledMessages%96 == 0 {
 			runtime.Gosched()
@@ -1008,6 +1004,7 @@ func (client *StratumClient) parseIdentity(userIdentity string, requestID uint32
 	return true
 }
 
+// ["name"] prefixes to log lines
 func (client *StratumClient) createLogPrefixes() {
 	nameLen := len(client.Name())
 	sb := strings.Builder{}
