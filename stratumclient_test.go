@@ -136,7 +136,7 @@ func TestSv1Submit(t *testing.T) {
 
 func TestSv1SubmitVersionBits(t *testing.T) {
 	lpipe, c := ezInitSv1Client(t, true)
-	conf.BIPVersionBits = 0x
+	conf.BIPVersionBits = 0x00337300
 	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
 	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, t)
 	if !found {
@@ -147,8 +147,8 @@ func TestSv1SubmitVersionBits(t *testing.T) {
 	if res.Error != nil {
 		t.Fatalf("share submission failed! code: %s", res.Error)
 	}
+	conf.BIPVersionBits = 0
 }
-
 
 func TestSv1SubmitDiffTooLow(t *testing.T) {
 	submit := stratum.MiningSubmitParams{
