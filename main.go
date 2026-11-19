@@ -404,7 +404,6 @@ func startup(rootCtx context.Context) error {
 		}
 	case "testnet5":
 		{
-			/// FIXME: `consensuscleanup` rule required
 			genesisHash := chainhash.Hash([chainhash.HashSize]byte{
 				0x97, 0xd4, 0x91, 0x4a, 0x67, 0x0d, 0x20, 0x4b,
 				0x47, 0x6a, 0xff, 0x6f, 0xfd, 0x46, 0x45, 0x3d,
@@ -934,10 +933,14 @@ func backendRoutine(ctx context.Context) {
 	triggerGBT <- struct{}{}
 
 	templateReq := &btcjson.TemplateRequest{
-		Rules:        []string{"segwit", "consensuscleanup"},
+		Rules:        []string{"segwit"},
 		Capabilities: []string{"proposal", "coinbasevalue" /* ,"longpoll" */},
 		Mode:         "template",
 		// LongPollID: longpollid,
+	}
+	if backendChainParams.Name == "testnet5" {
+		/// required for testnet5
+		templateReq.Rules = append(templateReq.Rules, "consensuscleanup")
 	}
 	/// main gbt loop
 	for {
@@ -956,11 +959,6 @@ func backendRoutine(ctx context.Context) {
 			globalLogError(fmt.Sprintf("error fetching template: %s", err))
 			continue
 		}
-
-		// t, _ := sonic.MarshalString(&template)
-		// globalLog(t)
-		// globalLog(strconv.FormatUint(seeda, 16))
-		// globalLog(strconv.FormatUint(seedb, 16))
 
 		/// save longpoll id
 		// longpollid = template.LongPollID
