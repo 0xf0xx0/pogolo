@@ -67,11 +67,11 @@ func (m *clientMap) Get(id stratum.ID) (*StratumClient, bool) {
 	ret, ok := m.idMap[id]
 	return ret, ok
 }
-func (m *clientMap) Find(name string) (*StratumClient, bool) {
+func (m *clientMap) Find(nameOrId string) (*StratumClient, bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	for _, client := range clients.All() {
-		if client.Nickname == name || client.ID.String() == name {
+	for _, client := range m.idMap {
+		if client.Nickname == nameOrId || client.ID.String() == nameOrId {
 			return client, true
 		}
 	}

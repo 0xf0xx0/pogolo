@@ -916,9 +916,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		}
 		client.shareHashMutex.Unlock()
 
-		/// NOTE: update job after everything to give the new job some time to be sent and switched to
+		/// update job after everything to give the new job some time to be sent and switched to
 		/// (reduces the chance of shares being submitted mid-job change)
-		/// MAYBE: guess RTT and sleep for half?
 		client.currentJobMutex.Lock()
 		client.CurrentJob = newJob
 		client.currentJobMutex.Unlock()
