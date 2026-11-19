@@ -45,6 +45,7 @@ type MiningJob struct {
 	CoinbasePart2          []byte
 	MerkleBranch           []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
 	CoinbaseBytes          []byte            // for faster merkle root calc
+	merkleScratch          []*chainhash.Hash // preallocated [coinbase, ...MerkleBranch] scratch for UpdateHeader; slot 0 points to a per-job buffer
 	CoinbaseExtranonce2Idx int               // for faster merkle root calc
 	PrevBlock              *chainhash.Hash   // pointer to hash in header
 	MsgBlock               *wire.MsgBlock    // used on block submission only, NOT copied or modified by clients
@@ -74,11 +75,10 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.Blo
 		copy(job.CoinbaseBytes[job.CoinbaseExtranonce2Idx:job.CoinbaseExtranonce2Idx+en2Len], share.Extranonce2)
 
 		/// coinbase was changed, thus recalc the root
-		branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-		coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
-		branches[0] = &coinbaseTxHash
-		branches = append(branches, job.MerkleBranch...)
-		job.Header.MerkleRoot = *merkleRootFromBranches(branches)
+		/// write the coinbase hash into the preallocated scratch slot 0,
+		/// after which merkleScratch looks like [coinbase, ...MerkleBranch]
+		*job.merkleScratch[0] = simdSha256d(job.CoinbaseBytes)
+		job.Header.MerkleRoot = merkleRootFromBranches(job.merkleScratch)
 	}
 
 	/// update the header

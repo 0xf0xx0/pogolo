@@ -257,8 +257,8 @@ func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
 		writeError(res, http.StatusBadRequest, "failed to decode client name")
 		return
 	}
-	worker := getClientFromNameOrID(name)
-	if worker == nil {
+	worker, found := clients.Find(name)
+	if !found {
 		globalLogError(fmt.Sprintf("failed to find client %q", name))
 		writeError(res, http.StatusBadRequest, "failed to find client")
 		return
@@ -309,13 +309,4 @@ func writeResponse(res http.ResponseWriter, code int, x []byte) error {
 	}
 	_, err := res.Write(x)
 	return err
-}
-
-func getClientFromNameOrID(name string) *StratumClient {
-	for _, client := range clients.All() {
-		if client.Nickname == name || client.ID.String() == name {
-			return client
-		}
-	}
-	return nil
 }

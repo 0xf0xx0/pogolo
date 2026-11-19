@@ -592,7 +592,7 @@ func shittyCpuMiner(target float64, versionMask bool, c *StratumClient, t *testi
 	coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
 	branches[0] = &coinbaseTxHash
 	branches = append(branches, job.MerkleBranch...)
-	header.MerkleRoot = *merkleRootFromBranches(branches)
+	header.MerkleRoot = merkleRootFromBranches(branches)
 
 	stop := uint32(4294967290)
 

@@ -835,6 +835,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		}
 
 		/// both stratum specs apply diff changes to next job, so announce diff before announcing job
+		/// FIXME: incorrect, sv2 expects diff after job
 
 		if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
 			if errors.Is(err, net.ErrClosed) {
@@ -926,8 +927,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	blockHeader := wire.BlockHeader{
 		Version:    template.Header.Version,
-		PrevBlock:  chainhash.Hash(template.Header.PrevBlock.CloneBytes()),
-		MerkleRoot: chainhash.Hash(template.Header.MerkleRoot.CloneBytes()),
+		PrevBlock:  template.Header.PrevBlock,
+		MerkleRoot: template.Header.MerkleRoot,
 		Timestamp:  template.Header.Timestamp,
 		Bits:       template.Header.Bits,
 		Nonce:      template.Header.Nonce,
@@ -950,6 +951,12 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 	partOneIndex += len(inputScript)
 
+	/// preallocate the merkle scratch used by UpdateHeader
+	/// slot 0 points to a per-job buffer so share validation is alloc-free
+	merkleScratch := make([]*chainhash.Hash, len(template.MerkleBranch)+1)
+	merkleScratch[0] = &chainhash.Hash{}
+	copy(merkleScratch[1:], template.MerkleBranch)
+
 	return MiningJob{
 		ID:                     template.ID,
 		Header:                 blockHeader,
@@ -959,6 +966,7 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		CoinbaseExtranonce2Idx: partOneIndex - int(conf.ExtraNonce2Size),
 		Version:                blockHeader.Version,
 		MerkleBranch:           template.MerkleBranch,
+		merkleScratch:          merkleScratch,
 		MinTime:                template.MinTime,
 		MaxTime:                template.MaxTime,
 		NetworkDiff:            template.NetworkDiff,
@@ -1190,8 +1198,8 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 			ClientID: client.ID,
 			Header: wire.BlockHeader{
 				Version:    updatedHeader.Version,
-				PrevBlock:  chainhash.Hash(updatedHeader.PrevBlock.CloneBytes()),
-				MerkleRoot: chainhash.Hash(updatedHeader.MerkleRoot.CloneBytes()),
+				PrevBlock:  updatedHeader.PrevBlock,
+				MerkleRoot: updatedHeader.MerkleRoot,
 				Timestamp:  updatedHeader.Timestamp,
 				Bits:       updatedHeader.Bits,
 				Nonce:      updatedHeader.Nonce,

@@ -67,6 +67,16 @@ func (m *clientMap) Get(id stratum.ID) (*StratumClient, bool) {
 	ret, ok := m.idMap[id]
 	return ret, ok
 }
+func (m *clientMap) Find(name string) (*StratumClient, bool) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	for _, client := range clients.All() {
+		if client.Nickname == name || client.ID.String() == name {
+			return client, true
+		}
+	}
+	return nil, false
+}
 func (m *clientMap) All() []*StratumClient {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -309,16 +319,15 @@ func calcDiffFromHashrate(hashrate float64) float64 {
 	return math.Max(math.Round(diff), constants.MIN_DIFFICULTY)
 }
 
-func merkleRootFromBranches(branches []*chainhash.Hash) *chainhash.Hash {
-	root := branches[0]
+func merkleRootFromBranches(branches []*chainhash.Hash) chainhash.Hash {
+	root := *branches[0]
 	/// optimization: reuse array to store the combined hashes
 	/// instead of creating a new one every time
-	temp := make([]byte, 64)
+	var temp [64]byte
 	for _, branch := range branches[1:] {
 		copy(temp[:32], root[:])
 		copy(temp[32:], branch[:])
-		newroot := simdSha256d(temp)
-		root = &newroot
+		root = simdSha256d(temp[:])
 	}
 	return root
 }
@@ -516,14 +525,19 @@ func globalLogError(s string) {
 }
 
 // replacement for [wire.BlockHeader.BlockHash]
+// / serializes into a stack buffer, escaping allocations
 func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
-	h := sha256.New()
-	header.Serialize(h)
-	temp := make([]byte, 0, 32)
-	first := h.Sum(temp)
-	h.Reset()
-	h.Write(first)
-	return chainhash.Hash(h.Sum(temp))
+	/// block headers are exactly 80 bytes on the wire:
+	/// version(4) prevblock(32) merkleroot(32) timestamp(4) bits(4) nonce(4)
+	var buf [80]byte
+	binary.LittleEndian.PutUint32(buf[0:4], uint32(header.Version))
+	copy(buf[4:36], header.PrevBlock[:])
+	copy(buf[36:68], header.MerkleRoot[:])
+	binary.LittleEndian.PutUint32(buf[68:72], uint32(header.Timestamp.Unix()))
+	binary.LittleEndian.PutUint32(buf[72:76], header.Bits)
+	binary.LittleEndian.PutUint32(buf[76:80], header.Nonce)
+	first := sha256.Sum256(buf[:])
+	return sha256.Sum256(first[:])
 }
 
 // replacement for *.Hash() methods
