@@ -4,7 +4,7 @@
 
 solo db-less bitcoin-only mining pool, meant for lan swarms, not the internet;  
 start it, point your miners to it, and watch the logs roll by  
-think of this as public-pool but minimal and for self-sovereign nerds  
+
 infinite thanks to btcd for bitcoin tooling and public-pool for reference  
 [![Get pogolo on umbrelOS](https://apps.umbrel.com/api/app/pogolo/badge-dark.svg)](https://apps.umbrel.com/app/pogolo)
 
@@ -16,6 +16,7 @@ _want a go pool you can run on the public internet? check out https://github.com
     - [docker](#docker)
     - [go](#go)
     - [manual install](#manual-install)
+    - [webui](#webui)
 
 ![cpuminer on regtest](./imgs/showoff.png)
 
@@ -67,6 +68,7 @@ the api is documented in [`openapi.yaml`](./openapi.yaml), and exposed at `/open
 ## umbrel
 
 get pogolo from the umbrel app store: https://apps.umbrel.com/app/pogolo  
+it comes with a pretty webui based off of the umbrel bitcoin app :3  
 then point your miners to stratum+tcp://umbrel.local:5661 or stratum2+tcp://umbrel.local:5661
 
 ## docker
@@ -124,8 +126,11 @@ cp contrib/pogolo.example.toml "$XDG_CONFIG_HOME/pogolo/pogolo.toml"
 
 # configure interface, backend, and auth
 vim "$XDG_CONFIG_HOME/pogolo/pogolo.toml"
+```
 
-# run
+### run
+
+```sh
 pogolo
 ```
 theres a systemd unit at [`contrib/init/pogolo.service`](./contrib/init/pogolo.service) 
@@ -140,15 +145,28 @@ sudo chown -R :bitcoin /etc/pogolo
 sudo systemctl enable --now pogolo
 ```
 
+## webui
+
+the webui is containerized at https://hub.docker.com/r/0xf0xx0/pogolo-umbrel-webui  
+its intended for umbrel but perfectly usable outside, as long as you setup the environment.  
+it expects to have access to pogolos api, log file, and **rw** access to the config.
+```
+POGOLO_API_URL: "http://pogolo_pogolo_1:5662"
+POGOLO_LOG: /data/pogolo.log # log file we tail for the live log stream
+POGOLO_DIR: /data # where pogolo.toml lives
+DEVICE_DOMAIN_NAME: "${DEVICE_DOMAIN_NAME}" # for the connection info and qr codes,
+# should be the domain/ip pogolo is listening on
+```
+
 # miner config
 
-host: stratum[2]+tcp://\<your lan ip\>:5661  
+host: stratum+tcp://\<your lan ip\>:5661 OR stratum2+tcp://\<your lan ip\>:5661  
 username: [your onchain address][.\<worker name\>]  
 password: [required if set in pogolo.toml]  
 suggested diff: [optional]
 
-the onchain address is also optional if the pool has a default configured.  
-shares submitted between job changes are normal, the expected error rate is <=0.2%.
+the worker name is optional.
+the onchain address is also optional if the pool has a default address configured.
 
 # benchmarking
 
