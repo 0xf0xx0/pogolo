@@ -52,6 +52,7 @@ import (
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/wire/v2"
+	"github.com/zeebo/xxh3"
 )
 
 // all shares are converted into this common struct
@@ -104,9 +105,9 @@ type StratumClient struct {
 	UserAgent        string
 	TargetDifficulty float64
 	// TargetDifficultyU256 stratumv2.U256
-	SuggestedDifficulty float64                     // overloaded, initially set by client (optional) then used by diff adjust
-	ID                  stratum.ID                  // used for the extranonce1 (sv1) and channel ID (sv2)
-	shareHashes         map[chainhash.Hash]struct{} // stores hashes for dupe share detection, resets on new job
+	SuggestedDifficulty float64             // overloaded, initially set by client (optional) then used by diff adjust
+	ID                  stratum.ID          // used for the extranonce1 (sv1) and channel ID (sv2)
+	shareHashes         map[uint64]struct{} // stores hashes for dupe share detection, resets on new job
 	shareHashMutex      sync.Mutex
 	currentJobMutex     sync.RWMutex
 	templateChan        chan *JobTemplate
@@ -1145,6 +1146,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 
 	shareHash := simdHeaderHash(updatedHeader)
+	shareHashXXH3 := xxh3.Hash(shareHash[:])
 	shareDiff := calcDifficulty(shareHash)
 	// println(fmt.Sprintf("%x, %x, %f, %f, %f", client.TargetDifficultyU256[:], shareHash[:], calcDifficulty(chainhash.Hash(client.TargetDifficultyU256)), client.TargetDifficulty, shareDiff))
 	// println(shareHash.String())
@@ -1172,7 +1174,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	client.shareHashMutex.Lock()
 	defer client.shareHashMutex.Unlock()
 	/// check if share is dupe
-	if _, ok := client.shareHashes[shareHash]; ok {
+	if _, ok := client.shareHashes[shareHashXXH3]; ok {
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_DUPE_SHARE))
 		} else {
@@ -1187,7 +1189,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		return
 	}
 	/// add to dupe map
-	client.shareHashes[shareHash] = struct{}{}
+	client.shareHashes[shareHashXXH3] = struct{}{}
 
 	/// TODO: store net target as u256
 	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
@@ -1356,7 +1358,7 @@ func createClient(conn net.Conn, submissionChannel chan<- blockSubmission) *Stra
 		batchSubmissionChan: make(chan batchShare, 5),
 		// allocate enough space to store the expected number of share hashes before a new job is sent out
 		// 15 is a good starter, default config results in 12 shares per job and the map will grow as needed
-		shareHashes: make(map[chainhash.Hash]struct{}, 15),
+		shareHashes: make(map[uint64]struct{}, 15),
 	}
 	client.createLogPrefixes()
 	return client
