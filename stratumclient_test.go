@@ -112,12 +112,12 @@ func TestSv1InitSequence(t *testing.T) {
 	readSv1Pipe(t, lpipe)
 
 	for {
-		client.currentJobMutex.Lock()
-		if client.CurrentJob.ID != 0 {
-			client.currentJobMutex.Unlock()
+		client.currentJobMutex.RLock()
+		if client.CurrentJob != nil {
+			client.currentJobMutex.RUnlock()
 			break
 		}
-		client.currentJobMutex.Unlock()
+		client.currentJobMutex.RUnlock()
 	}
 	if client.CurrentJob.PrevBlock == nil {
 		t.Fatal("job wasnt created, did init fail?")
@@ -600,7 +600,7 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 
 	for {
 		c.currentJobMutex.Lock()
-		if c.CurrentJob.ID != 0 {
+		if c.CurrentJob != nil {
 			c.currentJobMutex.Unlock()
 			break
 		}

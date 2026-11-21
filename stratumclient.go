@@ -97,7 +97,7 @@ func (t *wrapperRW) Write(b []byte) (int, error) {
 
 // aka gopher
 type StratumClient struct {
-	CurrentJob       MiningJob
+	CurrentJob       *MiningJob
 	PrevJob          *MiningJob // niled when a new block rolls in
 	stats            StratumClientStats
 	conn             net.Conn
@@ -921,12 +921,15 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		/// update job after everything to give the new job some time to be sent and switched to
 		/// (reduces the chance of shares being submitted mid-job change)
 		client.currentJobMutex.Lock()
-		client.PrevJob = &client.CurrentJob
 		/// new prevhash, discard all work
-		if !newJob.PrevBlock.IsEqual(client.CurrentJob.PrevBlock) {
-			client.PrevJob = nil
+		if client.CurrentJob != nil {
+			if !newJob.PrevBlock.IsEqual(client.CurrentJob.PrevBlock) {
+				client.PrevJob = nil
+			} else if client.CurrentJob.ID > 1 {
+				client.PrevJob = client.CurrentJob
+			}
 		}
-		client.CurrentJob = newJob
+		client.CurrentJob = &newJob
 		client.currentJobMutex.Unlock()
 	}
 }
@@ -1059,7 +1062,7 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 }
 func (client *StratumClient) validateShareSubmission(share *commonShare, m *stratum.Request) {
 	/// externally locked
-	job := &client.CurrentJob
+	job := client.CurrentJob
 	if share.JobID != uint32(client.CurrentJob.ID) &&
 		(client.PrevJob == nil || share.JobID != uint32(client.PrevJob.ID)) {
 		client.stats.sharesRejected++

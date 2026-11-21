@@ -78,7 +78,7 @@ func TestUpdateBlock(t *testing.T) {
 
 	tml, _ := CreateJobTemplate(&template)
 	job := client.createJob(tml)
-	client.CurrentJob = job
+	client.CurrentJob = &job
 
 	share, found := shittyCpuMiner(targetShareDiff, false, client, t)
 	if !found {
