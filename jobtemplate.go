@@ -41,10 +41,8 @@ type JobTemplate struct {
 type MiningJob struct {
 	Header                 wire.BlockHeader
 	CoinbaseTx             wire.MsgTx
-	CoinbasePart1          []byte
-	CoinbasePart2          []byte
-	MerkleBranch           []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
 	CoinbaseBytes          []byte            // for faster merkle root calc
+	MerkleBranch           []*chainhash.Hash // merkle tree describing the block txns (root is in header, and is mutated by the client)
 	merkleScratch          []*chainhash.Hash // preallocated [coinbase, ...MerkleBranch] scratch for UpdateHeader; slot 0 points to a per-job buffer
 	CoinbaseExtranonce2Idx int               // for faster merkle root calc
 	PrevBlock              *chainhash.Hash   // pointer to hash in header

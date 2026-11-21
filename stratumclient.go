@@ -857,8 +857,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				Version:        uint32(newJob.Version),
 				Bits:           template.Bits[:],
 				Timestamp:      newJob.Header.Timestamp,
-				CoinbasePart1:  newJob.CoinbasePart1,
-				CoinbasePart2:  newJob.CoinbasePart2,
+				CoinbasePart1:  newJob.CoinbaseBytes[:newJob.CoinbaseExtranonce2Idx-int(constants.EXTRANONCE_SIZE)],
+				CoinbasePart2:  newJob.CoinbaseBytes[newJob.CoinbaseExtranonce2Idx:],
 				Clean:          true,
 			}
 			err := client.writeSv1Msg(params.ToNotification())
@@ -885,8 +885,8 @@ func (client *StratumClient) readTemplateChanRoutine() {
 					Version:               uint32(newJob.Version),
 					MerklePath:            merklePath,
 					VersionRollingAllowed: true,
-					CoinbasePrefix:        newJob.CoinbasePart1,
-					CoinbaseSuffix:        newJob.CoinbasePart2,
+					CoinbasePrefix:        newJob.CoinbaseBytes[:newJob.CoinbaseExtranonce2Idx-int(constants.EXTRANONCE_SIZE)],
+					CoinbaseSuffix:        newJob.CoinbaseBytes[newJob.CoinbaseExtranonce2Idx:],
 				}
 				if err := client.writeSv2Msg(job, stratumv2.MessageNewExtendedMiningJob); err != nil {
 					client.logError(err.Error())
@@ -981,8 +981,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		NetworkDiff:            template.NetworkDiff,
 		PrevBlock:              &blockHeader.PrevBlock,
 		MsgBlock:               template.MsgBlock,
-		CoinbasePart1:          serializedCoinbaseTx[:partOneIndex-int(constants.EXTRANONCE_SIZE+conf.ExtraNonce2Size)],
-		CoinbasePart2:          serializedCoinbaseTx[partOneIndex:],
 		Bits:                   template.Bits,
 	}
 }

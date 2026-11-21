@@ -658,7 +658,7 @@ func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2
 
 	for {
 		c.currentJobMutex.Lock()
-		if c.CurrentJob.ID != 0 {
+		if c.CurrentJob != nil {
 			c.currentJobMutex.Unlock()
 			break
 		}

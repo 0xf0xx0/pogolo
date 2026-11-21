@@ -149,14 +149,7 @@ sudo systemctl enable --now pogolo
 
 the webui is containerized at https://hub.docker.com/r/0xf0xx0/pogolo-umbrel-webui  
 its intended for umbrel but perfectly usable outside, as long as you setup the environment.  
-it expects to have access to pogolos api, log file, and **rw** access to the config.
-```
-POGOLO_API_URL: "http://pogolo_pogolo_1:5662"
-POGOLO_LOG: /data/pogolo.log # log file we tail for the live log stream
-POGOLO_DIR: /data # where pogolo.toml lives
-DEVICE_DOMAIN_NAME: "${DEVICE_DOMAIN_NAME}" # for the connection info and qr codes,
-# should be the domain/ip pogolo is listening on
-```
+see: https://github.com/0xf0xx0/pogolo-umbrel-webui
 
 # miner config
 
