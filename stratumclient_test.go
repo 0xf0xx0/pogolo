@@ -2,11 +2,15 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"math/rand/v2"
 	"net"
 	"strconv"
 	"testing"
+	"time"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
@@ -219,6 +223,115 @@ func TestSv1SubmitBeforeSub(t *testing.T) {
 	}
 	if res.Error != nil && res.Error.Code != constants.ERROR_NOT_SUBBED.Code {
 		t.Fatalf("share submission failed, but wrong error: %s", res.Error)
+	}
+}
+
+// runs sniffProtocol against payload written over a pipe, returning the
+// verdict and the fully reassembled stream (prefix + remainder)
+func sniffOnce(t *testing.T, payload []byte) (bool, []byte) {
+	t.Helper()
+	clientSide, poolSide := net.Pipe()
+	defer clientSide.Close()
+	defer poolSide.Close()
+
+	go func() {
+		clientSide.Write(payload)
+	}()
+
+	poolSide.SetReadDeadline(time.Now().Add(time.Second))
+	isSv1, prefix := sniffProtocol(poolSide)
+
+	if prefix == nil {
+		t.Fatal("failed to read")
+		return false, nil
+	}
+
+	/// drain the rest and make sure sniffing didnt eat or reorder anything
+	reassembled := append([]byte{}, prefix...)
+	rest, err := io.ReadAll(io.LimitReader(poolSide, int64(len(payload)-len(prefix))))
+	if err != nil && len(rest) == 0 && len(payload) > len(prefix) {
+		t.Logf("drain: %s", err)
+	}
+	reassembled = append(reassembled, rest...)
+	return isSv1, reassembled
+}
+
+func TestSniffSv1Messages(t *testing.T) {
+	msgs := [][]byte{
+		[]byte(`{"id":1,"method":"mining.subscribe","params":[]}` + "\n"),
+		[]byte(`{"id": 2, "method": "mining.configure", "params": [["version-rolling"], {"version-rolling.mask": "1fffe000"}]}` + "\r\n"),
+		[]byte(`  {"id":3,"method":"mining.authorize","params":["user.worker","x"]}` + "\n"),
+		[]byte("\n{\"id\":4,\"method\":\"mining.subscribe\",\"params\":[\"cgminer/4.9.2\"]}\n"),
+	}
+	for _, msg := range msgs {
+		isSv1, reassembled := sniffOnce(t, msg)
+		if !isSv1 {
+			t.Errorf("sv1 message classified as sv2: %q", msg[:16])
+		}
+		if !bytes.Equal(reassembled, msg) {
+			t.Errorf("stream mangled: got %q, want %q", reassembled, msg)
+		}
+	}
+}
+
+func TestSniffSv2Keys(t *testing.T) {
+	/// 64 random bytes stand in for the ellswift-encoded ephemeral key
+	rng := rand.New(rand.NewPCG(0xdead, 0xbeef))
+	payload := make([]byte, 64)
+	for range 10_000 {
+		for i := range payload {
+			payload[i] = byte(rng.Uint64())
+		}
+		isSv1, reassembled := sniffOnce(t, payload)
+		if isSv1 {
+			t.Fatalf("sv2 key classified as sv1: %x", payload[:16])
+		}
+		if !bytes.Equal(reassembled, payload) {
+			t.Fatalf("stream mangled: got %x, want %x", reassembled, payload)
+		}
+	}
+}
+
+// the old 1-byte peek misclassified sv2 as sv1 whenever the ephemeral key
+// happened to start with '{' / ' ' / '\n' / '\r' (~1/64 of the time)
+func TestSniffSv2LeadingJsonByte(t *testing.T) {
+	rng := rand.New(rand.NewPCG(0xdead, 0xbeef))
+	payload := make([]byte, 64)
+	for _, firstByte := range []byte{'{', ' ', '\n', '\r', '\t'} {
+		for range 100 {
+			payload[0] = firstByte
+			for i := 1; i < len(payload); i++ {
+				payload[i] = byte(rng.Uint64())
+			}
+			isSv1, _ := sniffOnce(t, payload)
+			if isSv1 {
+				t.Fatalf("sv2 key starting with %q classified as sv1: %x", firstByte, payload[:16])
+			}
+		}
+	}
+}
+
+// binary garbage after a printable prefix still smells like sv2
+func TestSniffMixedJunk(t *testing.T) {
+	payload := []byte(`{"id":1,"m`)
+	payload = append(payload, 0x00, 0xff, 0xfe)
+	isSv1, _ := sniffOnce(t, payload)
+	if isSv1 {
+		t.Fatal("binary junk classified as sv1")
+	}
+}
+
+// a client that connects and says nothing yields an empty prefix
+// (which the caller treats as a dead conn)
+func TestSniffStalledClient(t *testing.T) {
+	clientSide, poolSide := net.Pipe()
+	defer clientSide.Close()
+	defer poolSide.Close()
+
+	poolSide.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
+	isSv1, prefix := sniffProtocol(poolSide)
+	if !isSv1 || prefix == nil || len(prefix) != 0 {
+		t.Errorf("stalled client: expected (true, []), got (%v, %x)", isSv1, prefix)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand/v2"
+	"net"
 	"os"
 	"slices"
 	"strconv"
@@ -544,4 +545,32 @@ func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 func simdSha256d(data []byte) chainhash.Hash {
 	a := sha256.Sum256(data)
 	return sha256.Sum256(a[:])
+}
+
+// determines the stratum protocol by peeking at the first bytes of a connection.
+//
+// sv1 clients always open with a json text line (printable ascii);
+// sv2 clients open with their 64-byte ephemeral pubkey. the odds of 16 random bytes
+// all being printable ascii are (98/256)^16 ≈ 2e-7.
+//
+// returns the bytes consumed so the caller can re-inject them via [io.MultiReader].
+// read errors are intentionally ignored.
+func sniffProtocol(conn net.Conn) (isSv1 bool, prefix []byte) {
+	var buf [16]byte
+	n := 0
+	for n < 16 {
+		read, err := conn.Read(buf[n:])
+		newEnd := n + read
+		/// any non-printable byte means a binary protocol, assume sv2
+		for _, b := range buf[n:newEnd] {
+			if b != '\t' && b != '\n' && b != '\r' && (b < 0x20 || b > 0x7e) {
+				return false, buf[:newEnd]
+			}
+		}
+		n = newEnd
+		if err != nil {
+			return true, nil
+		}
+	}
+	return true, buf[:n]
 }

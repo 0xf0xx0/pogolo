@@ -130,18 +130,15 @@ func (client *StratumClient) Start(ctx context.Context) {
 	/// 5 secs to init
 	client.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
-	/// peek to determine protocol
-	peekBuffer := make([]byte, 1)
-	_, err := io.ReadFull(client.conn, peekBuffer)
-	if err != nil {
+	/// sniff to determine protocol
+	isSv1, prefix := sniffProtocol(client.conn)
+	if prefix == nil || len(prefix) == 0 {
 		return
 	}
-	/// ensure we dont lose the peeked byte
-	reader := io.MultiReader(bytes.NewReader(peekBuffer), client.conn)
+	/// ensure we dont lose the sniffed bytes
+	reader := io.MultiReader(bytes.NewReader(prefix), client.conn)
 
-	/// sv1 always starts with '{' and might start with whitespace
-	/// ...what are the odds of a sv2 client hittin these? pretty low but ive done it
-	if peekBuffer[0] == '{' || peekBuffer[0] == ' ' || peekBuffer[0] == '\n' || peekBuffer[0] == '\r' {
+	if isSv1 {
 		client.protocol = 1
 		client.processSv1Loop(ctx, reader)
 	} else {
