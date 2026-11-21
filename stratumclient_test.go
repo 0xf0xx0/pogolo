@@ -174,7 +174,7 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 
 func TestVersionValidationEdgeCase(t *testing.T) {
 	/// set job version
-	conf.BIPVersionBits = 0x00000000
+	conf.BIPVersionBits = 0x0de000af
 	lpipe, c := ezInitSv1Client(t, true)
 	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
 	/// explicitly set version mask to 0

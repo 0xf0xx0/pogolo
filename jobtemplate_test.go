@@ -67,7 +67,6 @@ func TestValidateCoinbaseScript(t *testing.T) {
 	t.Logf("script len: %d, max: %d", len(script), blockchain.MaxCoinbaseScriptLen)
 }
 
-// this needs to be re-done every time something about the block structure changes
 func TestUpdateBlock(t *testing.T) {
 	template := *MOCK_BLOCK_TEMPLATE
 	targetShareDiff := 0.000069

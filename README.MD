@@ -55,9 +55,7 @@ pogolo has no tls support.
 ## unsupported
 
 - whatsminers (they dont mine on the provided jobs, if you have one please test and send logs)
-- luckyminers/other non-foss axe clones
-- multiple sv2 channels on one connection (for now)
-- group channels (for now)
+- luckyminers/other non-foss axe clones (intentionally)
 
 ## api
 
