@@ -107,9 +107,9 @@ func TestSv1InitSequence(t *testing.T) {
 	validateSv1Res(subscribeReq, res, t)
 
 	/// set diff
-	readSv1Pipe(t, lpipe)
+	readSv1Res(t, lpipe)
 	/// notify
-	readSv1Pipe(t, lpipe)
+	readSv1Res(t, lpipe)
 
 	for {
 		client.currentJobMutex.RLock()
@@ -125,9 +125,9 @@ func TestSv1InitSequence(t *testing.T) {
 	client.Stop()
 }
 func TestSv1Submit(t *testing.T) {
-	lpipe, c := ezInitSv1Client(t, true)
+	lpipe, c, notify := ezInitSv1Client(t, true)
 	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
-	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, t)
+	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, &notify, t)
 	if !found {
 		t.Error("failed to find a hash in 2^32 iters, bad luck")
 		return
@@ -139,10 +139,10 @@ func TestSv1Submit(t *testing.T) {
 }
 
 func TestSv1SubmitVersionBits(t *testing.T) {
-	lpipe, c := ezInitSv1Client(t, true)
+	lpipe, c, notify := ezInitSv1Client(t, true)
 	conf.BIPVersionBits = 0x00337300
 	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
-	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, t)
+	share, found := shittyCpuMiner(c.TargetDifficulty, false, c, &notify, t)
 	if !found {
 		t.Error("failed to find a hash in 2^32 iters, bad luck")
 		return
@@ -162,7 +162,7 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 		Extranonce2: make([]byte, conf.ExtraNonce2Size),
 		VersionMask: 0,
 	}
-	lpipe, _ := ezInitSv1Client(t, false)
+	lpipe, _, _ := ezInitSv1Client(t, false)
 	res := sendSv1ReqAndWaitForRes(t, submit.ToRequest(5661), lpipe)
 	if res.Error == nil {
 		t.Fatal("share submission succeeded??")
@@ -175,10 +175,10 @@ func TestSv1SubmitDiffTooLow(t *testing.T) {
 func TestVersionValidationEdgeCase(t *testing.T) {
 	/// set job version
 	conf.BIPVersionBits = 0x0de000af
-	lpipe, c := ezInitSv1Client(t, true)
+	lpipe, c, notify := ezInitSv1Client(t, true)
 	c.TargetDifficulty = 0.00016 /// low-diff, bypassing min-diff
 	/// explicitly set version mask to 0
-	share, found := shittyCpuMiner(c.TargetDifficulty, true, c, t)
+	share, found := shittyCpuMiner(c.TargetDifficulty, true, c, &notify, t)
 	if !found {
 		t.Error("failed to find a hash in 2^32 iters, bad luck")
 		return
@@ -198,7 +198,7 @@ func TestVersionValidationEdgeCase(t *testing.T) {
 }
 
 func TestSv1SubmitUnkJob(t *testing.T) {
-	lpipe, _ := ezInitSv1Client(t, false)
+	lpipe, _, _ := ezInitSv1Client(t, false)
 
 	share := submitParams
 	share.JobID = "fffffff"
@@ -462,7 +462,7 @@ func TestSv2FullSetup(t *testing.T) {
 
 // kinda pointless but eh
 func BenchmarkSv1Submit(b *testing.B) {
-	lpipe, _ := ezInitSv1Client(b, true)
+	lpipe, _, _ := ezInitSv1Client(b, true)
 	sub := &stratum.MiningSubmitParams{
 		Name:        "ngoiwp",
 		JobID:       submitParams.JobID,
@@ -482,7 +482,7 @@ func BenchmarkSv1Submit(b *testing.B) {
 			b.Fatal(err.Error())
 		}
 
-		res := readSv1Pipe(b, lpipe)
+		res := readSv1Res(b, lpipe)
 		if res.Error != nil && res.Error.Code != constants.ERROR_LOW_DIFF.Code {
 			b.Fatalf("share submission failed! code: %s", res.Error)
 		}
@@ -540,11 +540,11 @@ func sendSv1ReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) st
 		t.Fatal(err.Error())
 	}
 
-	res := readSv1Pipe(t, lpipe)
+	res := readSv1Res(t, lpipe)
 	return res
 }
 
-func readSv1Pipe(t testing.TB, lpipe net.Conn) stratum.Response {
+func readSv1Res(t testing.TB, lpipe net.Conn) stratum.Response {
 	reader := bufio.NewReader(lpipe)
 	line, err := reader.ReadBytes('\n')
 	if err != nil {
@@ -552,6 +552,17 @@ func readSv1Pipe(t testing.TB, lpipe net.Conn) stratum.Response {
 	}
 	//t.Log("response:", string(line))
 	res := stratum.Response{}
+	res.Unmarshal(line)
+	return res
+}
+func readSv1Notif(t testing.TB, lpipe net.Conn) stratum.Notification {
+	reader := bufio.NewReader(lpipe)
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		t.Error(err.Error())
+	}
+	//t.Log("response:", string(line))
+	res := stratum.Notification{}
 	res.Unmarshal(line)
 	return res
 }
@@ -578,7 +589,7 @@ func initClient() (net.Conn, *StratumClient, chan blockSubmission) {
 }
 
 // flip suggDiff to true to drop the diff to 0.16
-func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
+func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient, stratum.MiningNotifyParams) {
 	s, _ := strconv.ParseUint(submitParams.JobID, 16, 64)
 	currTemplateID = s - 1
 	currTemplate, _ = CreateJobTemplate(MOCK_BLOCK_TEMPLATE)
@@ -586,15 +597,14 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 
 	sendSv1ReqAndWaitForRes(t, authorizeReq, lpipe)
 	sendSv1ReqAndWaitForRes(t, configureReq, lpipe)
-	if suggDiff {
-		sendSv1ReqAndWaitForRes(t, suggestDifficultyReq, lpipe)
-	}
 	sendSv1ReqAndWaitForRes(t, subscribeReq, lpipe)
 
 	/// set diff
-	readSv1Pipe(t, lpipe)
+	readSv1Notif(t, lpipe)
 	/// notify
-	readSv1Pipe(t, lpipe)
+	notifyMsg := readSv1Notif(t, lpipe)
+	notify := &stratum.MiningNotifyParams{}
+	notify.FromNotification(&notifyMsg)
 
 	for {
 		c.currentJobMutex.Lock()
@@ -610,7 +620,7 @@ func ezInitSv1Client(t testing.TB, suggDiff bool) (net.Conn, *StratumClient) {
 	c.CurrentJob.MinTime = 0
 	c.CurrentJob.MaxTime = 0
 
-	return lpipe, c
+	return lpipe, c, *notify
 }
 
 func ezInitSv2Client(t testing.TB) (net.Conn, *stratumv2.CipherState, *stratumv2.CipherState) {
@@ -684,7 +694,7 @@ func sendSv2ReqAndWaitForRes(t testing.TB, frame []byte, lpipe net.Conn, readcry
 	return res
 }
 
-func shittyCpuMiner(target float64, versionMask bool, c *StratumClient, t *testing.T) (*stratum.Request, bool) {
+func shittyCpuMiner(target float64, versionMask bool, c *StratumClient, notify *stratum.MiningNotifyParams, t *testing.T) (*stratum.Request, bool) {
 	job := c.CurrentJob
 	header := job.MsgBlock.Copy().Header
 	submit := stratum.MiningSubmitParams{
@@ -699,8 +709,23 @@ func shittyCpuMiner(target float64, versionMask bool, c *StratumClient, t *testi
 		header.Version = int32((uint32(header.Version) & ^constants.VERSION_ROLLING_MASK) | (uint32(submit.VersionMask) & constants.VERSION_ROLLING_MASK))
 	}
 
+	coinbase := job.CoinbaseBytes[:]
+	if notify != nil {
+		coinbase = nil
+		coinbase = append(coinbase, notify.CoinbasePart1...)
+		coinbase = append(coinbase, c.ID.Bytes()...)
+		en2 := make([]byte, conf.ExtraNonce2Size)
+		en2[0] = 0xde
+		en2[1] = 0xad
+		en2[2] = 0xbe
+		en2[3] = 0xef
+		submit.Extranonce2 = en2
+		coinbase = append(coinbase, en2...)
+		coinbase = append(coinbase, notify.CoinbasePart2...)
+	}
+
 	branches := make([]*chainhash.Hash, 1, len(job.MerkleBranch)+1)
-	coinbaseTxHash := simdSha256d(job.CoinbaseBytes)
+	coinbaseTxHash := simdSha256d(coinbase)
 	branches[0] = &coinbaseTxHash
 	branches = append(branches, job.MerkleBranch...)
 	header.MerkleRoot = merkleRootFromBranches(branches)

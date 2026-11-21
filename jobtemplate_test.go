@@ -79,7 +79,7 @@ func TestUpdateBlock(t *testing.T) {
 	job := client.createJob(tml)
 	client.CurrentJob = &job
 
-	share, found := shittyCpuMiner(targetShareDiff, false, client, t)
+	share, found := shittyCpuMiner(targetShareDiff, false, client, nil, t)
 	if !found {
 		t.Error("failed to find a hash in 2^32 iters, bad luck")
 		return
