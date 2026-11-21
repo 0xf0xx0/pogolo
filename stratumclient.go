@@ -923,10 +923,9 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		client.currentJobMutex.Lock()
 		/// new prevhash, discard all work
 		if client.CurrentJob != nil {
+			client.PrevJob = client.CurrentJob
 			if !newJob.PrevBlock.IsEqual(client.CurrentJob.PrevBlock) {
 				client.PrevJob = nil
-			} else if client.CurrentJob.ID > 1 {
-				client.PrevJob = client.CurrentJob
 			}
 		}
 		client.CurrentJob = &newJob
