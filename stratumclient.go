@@ -3,7 +3,7 @@
 // and start mining uwu
 //
 // the codepath goes
-//  1. .Run() starts .readTemplateChanRoutine(),
+//  1. .Start() starts .readTemplateChanRoutine(),
 //     	peeks into the furst byte to determine whether the client is sv1 or sv2,
 //     	then calls processSv1Loop() or processSv2Loop() to handle the message loop
 //     	it handles the sv2 setup handshake before handing off to processSv2Loop(), per the spec
@@ -98,6 +98,7 @@ func (t *wrapperRW) Write(b []byte) (int, error) {
 // aka gopher
 type StratumClient struct {
 	CurrentJob       MiningJob
+	PrevJob          *MiningJob // niled when a new block rolls in
 	stats            StratumClientStats
 	conn             net.Conn
 	User             address.Address
@@ -917,6 +918,11 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		/// update job after everything to give the new job some time to be sent and switched to
 		/// (reduces the chance of shares being submitted mid-job change)
 		client.currentJobMutex.Lock()
+		client.PrevJob = &client.CurrentJob
+		/// new prevhash, discard all work
+		if !newJob.PrevBlock.IsEqual(client.CurrentJob.PrevBlock) {
+			client.PrevJob = nil
+		}
 		client.CurrentJob = newJob
 		client.currentJobMutex.Unlock()
 	}
@@ -1049,21 +1055,11 @@ func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget 
 	return true
 }
 func (client *StratumClient) validateShareSubmission(share *commonShare, m *stratum.Request) {
-	if share.JobID != uint32(client.CurrentJob.ID) {
+	/// externally locked
+	job := &client.CurrentJob
+	if share.JobID != uint32(client.CurrentJob.ID) &&
+		(client.PrevJob == nil || share.JobID != uint32(client.PrevJob.ID)) {
 		client.stats.sharesRejected++
-		if share.JobID == uint32(client.CurrentJob.ID-1) {
-			if m != nil {
-				client.writeSv1Msg(m.RespondError(constants.ERROR_SHARE_BETWEEN_JOBS))
-			} else {
-				client.writeSv2Msg(&stratumv2.SubmitSharesError{
-					ChannelID:      uint32(client.ID),
-					SequenceNumber: share.Sequence,
-					ErrorCode:      stratumv2.Error(constants.ERROR_SHARE_BETWEEN_JOBS.Message),
-				}, stratumv2.MessageSubmitSharesError)
-			}
-			client.logError("share submitted during job change")
-			return
-		}
 		if m != nil {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_STALE))
 		} else {
@@ -1075,6 +1071,10 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		}
 		client.logError("share rejected: stale job")
 		return
+	}
+	if client.PrevJob != nil && share.JobID == uint32(client.PrevJob.ID) {
+		client.logError("{yellow}submission for previous job")
+		job = client.PrevJob
 	}
 
 	if share.ChannelID != 0 && share.ChannelID != uint32(client.ID) {
@@ -1089,11 +1089,11 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 
 	/// recover the mask from the final version for validation
-	shareMask := (^uint32(client.CurrentJob.Version) & share.Version) | (share.Version & constants.VERSION_ROLLING_MASK)
+	shareMask := (^uint32(job.Version) & share.Version) | (share.Version & constants.VERSION_ROLLING_MASK)
 	/// NAND the share mask with the version mask to validate
 	masked := (shareMask & ^constants.VERSION_ROLLING_MASK)
 	if masked != 0 {
-		println(client.CurrentJob.Version, share.Version, masked)
+		println(job.Version, share.Version, masked)
 		client.stats.sharesRejected++
 		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_INV_VER_MASK))
@@ -1111,7 +1111,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
-	updatedHeader, ok := client.CurrentJob.UpdateHeader(client.ID, share)
+	updatedHeader, ok := job.UpdateHeader(client.ID, share)
 	if !ok {
 		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
@@ -1189,7 +1189,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	client.shareHashes[shareHashXXH3] = struct{}{}
 
 	/// TODO: store net target as u256
-	if shareDiff >= client.CurrentJob.NetworkDiff && !conf.Benchmarking {
+	if shareDiff >= job.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
 		/// copy header and coinbase to avoid overwrites
 		submission := blockSubmission{
@@ -1202,9 +1202,9 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 				Bits:       updatedHeader.Bits,
 				Nonce:      updatedHeader.Nonce,
 			},
-			Height:   client.CurrentJob.Height,
-			MsgBlock: client.CurrentJob.MsgBlock,
-			Coinbase: client.CurrentJob.CoinbaseTx.Copy(),
+			Height:   job.Height,
+			MsgBlock: job.MsgBlock,
+			Coinbase: job.CoinbaseTx.Copy(),
 			Share:    share,
 		}
 

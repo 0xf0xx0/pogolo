@@ -569,7 +569,7 @@ func sniffProtocol(conn net.Conn) (isSv1 bool, prefix []byte) {
 		}
 		n = newEnd
 		if err != nil {
-			return true, nil
+			return true, buf[:0]
 		}
 	}
 	return true, buf[:n]

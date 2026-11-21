@@ -23,11 +23,11 @@ _want a go pool you can run on the public internet? check out https://github.com
 # features
 
 - set a default address to mine to, no more ctrl+c ctrl+v ctrl+v ctrl+v ctrl+v ctrl+v
-- stratum v1 and stratum v2 on the same port
+- SV1 and SV2 on the same port
 - colorful and detailed logs (respects NO_COLOR)
 - read-only api
 - zmq and btcd websocket support
-- high performance and low memory usage (119k shares/sec @ ~50 mib + 1kib/client)
+- high performance and low memory usage (119k shares/sec @ ~50 mib + 6kib/client)
 
 ## implemented BIPs
 

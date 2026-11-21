@@ -75,8 +75,6 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.Blo
 		copy(job.CoinbaseBytes[job.CoinbaseExtranonce2Idx:job.CoinbaseExtranonce2Idx+en2Len], share.Extranonce2)
 
 		/// coinbase was changed, thus recalc the root
-		/// write the coinbase hash into the preallocated scratch slot 0,
-		/// after which merkleScratch looks like [coinbase, ...MerkleBranch]
 		*job.merkleScratch[0] = simdSha256d(job.CoinbaseBytes)
 		job.Header.MerkleRoot = merkleRootFromBranches(job.merkleScratch)
 	}
