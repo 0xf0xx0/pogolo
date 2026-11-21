@@ -162,7 +162,7 @@ the onchain address is also optional if the pool has a default address configure
 # benchmarking
 
 to reproduce shares/s result:  
-benchmark with https://github.com/eandersson/open-pool-benchmark
+benchmark with https://github.com/Erikslund-net/open-pool-benchmark
 
 # TODO
 - link stratum and mining docs  

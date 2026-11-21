@@ -520,14 +520,12 @@ func BenchmarkSv2Submit(b *testing.B) {
 func parseIdentityTest(userIdentity string, t *testing.T) (nickname string, decoded address.Address, ok bool) {
 	t.Log(userIdentity)
 	decoded, nickname, err := parseUserIdentity(userIdentity)
-	if err == nil {
-		ok = true
-	} else {
+	if err != nil {
 		t.Log(err)
 		return nickname, decoded, ok
 	}
 	t.Logf("address: %q\tnickname: %q", decoded.EncodeAddress(), nickname)
-	return nickname, decoded, ok
+	return nickname, decoded, true
 }
 
 func sendSv1ReqAndWaitForRes(t testing.TB, r stratum.Message, lpipe net.Conn) stratum.Response {
