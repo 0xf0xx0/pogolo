@@ -909,6 +909,9 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		}
 
 		/// reset dupe share map
+		/// yes, with storing the previous job this does nuke dupe detection for that
+		/// idc, if you wanna waste bandwidth and/or hashrate thats a you problem
+		/// dumbfuck
 		client.shareHashMutex.Lock()
 		for h := range client.shareHashes {
 			delete(client.shareHashes, h)
