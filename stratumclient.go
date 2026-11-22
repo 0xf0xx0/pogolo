@@ -846,6 +846,12 @@ func (client *StratumClient) readTemplateChanRoutine() {
 		}
 
 		if client.protocol == 1 {
+			// Keep same-parent work valid so miners can finish in-flight jobs.
+			client.currentJobMutex.RLock()
+			cleanJobs := client.CurrentJob == nil ||
+				!newJob.PrevBlock.IsEqual(client.CurrentJob.PrevBlock)
+			client.currentJobMutex.RUnlock()
+
 			merkleBranches := make([][]byte, len(template.MerkleBranch))
 			for i, branch := range template.MerkleBranch {
 				merkleBranches[i] = branch[:]
@@ -859,7 +865,7 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				Timestamp:      newJob.Header.Timestamp,
 				CoinbasePart1:  newJob.CoinbaseBytes[:newJob.CoinbaseExtranonce2Idx-int(constants.EXTRANONCE_SIZE)],
 				CoinbasePart2:  newJob.CoinbaseBytes[newJob.CoinbaseExtranonce2Idx+int(conf.ExtraNonce2Size):],
-				Clean:          true,
+				Clean:          cleanJobs,
 			}
 			err := client.writeSv1Msg(params.ToNotification())
 			if err != nil {
