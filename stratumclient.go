@@ -1111,6 +1111,21 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		return
 	}
 
+	ntime := int64(share.Time)
+	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
+		if client.protocol == 1 {
+			client.writeSv1Msg(m.RespondError(constants.ERROR_BAD_TIME))
+		} else {
+			client.writeSv2Msg(&stratumv2.SubmitSharesError{
+				ChannelID:      uint32(client.ID),
+				SequenceNumber: share.Sequence,
+				ErrorCode:      stratumv2.Error(constants.ERROR_BAD_TIME.Message),
+			}, stratumv2.MessageSubmitSharesError)
+		}
+		client.stats.sharesRejected++
+		client.logError("share rejected: invalid timestamp")
+		return
+	}
 	/// verify the difficulty
 	/// the backing node will do the full block validation, we only care if the
 	/// submission was high enough
@@ -1126,22 +1141,6 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 			}, stratumv2.MessageSubmitSharesError)
 		}
 		client.logError("invalid extranonce2 length")
-		return
-	}
-
-	ntime := updatedHeader.Timestamp.Unix()
-	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
-		if client.protocol == 1 {
-			client.writeSv1Msg(m.RespondError(constants.ERROR_BAD_TIME))
-		} else {
-			client.writeSv2Msg(&stratumv2.SubmitSharesError{
-				ChannelID:      uint32(client.ID),
-				SequenceNumber: share.Sequence,
-				ErrorCode:      stratumv2.Error(constants.ERROR_BAD_TIME.Message),
-			}, stratumv2.MessageSubmitSharesError)
-		}
-		client.stats.sharesRejected++
-		client.logError("share rejected: invalid timestamp")
 		return
 	}
 
