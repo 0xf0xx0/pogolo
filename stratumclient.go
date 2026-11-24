@@ -138,6 +138,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 	/// ensure we dont lose the sniffed bytes
 	reader := io.MultiReader(bytes.NewReader(prefix), client.conn)
 
+	/// delegate to sv1, sv2 handles channel opening
 	if isSv1 {
 		client.protocol = 1
 		client.processSv1Loop(ctx, reader)
@@ -148,12 +149,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 			r: reader,
 			c: client.conn,
 		}
-		/// MAYBE: might sign new certs on-the-fly
-		// sv2Cert, err = stratumv2.NewSignedCertificate(sv2AuthorityKeypair.Private, sv2StaticKeypair.PublicKey(), 0, uint32(time.Now().Unix()+(2<<24)))
-		// if err != nil {
-		// 	client.logErrorf("error creating cert: %s", err)
-		// 	return
-		// }
+		/// i could sign a fresh cert here but its way funnier to have a million-year cert
 		recv, send, err := pawshake.PerformHandshakeResponder(rw, sv2Cert, sv2StaticKeypair)
 		if err != nil {
 			client.logErrorf("error during sv2 handshake: %s", err)
@@ -173,8 +169,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 			client.logError("furst message not SetupConnection")
 			return
 		}
-		// b, _ := frame.Encode()
-		// client.logf("{blue}RX: (%x) %x", frame.MessageType, b)
+
 		msg := stratumv2.SetupConnection{}
 		if err = frame.ToParams(&msg); err != nil {
 			client.logErrorf("error decoding SetupConnection: %s", err)
@@ -282,11 +277,12 @@ func (client *StratumClient) Start(ctx context.Context) {
 					return
 				}
 				if msg.MinExtranonceSize > uint16(conf.ExtraNonce2Size) {
+					errMsg := fmt.Sprintf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
 					client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 						RequestID: msg.RequestID,
-						ErrorCode: fmt.Sprintf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size),
+						ErrorCode: errMsg,
 					}, stratumv2.MessageOpenMiningChannelError)
-					client.logErrorf("min extranonce size (%d) is greater than configured size (%d)", msg.MinExtranonceSize, conf.ExtraNonce2Size)
+					client.logError(errMsg)
 					return
 				}
 				if !client.validateSv2ChannelOpen(msg.RequestID, msg.MaxTarget, msg.NominalHashRate) {
