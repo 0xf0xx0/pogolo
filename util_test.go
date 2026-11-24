@@ -116,12 +116,12 @@ func TestClientIDGeneration(t *testing.T) {
 // the old big.Int implementation, kept as a reference oracle
 func diffToTargetBigInt(d float64) stratumv2.U256 {
 	if d <= 0 {
-		return *constants.Target1U256
+		return constants.Target1U256
 	}
 	const scale = 1_000_000
 	rounded := int64(math.Round(d * scale))
 	if rounded <= 0 {
-		return *constants.Target1U256
+		return constants.Target1U256
 	}
 	target1, _ := new(big.Int).SetString("00000000FFFF0000000000000000000000000000000000000000000000000000", 16)
 	target := new(big.Int).Mul(target1, big.NewInt(scale))

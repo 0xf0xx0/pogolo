@@ -200,7 +200,6 @@ func (client *StratumClient) Start(ctx context.Context) {
 		/// thou shalt not select thy own work
 		if msg.Flags&stratumv2.RequiresWorkSelectionFlag == 1 {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
-				// TODO: extract into an UNSUPPORTED_FLAGS constant
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
 				ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
 			}, stratumv2.MessageSetupConnectionError)
@@ -670,7 +669,6 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 				if params.Extranonce1 != nil {
 					if _, ok := clients.Get(*params.Extranonce1); ok {
 						client.logError("requested extranonce is in use")
-						/// TODO: do we need to error and close?
 						client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
 						return
 					}
@@ -758,7 +756,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 }
 
 // aims for the .TargetShareInterval
-// TODO: we likely need a different algo for diffs <=16, if it becomes an issue
+// we likely need a different algo for diffs <=16, if it becomes an issue
 func (client *StratumClient) calcNextDifficulty() {
 	/// ignore diffs below 1, this diff routine is optimized for high-power miners
 	if client.TargetDifficulty < 1.0 {
@@ -783,7 +781,6 @@ func (client *StratumClient) calcNextDifficulty() {
 	}
 
 	client.SuggestedDifficulty = max(math.Round(client.TargetDifficulty+delta), constants.MIN_DIFFICULTY)
-	/// TODO: figure out how to merge this log with the setdiff one
 	client.logf("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {

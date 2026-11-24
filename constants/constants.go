@@ -50,10 +50,10 @@ var (
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}
 )
 
-var Target1U256 = func() *stratumv2.U256 {
+var Target1U256 = func() stratumv2.U256 {
 	u := stratumv2.U256{}
 	// source: https://en.bitcoin.it/wiki/Difficulty#How_is_difficulty_calculated?_What_is_the_difference_between_bdiff_and_pdiff?
 	// we wanna use the truncated one to stick to bdiff
 	u.SetString("00000000FFFF0000000000000000000000000000000000000000000000000000")
-	return &u
+	return u
 }()

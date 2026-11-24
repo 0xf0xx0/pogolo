@@ -136,7 +136,7 @@ var (
 				RequestID:       123,
 				UserIdentity:    getAddr().EncodeAddress() + ".fakeminer",
 				NominalHashRate: 1234567890,
-				MaxTarget:       *constants.Target1U256,
+				MaxTarget:       constants.Target1U256,
 			},
 			MinExtranonceSize: 0,
 		}

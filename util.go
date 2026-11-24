@@ -253,10 +253,6 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 	return diff
 }
 
-func calcDifficultyHash(hash chainhash.Hash) stratumv2.U256 {
-	return constants.Target1U256.Div(stratumv2.U256(hash))
-}
-
 // port of public-pools calculateNetworkDifficulty
 func calcNetworkDifficulty(nBits uint32) float64 {
 	/// unpack the target from the compact nBits
@@ -284,12 +280,12 @@ func calcNetworkDifficultyHash(nBits uint32) chainhash.Hash {
 // converts a difficulty float to a little-endian target (rounded to 6 decimal places)
 func diffToTarget(d float64) stratumv2.U256 {
 	if d <= 0 {
-		return *constants.Target1U256
+		return constants.Target1U256
 	}
 	const scale = 1_000_000
 	rounded := int64(math.Round(d * scale))
 	if rounded <= 0 {
-		return *constants.Target1U256
+		return constants.Target1U256
 	}
 
 	/// target1 * scale = (0xffff * scale) << 208.
