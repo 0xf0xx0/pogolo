@@ -941,7 +941,6 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	}
 
 	/// copy the coinbase, we don't wanna share it now x3
-	/// MAYBE: allow for clients to append their workername to the tag
 	coinbaseTx := addCoinbasePayout(client.ID, client.User, template.CoinbaseTx.Copy(), template.Subsidy)
 
 	/// serialized without the witness, we handle that on submission

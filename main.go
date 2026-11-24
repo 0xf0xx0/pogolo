@@ -899,7 +899,11 @@ func backendRoutine(ctx context.Context) {
 					client, ok := clients.Get(submission.ClientID)
 					if !ok {
 						/// ???
-						continue
+						/// fake info so its still stored
+						client = &StratumClient{
+							ID:       submission.ClientID,
+							Nickname: "[disconnected]",
+						}
 					}
 					shareHash := msgBlock.Header.BlockHash()
 					shareDiff := calcDifficulty(shareHash)

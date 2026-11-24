@@ -66,7 +66,6 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.Blo
 
 		/// mutate the coinbase script with the extranonce2 (client id is done in fillCoinbaseTx)
 		/// also mutate the coinbase bytes directly for faster merkle root calc
-		/// MAYBE: precalc len
 		sigscriptLen := len(job.CoinbaseTx.TxIn[0].SignatureScript)
 
 		copy(job.CoinbaseTx.TxIn[0].SignatureScript[sigscriptLen-en2Len:], share.Extranonce2)
