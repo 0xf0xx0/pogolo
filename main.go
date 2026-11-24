@@ -369,6 +369,7 @@ func startup(rootCtx context.Context) error {
 		OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 			/// ok we kinda care
 			globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
+			globalLog("ws trigger")
 			select {
 			case triggerGBT <- struct{}{}:
 			default:
@@ -804,6 +805,7 @@ func backendRoutine(ctx context.Context) {
 					if count, err := backend.GetBlockCount(); err == nil {
 						currTemplateLock.RLock()
 						if count >= currTemplate.Height {
+							globalLog("poll trigger")
 							triggerGBT <- struct{}{}
 						}
 						currTemplateLock.RUnlock()
@@ -838,6 +840,7 @@ func backendRoutine(ctx context.Context) {
 	}
 
 	/// block notifications
+	zmqEnabled := false /// for submissions
 	if conf.Backend.Websocket {
 		/// wait for new blocks to come in
 		if err := backend.NotifyBlocks(); err != nil {
@@ -857,6 +860,7 @@ func backendRoutine(ctx context.Context) {
 			go getBlockCountPoll()
 		} else {
 			globalLog(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
+			zmqEnabled = true
 			/// go, my zmq
 			go zmqListener(socket)
 		}
@@ -891,7 +895,12 @@ func backendRoutine(ctx context.Context) {
 					}
 					/// one day pogolo will win a block, reload, and win a second back to back
 					/// im manifesting it now
-					triggerGBT <- struct{}{}
+
+					/// zmq fires on our blocks as well; skip here if enabled
+					/// this is STUPID GRAAAAAAAAAAAAAAAAAH
+					if !zmqEnabled {
+						triggerGBT <- struct{}{}
+					}
 
 					/// do vanity things
 					client, ok := clients.Get(submission.ClientID)

@@ -35,7 +35,7 @@ func zmqListener(socket zmq4.Socket) {
 			globalLogError(fmt.Sprintf("failed to receive zmq message: %s", err))
 			continue
 		}
-		/// NOTE: bitcoind zmq can use the same address for multiple topics
+		/// bitcoind zmq can use the same address for multiple topics
 		/// ensure we only trigger gbt on hashblock
 		/// frames := [3]string{topic, data, sequence}
 		if string(msg.Frames[0]) != "hashblock" {
