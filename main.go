@@ -768,9 +768,8 @@ func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 }
 
 // handles templates, block notifications, and block submissions
-// FIXME: add longpolling to rpcclient
 func backendRoutine(ctx context.Context) {
-	// longpollid := ""
+	longpollid := ""
 	getBlockCountPoll := func() {
 		/// wait for the initial template
 	busywait:
@@ -933,9 +932,9 @@ func backendRoutine(ctx context.Context) {
 
 	templateReq := &btcjson.TemplateRequest{
 		Rules:        []string{"segwit"},
-		Capabilities: []string{"proposal", "coinbasevalue" /* ,"longpoll" */},
+		Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
 		Mode:         "template",
-		// LongPollID: longpollid,
+		LongPollID:   longpollid,
 	}
 	if backendChainParams.Name == "testnet5" {
 		/// required for testnet5
@@ -960,7 +959,7 @@ func backendRoutine(ctx context.Context) {
 		}
 
 		/// save longpoll id
-		// longpollid = template.LongPollID
+		longpollid = template.LongPollID
 
 		currTemplateLock.Lock()
 		jobTemplate, err := CreateJobTemplate(template)
