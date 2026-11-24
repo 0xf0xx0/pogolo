@@ -827,18 +827,6 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			client.calcNextDifficulty()
 		}
 
-		/// both stratum specs apply diff changes to next job, so announce diff before announcing job
-		/// FIXME: incorrect, sv2 expects diff after job
-
-		if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				/// client died and we didnt notice?
-				client.Stop()
-				return
-			}
-			client.logErrorf("error adjusting difficulty: %s", err)
-		}
-
 		if client.protocol == 1 {
 			merkleBranches := make([][]byte, len(template.MerkleBranch))
 			for i, branch := range template.MerkleBranch {
@@ -854,6 +842,16 @@ func (client *StratumClient) readTemplateChanRoutine() {
 				CoinbasePart1:  newJob.CoinbaseBytes[:newJob.CoinbaseExtranonce2Idx-int(constants.EXTRANONCE_SIZE)],
 				CoinbasePart2:  newJob.CoinbaseBytes[newJob.CoinbaseExtranonce2Idx+int(conf.ExtraNonce2Size):],
 				Clean:          true,
+			}
+
+			/// send diff before sending job in SV1; diff changes apply to the next job
+			if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					/// client died and we didnt notice?
+					client.Stop()
+					return
+				}
+				client.logErrorf("error adjusting difficulty: %s", err)
 			}
 			err := client.writeSv1Msg(params.ToNotification())
 			if err != nil {
@@ -899,6 +897,16 @@ func (client *StratumClient) readTemplateChanRoutine() {
 			}
 			if err := client.writeSv2Msg(prevhash, stratumv2.MessageSetNewPrevHash); err != nil {
 				client.logError(err.Error())
+			}
+			/// SV2 diff changes must be sent AFTER the new job,
+			/// according to https://github.com/stratum-mining/interoperability-tests-sv2
+			if err := client.setDifficulty(client.SuggestedDifficulty); err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					/// client died and we didnt notice?
+					client.Stop()
+					return
+				}
+				client.logErrorf("error adjusting difficulty: %s", err)
 			}
 		}
 
@@ -1031,7 +1039,7 @@ func (client *StratumClient) createLogPrefixes() {
 }
 func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget stratumv2.U256, nominalHashRate float32) bool {
 	// validate max target
-	if !constants.Target1U256.IsMetBy(maxTarget) {
+	if constants.Target1U256.Compare(maxTarget) == 1 {
 		client.logError("provided max target is out of range")
 		client.logErrorf("{red}%s{/red} > {green}%s", maxTarget.String(), constants.Target1U256.String())
 		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{

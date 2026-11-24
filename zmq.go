@@ -29,10 +29,10 @@ func zmqListener(socket zmq4.Socket) {
 	for {
 		msg, err := socket.Recv()
 		if err != nil {
-			globalLogError(fmt.Sprintf("failed to receive zmq message: %s", err))
 			if err == zmq4.ErrClosedConn || err == context.Canceled || err == io.EOF {
 				break
 			}
+			globalLogError(fmt.Sprintf("failed to receive zmq message: %s", err))
 			continue
 		}
 		/// NOTE: bitcoind zmq can use the same address for multiple topics
