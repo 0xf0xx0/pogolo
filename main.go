@@ -364,8 +364,6 @@ func startup(rootCtx context.Context) error {
 	globalLog("{yellow}connecting to backend...")
 	backend, err = rpcclient.New(backendConnConf, &rpcclient.NotificationHandlers{
 		/// we do not care
-		/// FIXME: this makes gbt fail and cause a hang randomly?
-		/// FIXME: stalls shutdown on certain errors? prolly related to longpolling
 		OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 			/// ok we kinda care
 			select {
@@ -629,15 +627,6 @@ func startup(rootCtx context.Context) error {
 		return err
 	}
 
-	/// ws shutdown handler
-	if conf.Backend.Websocket {
-		defer func() {
-			globalLog("closing websocket")
-			backend.Shutdown()
-			backend.WaitForShutdown()
-		}()
-	}
-
 	conns := make(chan net.Conn, 5)
 
 	/// init
@@ -703,6 +692,12 @@ func startup(rootCtx context.Context) error {
 	<-sigs
 
 	globalLog("\n{yellow}stopping")
+	/// ws shutdown handler
+	if conf.Backend.Websocket {
+		globalLog("closing websocket")
+		backend.Shutdown()
+		backend.WaitForShutdown()
+	}
 	return nil
 }
 
@@ -894,7 +889,7 @@ func backendRoutine(ctx context.Context) {
 					/// one day pogolo will win a block, reload, and win a second back to back
 					/// im manifesting it now
 
-					/// zmq fires on our blocks as well; skip here if enabled
+					/// zmq and websocket fire on our blocks as well; skip here if enabled
 					/// this is STUPID GRAAAAAAAAAAAAAAAAAH
 					if !pollDisabled {
 						triggerGBT <- struct{}{}
