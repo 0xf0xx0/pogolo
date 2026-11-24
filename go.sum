@@ -2,8 +2,8 @@ git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.1 h1:Vl7szuaRbLsbVOOYBwB2C3I0+1Zocw6JvV
 git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.1/go.mod h1:0/T+yirG7BckgCWvPxXP6RMnDWulVm7qhbgjcHAX+Xs=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10 h1:ZaGhNYy3Tv/zuh2vB4oDrUS7ostgKRdS2mKmKPIbLbY=
 git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10/go.mod h1:sWO4BBwr5fRaEP5w6mQ395omCH3wyAblBsPKixgc004=
-git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261123210507-1cb6a90a19e5 h1:OA/SvQEMa5lEwaaVsSA/1PJix1oGOZikVxMjPAzdBo4=
-git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261123210507-1cb6a90a19e5/go.mod h1:H1a32d3hyUalYijIfDLzlKtt2R4SJFBqqi3P1QtEv9Q=
+git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261124161846-57a7411b09bc h1:q0HFyFHbCslUrduSNcbuCV9ytczZw4FW9lOVHT2tcns=
+git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261124161846-57a7411b09bc/go.mod h1:FqUy39R4mPyPS50cCJ2DT3xBazydw0xBe2AaZjKNKkw=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.26.2 h1:hPXzICjUZOsW2JwBLg9nHwGabc/D7pJDlna2vTB/SWI=
@@ -20,8 +20,6 @@ github.com/btcsuite/btcd/chainhash/v2 v2.0.0 h1:PMLlSloHJuEeB80XG9EjpXWNEKAZAMLl
 github.com/btcsuite/btcd/chainhash/v2 v2.0.0/go.mod h1:mKxcZ7oGTXE7IRV+sS9hP4EVBwc/SzfNR+52IsOP9j8=
 github.com/btcsuite/btcd/txscript/v2 v2.0.0 h1:pEmmHaC8eRx6KSB63zSVJD7qrit9/c9cLSrw++XrYP8=
 github.com/btcsuite/btcd/txscript/v2 v2.0.0/go.mod h1:pZXabc11Xr9nz/18kXY3yErdAajYc3gi28Zqb3KqlFo=
-github.com/btcsuite/btcd/wire/v2 v2.0.1 h1:edmb35tvRyQpFp331L9PwZFccaTCOQwevSsU6ra4BR4=
-github.com/btcsuite/btcd/wire/v2 v2.0.1/go.mod h1:ENBpJL0JYUNlqvajhIFTOcWGNNumjCynDk4PL0OG58I=
 github.com/btcsuite/btcd/wire/v2 v2.0.2 h1:cvBEg/e6rqRTLGTw+BRajdjOKypoa0+ZLxgzfJ7rnnY=
 github.com/btcsuite/btcd/wire/v2 v2.0.2/go.mod h1:7lmdLFQyLs/KjR/lxj3TDUcb5/BBUMvPRHDmZW2YYms=
 github.com/btcsuite/btclog v1.0.0 h1:sEkpKJMmfGiyZjADwEIgB1NSwMyfdD1FB8v6+w1T0Ns=
@@ -121,6 +119,5 @@ google.golang.org/protobuf v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-pgregory.net/rapid v1.2.0 h1:keKAYRcjm+e1F0oAuU5F5+YPAWcyxNNRK2wud503Gnk=
-pgregory.net/rapid v1.2.0/go.mod h1:PY5XlDGj0+V1FCq0o192FdRhpKHGTRIWBgqjDBTrq04=
 pgregory.net/rapid v1.3.0 h1:vBvO0VSqti75J1jjYqpgPNBLKMd1+gxa9fYo7vk/Exc=
+pgregory.net/rapid v1.3.0/go.mod h1:dPlE4OBBxgXPqkP79flB6sJL1dx5azpI7HQ9MY9Z7uk=
