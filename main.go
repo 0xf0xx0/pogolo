@@ -368,8 +368,6 @@ func startup(rootCtx context.Context) error {
 		/// FIXME: stalls shutdown on certain errors? prolly related to longpolling
 		OnFilteredBlockConnected: func(height int32, _ *wire.BlockHeader, _ []*btcutil.Tx) {
 			/// ok we kinda care
-			globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", height))
-			globalLog("ws trigger")
 			select {
 			case triggerGBT <- struct{}{}:
 			default:
@@ -805,7 +803,6 @@ func backendRoutine(ctx context.Context) {
 					if count, err := backend.GetBlockCount(); err == nil {
 						currTemplateLock.RLock()
 						if count >= currTemplate.Height {
-							globalLog("poll trigger")
 							triggerGBT <- struct{}{}
 						}
 						currTemplateLock.RUnlock()
@@ -840,8 +837,9 @@ func backendRoutine(ctx context.Context) {
 	}
 
 	/// block notifications
-	zmqEnabled := false /// for submissions
+	pollDisabled := false /// for submissions
 	if conf.Backend.Websocket {
+		pollDisabled = true
 		/// wait for new blocks to come in
 		if err := backend.NotifyBlocks(); err != nil {
 			globalLogError(fmt.Sprintf("error subscribing to block notifs: %s", err))
@@ -860,7 +858,7 @@ func backendRoutine(ctx context.Context) {
 			go getBlockCountPoll()
 		} else {
 			globalLog(fmt.Sprintf("connected to zmq at {green}%s", conf.ZMQHost))
-			zmqEnabled = true
+			pollDisabled = true
 			/// go, my zmq
 			go zmqListener(socket)
 		}
@@ -898,7 +896,7 @@ func backendRoutine(ctx context.Context) {
 
 					/// zmq fires on our blocks as well; skip here if enabled
 					/// this is STUPID GRAAAAAAAAAAAAAAAAAH
-					if !zmqEnabled {
+					if !pollDisabled {
 						triggerGBT <- struct{}{}
 					}
 
