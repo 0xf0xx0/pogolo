@@ -3,19 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/go-zeromq/zmq4"
 )
 
 func createZMQSocket(endpoint string, ctx context.Context) (zmq4.Socket, error) {
-	// FIXME: figure out how to make conn re-sub on reconnect
 	socket := zmq4.NewSub(ctx, zmq4.WithAutomaticReconnect(true),
-		zmq4.WithDialerRetry(time.Duration(conf.PollInterval)),
-		zmq4.WithDialerTimeout(3*time.Second),
 		zmq4.WithTimeout(3*time.Second),
+		zmq4.WithDialerTimeout(5*time.Second),
+		zmq4.WithDialerRetry(time.Duration(conf.PollInterval)),
+		zmq4.WithDialerMaxRetries(-1),
 	)
+	/// blindly copy options from bitcoind
 	socket.SetOption(zmq4.OptionSubscribe, "hashblock")
 	socket.SetOption(zmq4.OptionHWM, 0)
 
@@ -29,7 +29,7 @@ func zmqListener(socket zmq4.Socket) {
 	for {
 		msg, err := socket.Recv()
 		if err != nil {
-			if err == zmq4.ErrClosedConn || err == context.Canceled || err == io.EOF {
+			if err == zmq4.ErrClosedConn || err == context.Canceled {
 				break
 			}
 			globalLogError(fmt.Sprintf("failed to receive zmq message: %s", err))
