@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
+	"math/bits"
 	"math/rand/v2"
 	"net"
 	"os"
@@ -281,35 +281,31 @@ func calcNetworkDifficultyHash(nBits uint32) chainhash.Hash {
 	return target
 }
 
-// TODO: figure out non-bigint version? mafffffff
-// converts a difficulty float to a target hash
-// copied from public-pool
+// converts a difficulty float to a little-endian target (rounded to 6 decimal places)
 func diffToTarget(d float64) stratumv2.U256 {
 	if d <= 0 {
 		return *constants.Target1U256
 	}
-	scale := float64(1000000)
-	bigScale := big.NewInt(1000000)
+	const scale = 1_000_000
 	rounded := int64(math.Round(d * scale))
 	if rounded <= 0 {
 		return *constants.Target1U256
 	}
-	bigRound := big.NewInt(rounded)
 
-	target := new(big.Int).Mul(constants.Target1, bigScale)
-	target = target.Quo(target, bigRound)
-	out := stratumv2.U256{}
+	/// target1 * scale = (0xffff * scale) << 208.
+	/// 0xffff * scale is 36 bits, so after the remaining 16-bit shift
+	/// the entire numerator fits in the most-significant 64-bit limb.
+	numerator := [4]uint64{0, 0, 0, uint64(0xffff*scale) << 16}
+	divisor := uint64(rounded)
 
-	tb := target.Bytes() // big-endian
-	tbLen := len(tb)
-	if tbLen > 32 {
-		panic("target does not fit into 32 bytes")
-	}
-	copy(out[32-tbLen:], tb)
-
-	// convert to little-endian
-	for i := range 16 {
-		out[i], out[31-i] = out[31-i], out[i]
+	/// schoolbook 256/64 division. the running remainder is always less
+	/// than divisor, so bits.Div64 can never overflow its quotient.
+	var out stratumv2.U256
+	var remainder uint64
+	for i := 3; i >= 0; i-- {
+		var quotient uint64
+		quotient, remainder = bits.Div64(remainder, numerator[i], divisor)
+		binary.LittleEndian.PutUint64(out[i*8:], quotient)
 	}
 	return out
 }

@@ -2,8 +2,13 @@ package main
 
 import (
 	"encoding/hex"
+	"math"
+	"math/big"
+	"math/rand/v2"
 	"strings"
 	"testing"
+
+	"git.0xf0xx0.eth.limo/0xf0xx0/pogolo/constants"
 
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
@@ -105,5 +110,51 @@ func TestClientIDGeneration(t *testing.T) {
 	}
 	if len(set) != 2 {
 		t.Fatal("client ID generation failed: expected 2 unique IDs, got", len(set))
+	}
+}
+
+// the old big.Int implementation, kept as a reference oracle
+func diffToTargetBigInt(d float64) stratumv2.U256 {
+	if d <= 0 {
+		return *constants.Target1U256
+	}
+	const scale = 1_000_000
+	rounded := int64(math.Round(d * scale))
+	if rounded <= 0 {
+		return *constants.Target1U256
+	}
+	target1, _ := new(big.Int).SetString("00000000FFFF0000000000000000000000000000000000000000000000000000", 16)
+	target := new(big.Int).Mul(target1, big.NewInt(scale))
+	target.Quo(target, big.NewInt(rounded))
+	tb := target.Bytes() /// big-endian
+	if len(tb) > 32 {
+		panic("target does not fit into 32 bytes")
+	}
+	out := stratumv2.U256{}
+	/// minimal-length big-endian -> little-endian
+	for i, b := range tb {
+		out[len(tb)-1-i] = b
+	}
+	return out
+}
+
+func TestDiffToTargetMatchesBigInt(t *testing.T) {
+	diffs := []float64{
+		0, -1, 0.0000001, 0.0000005, 0.0000006, 0.000001,
+		0.00016, 0.16, 0.5, 0.999999, 1, 1.000001, 1.5,
+		1024, 65535, 1e6, 1e9, 1e12,
+	}
+	/// broad logarithmic coverage, avoiding int64 overflow at the 1e6 scale
+	rng := rand.New(rand.NewPCG(0xdead, 0xbeef))
+	for range 10_000 {
+		d := math.Exp(rng.Float64()*math.Log(1e12) - math.Log(1e7))
+		diffs = append(diffs, d)
+	}
+	for _, d := range diffs {
+		got := diffToTarget(d)
+		want := diffToTargetBigInt(d)
+		if got != want {
+			t.Fatalf("diffToTarget(%g) mismatch:\ngot  %x\nwant %x", d, got[:], want[:])
+		}
 	}
 }

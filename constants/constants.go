@@ -1,8 +1,6 @@
 package constants
 
 import (
-	"math/big"
-
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratumv2"
 )
@@ -52,12 +50,6 @@ var (
 	ERROR_UNPROCESSABLE = stratum.Error{Code: 422, Message: "Unprocessable content"}
 )
 
-// used in diffToTarget
-var Target1 = func() *big.Int {
-	t1 := big.Int{}
-	t1.SetString("00000000FFFF0000000000000000000000000000000000000000000000000000", 16)
-	return &t1
-}()
 var Target1U256 = func() *stratumv2.U256 {
 	u := stratumv2.U256{}
 	// source: https://en.bitcoin.it/wiki/Difficulty#How_is_difficulty_calculated?_What_is_the_difference_between_bdiff_and_pdiff?
