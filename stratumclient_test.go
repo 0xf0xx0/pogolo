@@ -504,7 +504,7 @@ func BenchmarkSv2Submit(b *testing.B) {
 		},
 		Extranonce: []byte{0, 255, 0, 255},
 	}
-	f, _ := stratumv2.NewFrameFromParams(stratumv2.MessageSubmitSharesExtended, stratumv2.ExtensionTypeCore, params)
+	f, _ := stratumv2.NewFrame(stratumv2.MessageSubmitSharesExtended, stratumv2.ExtensionTypeCore, params)
 	for b.Loop() {
 		bin, _ := send.EncryptFrame(f)
 		res := sendSv2ReqAndWaitForRes(b, bin, lpipe, recv)

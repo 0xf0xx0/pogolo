@@ -213,7 +213,7 @@ func addCoinbasePayout(en1 stratum.ID, addr address.Address, coinbaseMsgTx *wire
 }
 
 // shamelessly stolen from m45core lol
-// faster diff calc
+// faster diff calc, i dont understand maffs
 func calcDifficulty(hash chainhash.Hash) float64 {
 	msb := -1
 	for i := len(hash) - 1; i >= 0; i-- {
@@ -253,9 +253,9 @@ func calcDifficulty(hash chainhash.Hash) float64 {
 	return diff
 }
 
-// func calcDifficultyHash(hash chainhash.Hash) stratumv2.U256 {
-// 	return *constants.Target1U256.Clone().Div(stratumv2.U256(hash))
-// }
+func calcDifficultyHash(hash chainhash.Hash) stratumv2.U256 {
+	return constants.Target1U256.Div(stratumv2.U256(hash))
+}
 
 // port of public-pools calculateNetworkDifficulty
 func calcNetworkDifficulty(nBits uint32) float64 {
@@ -439,6 +439,12 @@ func parseUserIdentity(userIdentity string) (addr address.Address, nickname stri
 	}
 	addr, err = address.DecodeAddress(maybAddr, backendChainParams)
 	if err != nil {
+		/// invalid addr? do basic check
+		// oneIndex := strings.LastIndexByte(maybAddr, '1')
+		// decoded, _,_ := base58.CheckDecode(addr)
+		// if oneIndex > 1 ||  {
+
+		// }
 		/// assume just the workername was passed if unknown format
 		if defaultMiningAddr == nil {
 			return

@@ -1,6 +1,6 @@
 module git.0xf0xx0.eth.limo/0xf0xx0/pogolo
 
-go 1.26.2
+go 1.26.10
 
 // replace git.0xf0xx0.eth.limo/0xf0xx0/stratum => ../stratum
 
@@ -9,14 +9,14 @@ go 1.26.2
 require (
 	git.0xf0xx0.eth.limo/0xf0xx0/oigiki v1.4.1
 	git.0xf0xx0.eth.limo/0xf0xx0/stratum v0.0.10
-	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261015025428-ef1237e649ba
+	git.0xf0xx0.eth.limo/0xf0xx0/stratumv2 v0.0.0-20261123210507-1cb6a90a19e5
 	github.com/btcsuite/btcd v0.26.2
-	github.com/btcsuite/btcd/address/v2 v2.0.0
+	github.com/btcsuite/btcd/address/v2 v2.0.1
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.1
 	github.com/btcsuite/btcd/chaincfg/v2 v2.0.0
 	github.com/btcsuite/btcd/chainhash/v2 v2.0.0
 	github.com/btcsuite/btcd/txscript/v2 v2.0.0
-	github.com/btcsuite/btcd/wire/v2 v2.0.1
+	github.com/btcsuite/btcd/wire/v2 v2.0.2
 	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/minio/sha256-simd v1.0.1
 	github.com/pelletier/go-toml/v2 v2.4.3
@@ -27,7 +27,7 @@ require (
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.5.1 // indirect
 	github.com/btcsuite/btclog v1.0.0 // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
@@ -40,17 +40,17 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/kcalvinalvin/anet v0.0.0-20251112173137-d8ddc1f6dbee // indirect
-	github.com/klauspost/cpuid/v2 v2.4.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.1 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	golang.org/x/arch v0.32.0 // indirect
-	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
 

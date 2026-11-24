@@ -97,15 +97,14 @@ func (t *wrapperRW) Write(b []byte) (int, error) {
 
 // aka gopher
 type StratumClient struct {
-	CurrentJob       *MiningJob
-	PrevJob          *MiningJob // niled when a new block rolls in
-	stats            StratumClientStats
-	conn             net.Conn
-	User             address.Address
-	Nickname         string
-	UserAgent        string
-	TargetDifficulty float64
-	// TargetDifficultyU256 stratumv2.U256
+	CurrentJob          *MiningJob
+	PrevJob             *MiningJob // niled when a new block rolls in
+	stats               StratumClientStats
+	conn                net.Conn
+	User                address.Address
+	Nickname            string
+	UserAgent           string
+	TargetDifficulty    float64
 	SuggestedDifficulty float64             // overloaded, initially set by client (optional) then used by diff adjust
 	ID                  stratum.ID          // used for the extranonce1 (sv1) and channel ID (sv2)
 	shareHashes         map[uint64]struct{} // stores hashes for dupe share detection, resets on new job
@@ -480,7 +479,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 				/// if its too large, error
 				/// intentionally loose; if the client wants to UpdateChannel
 				/// with the same value thats on them
-				if !constants.Target1U256.IsMetBy(&msg.MaxTarget) {
+				if !constants.Target1U256.IsMetBy(msg.MaxTarget) {
 					client.logError("new target difficulty too low")
 					client.writeSv2Msg(&stratumv2.UpdateChannelError{
 						ChannelID: msg.ChannelID,
@@ -506,7 +505,6 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			}
 		// ignored
 		case stratumv2.MessageSetupConnection:
-		/// MAYBE: allow for multiple channels + grouping
 		case stratumv2.MessageOpenStandardMiningChannel:
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
@@ -810,7 +808,6 @@ func (client *StratumClient) setDifficulty(newDiff float64) error {
 		}
 	}
 	client.TargetDifficulty = newDiff
-	// client.TargetDifficultyU256 = diffToTarget(newDiff)
 	client.logf("adjusting share target to {blue}%g", newDiff)
 	return nil
 }
@@ -1037,9 +1034,7 @@ func (client *StratumClient) createLogPrefixes() {
 }
 func (client *StratumClient) validateSv2ChannelOpen(requestID uint32, maxTarget stratumv2.U256, nominalHashRate float32) bool {
 	// validate max target
-	// TODO: verify Target1U256 is a valid maximum
-	// maybe "steal" from a different pool lol
-	if constants.Target1U256.Compare(&maxTarget) == 1 {
+	if !constants.Target1U256.IsMetBy(maxTarget) {
 		client.logError("provided max target is out of range")
 		client.logErrorf("{red}%s{/red} > {green}%s", maxTarget.String(), constants.Target1U256.String())
 		client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
@@ -1147,10 +1142,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	shareHash := simdHeaderHash(updatedHeader)
 	shareHashXXH3 := xxh3.Hash(shareHash[:])
 	shareDiff := calcDifficulty(shareHash)
-	// println(fmt.Sprintf("%x, %x, %f, %f, %f", client.TargetDifficultyU256[:], shareHash[:], calcDifficulty(chainhash.Hash(client.TargetDifficultyU256)), client.TargetDifficulty, shareDiff))
-	// println(shareHash.String())
-	// if !client.TargetDifficultyU256.IsMetByHash(&shareHash) {
-	/// TODO: store target diff as u256
+
 	if shareDiff < client.TargetDifficulty {
 		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_LOW_DIFF))
@@ -1190,7 +1182,6 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	/// add to dupe map
 	client.shareHashes[shareHashXXH3] = struct{}{}
 
-	/// TODO: store net target as u256
 	if shareDiff >= job.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
 		/// copy header and coinbase to avoid overwrites
@@ -1303,7 +1294,7 @@ func (client *StratumClient) writeSv1Msg(msg stratum.Message) error {
 	return client.writeConn(b)
 }
 func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType stratumv2.MessageType) error {
-	frame, err := stratumv2.NewFrameFromParams(messageType, stratumv2.ExtensionTypeCore, payload)
+	frame, err := stratumv2.NewFrame(messageType, stratumv2.ExtensionTypeCore, payload)
 	if err != nil {
 		client.logErrorf("failed to encode payload: %s", err)
 		return err

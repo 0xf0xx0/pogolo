@@ -33,7 +33,7 @@ func TestBLeh(t *testing.T) {
 
 	dd := stratumv2.U256(diffToTarget(1037))
 	ux := stratumv2.U256(x)
-	t.Log(dd.IsMetBy(&ux))
+	t.Log(dd.IsMetBy(ux))
 }
 
 func TestClientMap(t *testing.T) {
