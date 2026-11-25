@@ -77,6 +77,7 @@ func LoadConfig(path string, conf *Config) error {
 	if err != nil {
 		return err
 	}
+	defer configfile.Close()
 	d := toml.NewDecoder(configfile).DisallowUnknownFields()
 	if err := d.Decode(conf); err != nil {
 		return err

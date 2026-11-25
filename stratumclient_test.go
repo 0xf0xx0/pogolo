@@ -22,6 +22,15 @@ import (
 
 /// stratum chatter
 
+// an over-512-byte line must not panic the process via the scanner error switch
+func TestSv1OversizedLine(t *testing.T) {
+	lpipe, _, _ := initClient()
+	lpipe.SetWriteDeadline(time.Now().Add(2 * time.Second))
+	/// sniff consumes 16 bytes, the scanner's 512-byte cap trips on the rest
+	_, _ = lpipe.Write(append(bytes.Repeat([]byte{' '}, 600), '\n'))
+	lpipe.Close()
+}
+
 func TestSv1Configure(t *testing.T) {
 	lpipe, _, _ := initClient()
 	params := configureParams

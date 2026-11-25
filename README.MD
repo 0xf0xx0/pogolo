@@ -48,7 +48,7 @@ _want a go pool you can run on the public internet? check out https://github.com
 
 pogolo has no tls support.
 
-- JSON-RPC
+- JSON-RPC (no `longpoll`)
 - btcd websocket
 - ZMQ (`hashblock` topic)
 
@@ -56,6 +56,7 @@ pogolo has no tls support.
 
 - whatsminers (they dont mine on the provided jobs, if you have one please test and send logs)
 - luckyminers/other non-foss axe clones (intentionally)
+- rpc longpolling (timeout issue; use zmq/websocket)
 - sv2: multiple channels on one conn
 - sv2: group channels
 

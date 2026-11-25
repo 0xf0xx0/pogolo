@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -146,6 +145,12 @@ func initAPI() {
 	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{
 		Timeout:           5 * time.Second,
 		EnableOpenMetrics: true,
+		CoalesceGather:    true, // ensure callers only trigger one gather
+		OfferedCompressions: []promhttp.Compression{
+			promhttp.Identity,
+			promhttp.Gzip,
+			promhttp.Zstd,
+		},
 	})
 	http.HandleFunc("GET /metrics", func(res http.ResponseWriter, req *http.Request) {
 		allClientStats := clients.AllStats()
@@ -251,16 +256,11 @@ func getAllWorkerInfo(res http.ResponseWriter, req *http.Request) {
 
 // Takes a name (id or worker name) and returns a snapshot of the matching client, if any
 func getWorkerInfo(res http.ResponseWriter, req *http.Request) {
-	name, err := url.QueryUnescape(req.PathValue("idOrNickname"))
-	if err != nil {
-		globalLogError(fmt.Sprintf("failed to decode client name: %q", name))
-		writeError(res, http.StatusBadRequest, "failed to decode client name")
-		return
-	}
+	name := req.PathValue("idOrNickname")
 	worker, found := clients.Find(name)
 	if !found {
-		globalLogError(fmt.Sprintf("failed to find client %q", name))
-		writeError(res, http.StatusBadRequest, "failed to find client")
+		globalLogError(fmt.Sprintf("failed to find gopher %q", name))
+		writeError(res, http.StatusNotFound, "failed to find gopher")
 		return
 	}
 

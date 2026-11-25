@@ -297,7 +297,8 @@ func main() {
 			/// create logfile
 			if path := cmd.String("logfile"); path != "" {
 				conf.LogFile = resolvePath(path)
-
+			}
+			if conf.LogFile != "" {
 				file, err := os.Create(conf.LogFile)
 				if err != nil {
 					return err
@@ -739,7 +740,12 @@ func listenerRoutine(conns chan<- net.Conn, listener net.Listener, httpAddr stri
 				}
 			}
 		}
-		conns <- conn
+		select {
+		case <-ctx.Done():
+			return
+		case conns <- conn:
+		default:
+		}
 	}
 }
 
@@ -763,7 +769,6 @@ func connectionRoutine(conns <-chan net.Conn, ctx context.Context) {
 
 // handles templates, block notifications, and block submissions
 func backendRoutine(ctx context.Context) {
-	longpollid := ""
 	getBlockCountPoll := func() {
 		/// wait for the initial template
 	busywait:
@@ -892,7 +897,10 @@ func backendRoutine(ctx context.Context) {
 					/// zmq and websocket fire on our blocks as well; skip here if enabled
 					/// this is STUPID GRAAAAAAAAAAAAAAAAAH
 					if !pollDisabled {
-						triggerGBT <- struct{}{}
+						select {
+						case triggerGBT <- struct{}{}:
+						default:
+						}
 					}
 
 					/// do vanity things
@@ -936,11 +944,11 @@ func backendRoutine(ctx context.Context) {
 	/// queue initial job template fetch
 	triggerGBT <- struct{}{}
 
+	/// TODO: extend longpoll timeout upstream, add note upstream about longpoll hogging
 	templateReq := &btcjson.TemplateRequest{
 		Rules:        []string{"segwit"},
-		Capabilities: []string{"proposal", "coinbasevalue", "longpoll"},
+		Capabilities: []string{"proposal", "coinbasevalue"},
 		Mode:         "template",
-		LongPollID:   longpollid,
 	}
 	if backendChainParams.Name == "testnet5" {
 		/// required for testnet5
@@ -957,15 +965,11 @@ func backendRoutine(ctx context.Context) {
 		/// shortcircuit
 		case <-triggerGBT:
 		}
-
 		template, err := backend.GetBlockTemplate(templateReq)
 		if err != nil {
 			globalLogError(fmt.Sprintf("error fetching template: %s", err))
 			continue
 		}
-
-		/// save longpoll id
-		longpollid = template.LongPollID
 
 		currTemplateLock.Lock()
 		jobTemplate, err := CreateJobTemplate(template)
@@ -982,6 +986,6 @@ func backendRoutine(ctx context.Context) {
 
 		globalLog(fmt.Sprintf("==//==<the dig is mining on job {blue}%#x{/blue}!>==//==\n\ttxns: {blue}%d", currTemplate.ID, len(template.Transactions)))
 		/// this gets shipped to each StratumClient to become a full MiningJob
-		go clients.NotifyAll(jobTemplate) /// this might take a while
+		clients.NotifyAll(jobTemplate) /// this might take a while
 	}
 }

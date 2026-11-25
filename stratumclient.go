@@ -115,6 +115,7 @@ type StratumClient struct {
 	protocol            uint8
 	extendedChannel     bool
 	send, recv          *stratumv2.CipherState
+	sendMu              sync.Mutex // serializes sv2 encryption+write; noise nonces must not repeat or reorder
 	batchSubmissionChan chan batchShare
 	donationPercent     uint8
 
@@ -193,7 +194,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 		}
 
 		/// thou shalt not select thy own work
-		if msg.Flags&stratumv2.RequiresWorkSelectionFlag == 1 {
+		if msg.Flags&stratumv2.RequiresWorkSelectionFlag == stratumv2.RequiresWorkSelectionFlag {
 			client.writeSv2Msg(&stratumv2.SetupConnectionError{
 				Flags:     stratumv2.RequiresWorkSelectionFlag,
 				ErrorCode: stratumv2.UnsupportedFeatureFlagsError,
@@ -204,7 +205,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 
 		/// check flags
 		var requiresStandardChan bool
-		if msg.Flags&stratumv2.RequiresStandardJobsFlag == 1 {
+		if msg.Flags&stratumv2.RequiresStandardJobsFlag == stratumv2.RequiresStandardJobsFlag {
 			client.log("standard channel required")
 			requiresStandardChan = true
 		}
@@ -319,7 +320,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 		}
 
 		client.protocol = 2
-		go client.batchSv2SubmissionsRoutine()
+		go client.batchSv2SubmissionsRoutine(ctx)
 		client.startMining()
 		/// set deadline for furst share
 		client.conn.SetReadDeadline(time.Now().Add(time.Minute + time.Second*10*time.Duration(conf.TargetShareInterval)))
@@ -420,6 +421,15 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					client.logErrorf("error decoding SubmitSharesExtended: %s", err)
 					break
 				}
+				if client.CurrentJob == nil {
+					client.currentJobMutex.RUnlock()
+					client.writeSv2Msg(&stratumv2.SubmitSharesError{
+						ChannelID: share.ChannelID,
+						ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
+					}, stratumv2.MessageSubmitSharesError)
+					client.logError("share before job...?")
+					return
+				}
 				s := &commonShare{
 					ChannelID:   share.ChannelID,
 					JobID:       share.JobID,
@@ -443,6 +453,15 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 				if err = frame.ToParams(&share); err != nil {
 					client.logErrorf("error decoding SubmitSharesStandard: %s", err)
 					break
+				}
+				if client.CurrentJob == nil {
+					client.currentJobMutex.RUnlock()
+					client.writeSv2Msg(&stratumv2.SubmitSharesError{
+						ChannelID: share.ChannelID,
+						ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
+					}, stratumv2.MessageSubmitSharesError)
+					client.logError("share before job...?")
+					return
 				}
 				s := &commonShare{
 					ChannelID: share.ChannelID,
@@ -573,13 +592,21 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 				jobID, _ := strconv.ParseUint(share.JobID, 16, 64)
 
 				client.currentJobMutex.RLock()
-
+				if client.CurrentJob == nil {
+					client.currentJobMutex.RUnlock()
+					client.writeSv1Msg(m.RespondError(constants.ERROR_NOT_ACCEPTED))
+					client.logError("share before job...?")
+					return
+				}
 				s := &commonShare{
 					JobID:       uint32(jobID),
 					Time:        share.Time,
 					Version:     uint32(client.CurrentJob.Version),
 					Nonce:       share.Nonce,
 					Extranonce2: share.Extranonce2,
+				}
+				if client.PrevJob != nil && jobID == client.PrevJob.ID {
+					s.Version = uint32(client.PrevJob.Version)
 				}
 				/// BIP-310
 				// we *could* reject here, but i want to keep validation centralized
@@ -738,11 +765,10 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 	}
 
 	if err := scanner.Err(); err != nil {
-		switch err {
-		case io.ErrClosedPipe:
-		case io.EOF:
-		case err.(*net.OpError):
-			ne := err.(*net.OpError)
+		var ne *net.OpError
+		switch {
+		case errors.Is(err, io.ErrClosedPipe), errors.Is(err, io.EOF):
+		case errors.As(err, &ne):
 			client.logErrorf("%s", ne.Err)
 		default:
 			client.logErrorf("read error: %s", err)
@@ -962,6 +988,11 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 	merkleScratch[0] = &chainhash.Hash{}
 	copy(merkleScratch[1:], template.MerkleBranch)
 
+	/// mainly for standard chans, compute initial merkle
+	/// en2 rolling forces a recompute, see [MiningJob.UpdateHeader]
+	*merkleScratch[0] = simdSha256d(serializedCoinbaseTx)
+	blockHeader.MerkleRoot = merkleRootFromBranches(merkleScratch)
+
 	return MiningJob{
 		ID:                     template.ID,
 		Header:                 blockHeader,
@@ -1107,7 +1138,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 
 	ntime := int64(share.Time)
-	if (client.CurrentJob.MinTime > 0 && ntime < client.CurrentJob.MinTime) || (client.CurrentJob.MaxTime > 0 && ntime > client.CurrentJob.MaxTime) {
+	if (job.MinTime > 0 && ntime < job.MinTime) || (job.MaxTime > 0 && ntime > job.MaxTime) {
 		if client.protocol == 1 {
 			client.writeSv1Msg(m.RespondError(constants.ERROR_BAD_TIME))
 		} else {
@@ -1209,7 +1240,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 		client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
 	} else {
 		/// not gonna bother batching logs, just share acks
-		client.batchSubmissionChan <- batchShare{sequence: share.Sequence, diff: shareDiff}
+		client.batchSubmissionChan <- batchShare{sequence: share.Sequence, diff: client.TargetDifficulty}
 	}
 
 	/// vanity things
@@ -1236,7 +1267,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 }
 
 // batch sv2 submissions into windows, each share bumping the window by a bit
-func (client *StratumClient) batchSv2SubmissionsRoutine() {
+func (client *StratumClient) batchSv2SubmissionsRoutine(ctx context.Context) {
 	maxWindow := time.Second * time.Duration(conf.ShareBatchWindowSize)
 	remainingWindow := maxWindow
 	lastSequence := uint32(0)
@@ -1246,6 +1277,8 @@ func (client *StratumClient) batchSv2SubmissionsRoutine() {
 	for {
 		startTime := time.Now()
 		select {
+		case <-ctx.Done():
+			return
 		case <-time.After(remainingWindow):
 			if batchSize > 0 {
 				client.writeSv2Msg(&stratumv2.SubmitSharesSuccess{
@@ -1299,13 +1332,17 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 		client.logErrorf("failed to encode payload: %s", err)
 		return err
 	}
+	// f, _ := frame.Encode()
+	// client.logf("{green}TX: (%x) %x", frame.MessageType, f)
+	/// encrypt and write atomically: concurrent writers could otherwise reuse
+	/// a nonce or interleave frames, both of which break decryption
+	client.sendMu.Lock()
+	defer client.sendMu.Unlock()
 	enc, err := client.send.EncryptFrame(frame)
 	if err != nil {
 		client.logErrorf("failed to encrypt frame: %s", err)
 		return err
 	}
-	// f, _ := frame.Encode()
-	// client.logf("{green}TX: (%x) %x", frame.MessageType, f)
 	return client.writeConn(enc)
 }
 func (client *StratumClient) writeConn(b []byte) error {

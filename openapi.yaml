@@ -209,6 +209,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GopherInfo"
+        "404":
+          description: "Failed to find gopher"
 
   /license.txt:
     get:

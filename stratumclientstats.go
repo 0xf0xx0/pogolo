@@ -9,7 +9,7 @@ import (
 // used for hashrate calc
 type timeSlot struct {
 	startTime uint64
-	accDiff   uint64 // accumulated difficulty, used for hashrate calc
+	accDiff   float64 // accumulated difficulty, used for hashrate calc
 }
 
 // stats for the api
@@ -68,18 +68,18 @@ func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff f
 	} else if stats.currTimeSlot.startTime != windowStart {
 		stats.lastTimeSlot = stats.currTimeSlot
 
-		stats.currTimeSlot.accDiff = uint64(currTargetDiff)
+		stats.currTimeSlot.accDiff = currTargetDiff
 		stats.currTimeSlot.startTime = windowStart
 		/// otherwise just update stats
 	} else {
 		/// we wanna use the target difficulty for a stable number
-		stats.currTimeSlot.accDiff += uint64(currTargetDiff)
+		stats.currTimeSlot.accDiff += currTargetDiff
 		if stats.currTimeSlot.accDiff > 0 {
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
 			time := shareTime - stats.lastTimeSlot.startTime
 			/// sum the two time slots for the total accumulated diff
-			stats.hashrate = float64((stats.lastTimeSlot.accDiff+stats.currTimeSlot.accDiff)*4_294_967_296) / float64(time)
+			stats.hashrate = (stats.lastTimeSlot.accDiff + stats.currTimeSlot.accDiff) * 4_294_967_296 / float64(time)
 		}
 	}
 }
