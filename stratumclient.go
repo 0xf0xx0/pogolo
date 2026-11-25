@@ -414,15 +414,14 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			{
 				if !client.extendedChannel {
 					client.logError("extended share submitted on standard channel")
-					break
+					return
 				}
 				share := stratumv2.SubmitSharesExtended{}
 				if err = frame.ToParams(&share); err != nil {
 					client.logErrorf("error decoding SubmitSharesExtended: %s", err)
-					break
+					return
 				}
 				if client.CurrentJob == nil {
-					client.currentJobMutex.RUnlock()
 					client.writeSv2Msg(&stratumv2.SubmitSharesError{
 						ChannelID: share.ChannelID,
 						ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
@@ -447,15 +446,14 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			{
 				if client.extendedChannel {
 					client.logError("standard share submitted on extended channel")
-					break
+					return
 				}
 				share := stratumv2.SubmitSharesStandard{}
 				if err = frame.ToParams(&share); err != nil {
 					client.logErrorf("error decoding SubmitSharesStandard: %s", err)
-					break
+					return
 				}
 				if client.CurrentJob == nil {
-					client.currentJobMutex.RUnlock()
 					client.writeSv2Msg(&stratumv2.SubmitSharesError{
 						ChannelID: share.ChannelID,
 						ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
@@ -490,7 +488,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					}, stratumv2.MessageUpdateChannelError)
 					break
 				}
-				/// if its too large, error
+				/// if its too large, reject
 				/// intentionally loose; if the client wants to UpdateChannel
 				/// with the same value thats on them
 				if !constants.Target1U256.IsMetBy(msg.MaxTarget) {
@@ -519,14 +517,41 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			}
 		// ignored
 		case stratumv2.MessageSetupConnection:
+			{
+				client.writeSv2Msg(&stratumv2.SetupConnectionError{
+					ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
+				}, stratumv2.MessageSetupConnectionError)
+				return
+			}
 		case stratumv2.MessageOpenStandardMiningChannel:
+			{
+				msg := stratumv2.OpenStandardMiningChannel{}
+				if err = frame.ToParams(&msg); err != nil {
+					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
+					return
+				}
+				client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+					RequestID: msg.RequestID,
+					ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
+				}, stratumv2.MessageOpenMiningChannelError)
+				return
+			}
 		case stratumv2.MessageOpenExtendedMiningChannel:
 			{
-				break
+				msg := stratumv2.OpenExtendedMiningChannel{}
+				if err = frame.ToParams(&msg); err != nil {
+					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
+					return
+				}
+				client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
+					RequestID: msg.RequestID,
+					ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
+				}, stratumv2.MessageOpenMiningChannelError)
+				return
 			}
 		default:
 			client.logErrorf("unknown method: %x", frame.MessageType)
-			continue
+			return
 		}
 
 		/// deadline is a minute + 10x target share interval
@@ -587,7 +612,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 				if err := share.FromRequest(m); err != nil {
 					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
+					return
 				}
 				jobID, _ := strconv.ParseUint(share.JobID, 16, 64)
 
@@ -622,7 +647,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 				if err := params.FromRequest(m); err != nil {
 					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
+					return
 				}
 				res := stratum.MiningConfigureResult{}
 				if params.Supports(stratum.ExtensionVersionRolling) {
@@ -650,13 +675,13 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 		case stratum.MethodMiningAuthorize:
 			{
 				if isAuthed {
-					break
+					return
 				}
 				params := stratum.MiningAuthorizeParams{}
 				if err := params.FromRequest(m); err != nil {
 					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
+					return
 				}
 				if conf.Sv1Password != "" && params.Password != conf.Sv1Password {
 					client.logError("invalid password")
@@ -666,7 +691,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 
 				if !client.parseIdentity(params.Username, 0, m) {
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
+					return
 				}
 
 				client.writeSv1Msg(stratum.NewBooleanResponse(m.MessageID, true))
@@ -675,13 +700,13 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 		case stratum.MethodMiningSubscribe:
 			{
 				if isSubscribed {
-					break
+					return
 				}
 				params := stratum.MiningSubscribeParams{}
 				if err := params.FromRequest(m); err != nil {
 					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
+					return
 				}
 				client.UserAgent = parseUserAgent(params.UserAgent)
 				if client.UserAgent == "luckyminer" {
@@ -723,7 +748,7 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 				if err := params.FromRequest(m); err != nil {
 					client.logErrorf("error processing %s: %s", m.Method, err)
 					client.writeSv1Msg(m.RespondError(constants.ERROR_UNPROCESSABLE))
-					break
+					return
 				}
 				suggestedDiff := math.Abs(params.Difficulty)
 				if suggestedDiff >= constants.MIN_DIFFICULTY {
@@ -1332,8 +1357,7 @@ func (client *StratumClient) writeSv2Msg(payload stratumv2.Codable, messageType 
 		client.logErrorf("failed to encode payload: %s", err)
 		return err
 	}
-	// f, _ := frame.Encode()
-	// client.logf("{green}TX: (%x) %x", frame.MessageType, f)
+
 	/// encrypt and write atomically: concurrent writers could otherwise reuse
 	/// a nonce or interleave frames, both of which break decryption
 	client.sendMu.Lock()
