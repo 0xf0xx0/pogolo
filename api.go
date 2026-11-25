@@ -195,7 +195,7 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		hashrateSum += client.stats.HashrateH()
 	}
 	authorityKey := ""
-	if conf.Sv2AuthorityKeypair != "" && sv2AuthorityKeypair != nil {
+	if sv2AuthorityKeypair != nil {
 		authorityKey = stratumv2.SerializeAuthorityKey(sv2AuthorityKeypair.PublicKey())
 	}
 	currTemplateLock.RLock()
@@ -216,7 +216,6 @@ func getInfo(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	marshalAndWrite(res, getInfoRes{
-		/// NOTE: compiling with -race mistakenly calls this a race condition
 		Uptime:        uint64(time.Since(serverStartTime).Seconds()),
 		Workers:       workerStats,
 		Tag:           conf.Tag,
