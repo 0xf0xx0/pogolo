@@ -805,10 +805,6 @@ func (client *StratumClient) processSv1Loop(ctx context.Context, reader io.Reade
 // aims for the .TargetShareInterval
 // we likely need a different algo for diffs <=16, if it becomes an issue
 func (client *StratumClient) calcNextDifficulty() {
-	/// ignore diffs below 1, this diff routine is optimized for high-power miners
-	if client.TargetDifficulty < 1.0 {
-		return
-	}
 	if client.stats.avgSubmissionDelta == 0 {
 		return
 	}
@@ -821,8 +817,15 @@ func (client *StratumClient) calcNextDifficulty() {
 	if absDifference < 1 {
 		return
 	}
-	/// cap the adjustment at +-256
-	delta := min(math.Pow(2, absDifference*2), 256)
+	delta := 0.0
+	/// for diffs below 512, use low-power routine
+	/// scale current diff by half up or down
+	if client.TargetDifficulty < 512.0 {
+		delta = (client.TargetDifficulty / 2)
+	} else {
+		/// cap the adjustment at +-256
+		delta = min(math.Pow(2, absDifference*2), 256)
+	}
 	if difference < 0 {
 		delta = -(delta / 2) /// we want to be more conservative when adjusting downwards
 	}
