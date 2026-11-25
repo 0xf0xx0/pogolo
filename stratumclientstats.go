@@ -38,7 +38,7 @@ func (stats *StratumClientStats) update(currTargetDiff float64) {
 			0.01*delta + 0.99*stats.avgSubmissionDelta
 	} else {
 		/// start the avg calc with the target delta, not 0
-		stats.avgSubmissionDelta = float64(conf.TargetShareInterval * 1000)
+		stats.avgSubmissionDelta = float64(conf.TargetShareInterval) * 1000
 	}
 
 	stats.calcHashrate(uint64(now/1000), currTargetDiff)
@@ -78,6 +78,9 @@ func (stats *StratumClientStats) calcHashrate(shareTime uint64, currTargetDiff f
 			/// "Hashrate = (share difficulty x 2^32) / time" - ben
 			/// "2^32 represents the average number of hash attempts needed to find a valid hash at difficulty 1." - skot
 			time := shareTime - stats.lastTimeSlot.startTime
+			if time <= 0 {
+				time = 1 ///  avoid div by zero
+			}
 			/// sum the two time slots for the total accumulated diff
 			stats.hashrate = (stats.lastTimeSlot.accDiff + stats.currTimeSlot.accDiff) * 4_294_967_296 / float64(time)
 		}

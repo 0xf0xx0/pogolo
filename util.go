@@ -423,20 +423,9 @@ func parseUserIdentity(userIdentity string) (addr address.Address, nickname stri
 		err = errors.New("empty input")
 		return
 	}
-	splitPoint := strings.Index(userIdentity, ".")
-	maybAddr := userIdentity
-	if splitPoint != -1 {
-		nickname = userIdentity[splitPoint+1:]
-		maybAddr = userIdentity[:splitPoint]
-	}
+	maybAddr, nickname, _ := strings.Cut(userIdentity, ".")
 	addr, err = address.DecodeAddress(maybAddr, backendChainParams)
 	if err != nil {
-		/// invalid addr? do basic check
-		// oneIndex := strings.LastIndexByte(maybAddr, '1')
-		// decoded, _,_ := base58.CheckDecode(addr)
-		// if oneIndex > 1 ||  {
-
-		// }
 		/// assume just the workername was passed if unknown format
 		if defaultMiningAddr == nil {
 			return

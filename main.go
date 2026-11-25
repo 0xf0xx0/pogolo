@@ -440,6 +440,8 @@ func startup(rootCtx context.Context) error {
 		globalLog(fmt.Sprintf("\"{green}%s{/green}\" set as stratum v1 password", conf.Sv1Password))
 	}
 
+	serverStartTime = time.Now()
+
 	/// we don't care about auth cause we're on the lan
 	if conf.Sv2AuthorityKeypair != "" {
 		sv2AuthorityKeypair = &stratumv2.Keypair{}
@@ -521,8 +523,6 @@ func startup(rootCtx context.Context) error {
 			}
 		}
 	}
-
-	serverStartTime = time.Now()
 
 	/// wait for exit
 	<-sigs
