@@ -95,7 +95,7 @@ func WriteDefaultConfig(path string) error {
 	DEFAULT_CONFIG.Pogolo.ShareBatchWindowSize = 15
 
 	conf, _ := toml.Marshal(DEFAULT_CONFIG)
-	if err := os.WriteFile(resolvePath(path), conf, 0755); err != nil {
+	if err := os.WriteFile(resolvePath(path), conf, 0600); err != nil {
 		return cli.Exit(fmt.Sprintf("couldnt create config file: %s", err), 1)
 	}
 	return nil
