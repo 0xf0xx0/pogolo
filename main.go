@@ -392,9 +392,7 @@ func startup(rootCtx context.Context) error {
 	}
 
 	switch chainInfo.Chain {
-	case "mainnet":
-		fallthrough
-	case "main":
+	case "mainnet", "main":
 		{
 			backendChainParams = &chaincfg.MainNetParams
 		}
@@ -806,13 +804,12 @@ func backendRoutine(ctx context.Context) {
 			continue
 		}
 
-		currTemplateLock.Lock()
 		jobTemplate, err := CreateJobTemplate(template)
 		if err != nil {
 			globalLogError(fmt.Sprintf("error making job template: %s", err.Error()))
-			currTemplateLock.Unlock()
 			continue
 		}
+		currTemplateLock.Lock()
 		if currTemplate != nil && jobTemplate.Height > currTemplate.Height {
 			globalLog(fmt.Sprintf("==//==<there are now {blue}%d{/blue} bl00ks in the chain!>==//==", currTemplate.Height))
 		}

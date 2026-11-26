@@ -112,6 +112,10 @@ func (m *clientMap) NotifyAll(job *JobTemplate) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, client := range m.idMap {
+		select {
+		case <-client.templateChan: /// drop a stale pending job
+		default:
+		}
 		client.TemplateChannel() <- job
 	}
 }
@@ -279,9 +283,6 @@ func calcNetworkDifficultyHash(nBits uint32) chainhash.Hash {
 
 // converts a difficulty float to a little-endian target (rounded to 6 decimal places)
 func diffToTarget(d float64) stratumv2.U256 {
-	if d <= 0 {
-		return constants.Target1U256
-	}
 	const scale = 1_000_000
 	rounded := int64(math.Round(d * scale))
 	if rounded <= 0 {

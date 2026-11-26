@@ -133,7 +133,7 @@ func (client *StratumClient) Start(ctx context.Context) {
 
 	/// sniff to determine protocol
 	isSv1, prefix := sniffProtocol(client.conn)
-	if prefix == nil || len(prefix) == 0 {
+	if len(prefix) == 0 {
 		return
 	}
 	/// ensure we dont lose the sniffed bytes
@@ -397,8 +397,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 
 		frame, err := client.recv.DecryptFrameFromReader(client.conn)
 		switch err {
-		case io.ErrClosedPipe:
-		case io.EOF:
+		case io.ErrClosedPipe, io.EOF:
 			return
 		case nil:
 		default:
@@ -1222,7 +1221,6 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 
 	client.shareHashMutex.Lock()
-	defer client.shareHashMutex.Unlock()
 	/// check if share is dupe
 	if _, ok := client.shareHashes[shareHashXXH3]; ok {
 		if m != nil {
@@ -1240,6 +1238,7 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 	}
 	/// add to dupe map
 	client.shareHashes[shareHashXXH3] = struct{}{}
+	client.shareHashMutex.Unlock()
 
 	if shareDiff >= job.NetworkDiff && !conf.Benchmarking {
 		/// !!! block! dont say ANYTHING until after submitted
