@@ -17,6 +17,7 @@ _want a go pool you can run on the public internet? check out https://github.com
     - [go](#go)
     - [manual install](#manual-install)
     - [webui](#webui)
+- [blocks found](#blocks-found)
 
 ![cpuminer on regtest](./imgs/showoff.webp)
 
