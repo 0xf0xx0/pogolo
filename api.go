@@ -42,6 +42,7 @@ type detailedWorkerInfo struct {
 	AvgShareTime    float64 `json:"averageShareTime"`
 	Uptime          uint64  `json:"uptime"`
 	ProtocolVersion uint8   `json:"protocolVersion"`
+	ChannelType     string  `json:"channelType,omitempty"`
 }
 
 // only the neccesary details

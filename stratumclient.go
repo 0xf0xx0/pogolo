@@ -401,7 +401,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 			return
 		case nil:
 		default:
-			client.logf("failed to decrypt frame: %s", err)
+			client.logErrorf("failed to decrypt frame: %s", err)
 			return
 		}
 
@@ -517,6 +517,8 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 		// ignored
 		case stratumv2.MessageSetupConnection:
 			{
+				client.logError("second SetupConnection requested?")
+
 				client.writeSv2Msg(&stratumv2.SetupConnectionError{
 					ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
 				}, stratumv2.MessageSetupConnectionError)
@@ -529,6 +531,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					client.logErrorf("error decoding OpenStandardMiningChannel: %s", err)
 					return
 				}
+				client.logError("second channel requested, unsupported")
 				client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 					RequestID: msg.RequestID,
 					ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
@@ -542,6 +545,7 @@ func (client *StratumClient) processSv2Loop(ctx context.Context, reader io.Reade
 					client.logErrorf("error decoding OpenExtendedMiningChannel: %s", err)
 					return
 				}
+				client.logError("second channel requested, unsupported")
 				client.writeSv2Msg(&stratumv2.OpenMiningChannelError{
 					RequestID: msg.RequestID,
 					ErrorCode: constants.ERROR_NOT_ACCEPTED.Message,
@@ -819,17 +823,17 @@ func (client *StratumClient) calcNextDifficulty() {
 	delta := 0.0
 	/// for diffs below 512, use low-power routine
 	/// scale current diff by half up or down
-	if client.TargetDifficulty < 512.0 {
-		delta = (client.TargetDifficulty / 2)
+	if client.TargetDifficulty < 16.0 {
+		delta = client.TargetDifficulty * 2
 	} else {
-		/// cap the adjustment at +-256
-		delta = min(math.Pow(2, absDifference*2), 256)
+		/// cap the adjustment at +-1024
+		delta = min(math.Pow(2, absDifference*2), 1024)
 	}
 	if difference < 0 {
 		delta = -(delta / 2) /// we want to be more conservative when adjusting downwards
 	}
 
-	client.SuggestedDifficulty = max(math.Round(client.TargetDifficulty+delta), constants.MIN_DIFFICULTY)
+	client.SuggestedDifficulty = max(client.TargetDifficulty+delta, constants.MIN_DIFFICULTY)
 	client.logf("queued diff adjustment by {blue}%+g{/blue} to {blue}%g", delta, client.SuggestedDifficulty)
 }
 func (client *StratumClient) setDifficulty(newDiff float64) error {
