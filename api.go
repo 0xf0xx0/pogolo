@@ -236,6 +236,15 @@ func getAllWorkerInfo(res http.ResponseWriter, req *http.Request) {
 	workers := clients.All()
 	info := make([]detailedWorkerInfo, len(workers))
 	for idx, worker := range workers {
+		chanType := ""
+		if worker.protocol == 2 {
+			if worker.extendedChannel {
+				chanType = "extended"
+			} else {
+				chanType = "standard"
+			}
+		}
+
 		info[idx] = detailedWorkerInfo{
 			Address:         worker.User.EncodeAddress(),
 			Nickname:        worker.Nickname,
@@ -249,6 +258,7 @@ func getAllWorkerInfo(res http.ResponseWriter, req *http.Request) {
 			Uptime:          worker.stats.Uptime(),
 			AvgShareTime:    worker.stats.avgSubmissionDelta,
 			ProtocolVersion: worker.protocol,
+			ChannelType:     chanType,
 		}
 	}
 	marshalAndWrite(res, info)

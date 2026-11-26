@@ -69,10 +69,23 @@ func (m *clientMap) Get(id stratum.ID) (*StratumClient, bool) {
 	return ret, ok
 }
 func (m *clientMap) Find(nameOrId string) (*StratumClient, bool) {
+	if nameOrId == "" {
+		return nil, false
+	}
+	/// short-circuit: if valid id, fetch directly rather than iter
+	id, err := stratum.DecodeID(nameOrId)
 	m.lock.RLock()
 	defer m.lock.RUnlock()
+	if err == nil {
+		client, found := m.idMap[id]
+		if found {
+			return client, true
+		}
+		/// fallback to iter
+	}
+	/// ignore error, use iter
 	for _, client := range m.idMap {
-		if client.Nickname == nameOrId || client.ID.String() == nameOrId {
+		if client.Nickname == nameOrId {
 			return client, true
 		}
 	}

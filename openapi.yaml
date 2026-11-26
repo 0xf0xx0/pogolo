@@ -78,11 +78,14 @@ components:
       required:
         - userAgent
         - extranonce1
+        - protocolVersion
       properties:
         userAgent:
           type: string
         extranonce1:
           type: string
+        protocolVersion:
+          type: integer
 
     GopherInfo:
       type: object
@@ -108,6 +111,9 @@ components:
           description: float64 averaged share time, in seconds
         bestDifficulty:
           type: number
+        channelType:
+          type: string
+          description: for Sv2, this returns the opened channel type ("standard" | "extended")
         extranonce1:
           type: string
         hashrate:
