@@ -75,7 +75,8 @@ type batchShare struct {
 type blockSubmission struct {
 	Header   wire.BlockHeader
 	Height   int32
-	MsgBlock *wire.MsgBlock
+	RawTxns  []byte // pre-serialized non-coinbase transactions
+	NumTxns  uint64
 	Coinbase *wire.MsgTx
 	Share    *commonShare
 	ClientID stratum.ID // for lookup in client map
@@ -343,8 +344,8 @@ func (client *StratumClient) startMining() {
 	/// if they haven't, we alert them to our default diff here
 	if client.SuggestedDifficulty == 0 {
 		if client.UserAgent == "cpuminer" || client.UserAgent == "nerdminer" {
-			/// use the hardcoded min
-			client.setDifficulty(constants.MIN_DIFFICULTY)
+			/// use the lowpower diff
+			client.setDifficulty(constants.LOWPOWER_DIFFICULTY)
 		} else {
 			client.setDifficulty(conf.DefaultDifficulty)
 		}
@@ -822,9 +823,8 @@ func (client *StratumClient) calcNextDifficulty() {
 	}
 	delta := 0.0
 	/// for diffs below 512, use low-power routine
-	/// scale current diff by half up or down
-	if client.TargetDifficulty < 16.0 {
-		delta = client.TargetDifficulty * 2
+	if client.TargetDifficulty <= 512.0 {
+		delta = client.TargetDifficulty * (1 + (absDifference * 0.1))
 	} else {
 		/// cap the adjustment at +-1024
 		delta = min(math.Pow(2, absDifference*2), 1024)
@@ -1038,7 +1038,8 @@ func (client *StratumClient) createJob(template *JobTemplate) MiningJob {
 		MaxTime:                template.MaxTime,
 		NetworkDiff:            template.NetworkDiff,
 		PrevBlock:              &blockHeader.PrevBlock,
-		MsgBlock:               template.MsgBlock,
+		RawTxns:                template.RawTxns,
+		NumTxns:                template.NumTxns,
 		Bits:                   template.Bits,
 	}
 }
@@ -1258,7 +1259,8 @@ func (client *StratumClient) validateShareSubmission(share *commonShare, m *stra
 				Nonce:      updatedHeader.Nonce,
 			},
 			Height:   job.Height,
-			MsgBlock: job.MsgBlock,
+			RawTxns:  job.RawTxns,
+			NumTxns:  job.NumTxns,
 			Coinbase: job.CoinbaseTx.Copy(),
 			Share:    share,
 		}

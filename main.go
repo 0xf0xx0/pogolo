@@ -42,6 +42,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -711,17 +712,19 @@ func backendRoutine(ctx context.Context) {
 				}
 			case submission := <-submissionChan:
 				{
-					block := btcutil.NewBlock(submission.MsgBlock)
-					block.SetHeight(submission.Height)
-					msgBlock := block.MsgBlock()
-					msgBlock.Header = submission.Header
-					/// this is scary because all the clients share one msgblock
-					/// but this function is serial so itll be fine lol
-					msgBlock.Transactions[0] = submission.Coinbase
-
-					err := backend.SubmitBlock(block, nil)
+					/// the non-coinbase transactions were serialized when the
+					/// template was built; only the header and coinbase are new
+					blockBytes := serializeSubmissionBlock(submission)
+					result, err := backend.RawRequest("submitblock", []json.RawMessage{
+						json.RawMessage(strconv.Quote(hex.EncodeToString(blockBytes))),
+					})
 					if err != nil {
 						globalLogError(fmt.Sprintf("error from backend while submitting block: %s", err))
+						continue
+					}
+					/// submitblock returns null on success and a rejection string otherwise
+					if len(result) > 0 && string(result) != "null" {
+						globalLogError(fmt.Sprintf("block rejected by backend: %s", result))
 						continue
 					}
 					/// one day pogolo will win a block, reload, and win a second back to back
@@ -746,13 +749,13 @@ func backendRoutine(ctx context.Context) {
 							Nickname: "[disconnected]",
 						}
 					}
-					shareHash := msgBlock.Header.BlockHash()
+					shareHash := submission.Header.BlockHash()
 					shareDiff := calcDifficulty(shareHash)
 					solved := solvedBlock{
 						Gopher:      client.Name(),
 						Hash:        shareHash,
 						Diff:        shareDiff,
-						Height:      uint64(block.Height()),
+						Height:      uint64(submission.Height),
 						Nonce:       submission.Header.Nonce,
 						Extranonce2: hex.EncodeToString(submission.Share.Extranonce2),
 						Version:     submission.Header.Version,

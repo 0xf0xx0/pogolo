@@ -705,7 +705,7 @@ func sendSv2ReqAndWaitForRes(t testing.TB, frame []byte, lpipe net.Conn, readcry
 
 func shittyCpuMiner(target float64, versionMask bool, c *StratumClient, notify *stratum.MiningNotifyParams, t *testing.T) (*stratum.Request, bool) {
 	job := c.CurrentJob
-	header := job.MsgBlock.Copy().Header
+	header := job.Header
 	submit := stratum.MiningSubmitParams{
 		JobID:       strconv.FormatUint(job.ID, 16),
 		Time:        uint32(header.Timestamp.Unix()),

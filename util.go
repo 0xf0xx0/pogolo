@@ -23,7 +23,6 @@ import (
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/txscript/v2"
 	"github.com/btcsuite/btcd/wire/v2"
@@ -154,6 +153,18 @@ func serializeCoinbaseTx(tx *wire.MsgTx) []byte {
 	return serializedTx.Bytes()
 }
 
+// assembles a block for submission.
+// RawTxns is already serialized, so only the header and the
+// client-specific coinbase need to be serialized.
+func serializeSubmissionBlock(sub blockSubmission) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 80+wire.VarIntSerializeSize(sub.NumTxns)+sub.Coinbase.SerializeSize()+len(sub.RawTxns)))
+	sub.Header.Serialize(buf)
+	wire.WriteVarInt(buf, 0, sub.NumTxns)
+	sub.Coinbase.Serialize(buf)
+	buf.Write(sub.RawTxns)
+	return buf.Bytes()
+}
+
 // "merkle root" of remote and local addr hashes for no reason other than being different
 // dis pogolo we serious and silly :3
 func clientIDHash(la, ra string) stratum.ID {
@@ -167,12 +178,12 @@ func clientIDHash(la, ra string) stratum.ID {
 
 // initial tx, copied and filled by clients
 // sets up everything but the outpoints, which are populated in fillCoinbaseTx
-func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx, error) {
+func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*wire.MsgTx, error) {
 	height := template.Height
-	coinbaseTxMsg := &wire.MsgTx{
+	txn := &wire.MsgTx{
 		Version:  wire.TxVersion,
-		TxIn:     make([]*wire.TxIn, 0, 1),  /// only 1 txin for coinbases
-		TxOut:    make([]*wire.TxOut, 0, 2), /// 1 slot for witness, second for subsidy
+		TxIn:     make([]*wire.TxIn, 1),     /// only 1 txin for coinbases
+		TxOut:    make([]*wire.TxOut, 1, 2), /// 1 slot for witness, second for subsidy
 		LockTime: uint32(height) - 1,        /// BIP-54
 	}
 
@@ -203,13 +214,13 @@ func createEmptyCoinbase(template *btcjson.GetBlockTemplateResult) (*btcutil.Tx,
 		}
 	}
 
-	coinbaseTxMsg.AddTxIn(&wire.TxIn{
+	txn.TxIn[0] = &wire.TxIn{
 		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{}, wire.MaxPrevOutIndex),
 		SignatureScript:  encodedCoinbaseScript,
 		Sequence:         0xfffffffe, /// BIP-54
-	})
+	}
 
-	return btcutil.NewTx(coinbaseTxMsg), nil
+	return txn, nil
 }
 
 // thank you btcd devs for doin all this boilerplate work
@@ -338,6 +349,40 @@ func merkleRootFromBranches(branches []*chainhash.Hash) chainhash.Hash {
 	}
 	return root
 }
+
+// equivalent to [blockchain.BuildMerkleTreeStore]
+func buildMerkleTreeFromHashes(leaves []*chainhash.Hash) []*chainhash.Hash {
+	n := len(leaves)
+	if n == 0 {
+		return nil
+	}
+	nextPoT := 0
+	if n <= 1 {
+		nextPoT = 1
+	} else {
+		nextPoT = 1 << bits.Len(uint(n-1))
+	}
+	n = nextPoT*2 - 1
+	merkles := make([]*chainhash.Hash, nextPoT*2-1)
+	copy(merkles, leaves)
+
+	offset := nextPoT
+	for i := 0; i < n-1; i += 2 {
+		switch {
+		case merkles[i] == nil:
+			merkles[offset] = nil
+		case merkles[i+1] == nil:
+			newHash := merkleRootFromBranches([]*chainhash.Hash{merkles[i], merkles[i]})
+			merkles[offset] = &newHash
+		default:
+			newHash := merkleRootFromBranches([]*chainhash.Hash{merkles[i], merkles[i+1]})
+			merkles[offset] = &newHash
+		}
+		offset++
+	}
+	return merkles
+}
+
 func buildMerkleProof(tree []*chainhash.Hash, leaf *chainhash.Hash) []*chainhash.Hash {
 	index := slices.Index(tree, leaf)
 
@@ -527,7 +572,6 @@ func globalLogError(s string) {
 }
 
 // replacement for [wire.BlockHeader.BlockHash]
-// / serializes into a stack buffer, escaping allocations
 func simdHeaderHash(header *wire.BlockHeader) chainhash.Hash {
 	/// block headers are exactly 80 bytes on the wire:
 	/// version(4) prevblock(32) merkleroot(32) timestamp(4) bits(4) nonce(4)

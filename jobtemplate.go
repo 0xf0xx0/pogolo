@@ -10,9 +10,7 @@ import (
 	"git.0xf0xx0.eth.limo/0xf0xx0/stratum"
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
-	"github.com/btcsuite/btcd/mining"
 	"github.com/btcsuite/btcd/wire/v2"
 )
 
@@ -25,8 +23,9 @@ import (
 type JobTemplate struct {
 	Header       wire.BlockHeader // copied by clients
 	MerkleBranch []*chainhash.Hash
-	CoinbaseTx   *wire.MsgTx    // copied by clients
-	MsgBlock     *wire.MsgBlock // used on block submission only, NOT copied or modified by clients
+	CoinbaseTx   *wire.MsgTx // copied by clients
+	RawTxns      []byte      // serialized non-coinbase transactions, including witness data
+	NumTxns      uint64      // total transaction count, including the coinbase
 	NetworkDiff  float64
 	ID           uint64
 	Subsidy      int64
@@ -46,7 +45,8 @@ type MiningJob struct {
 	merkleScratch          []*chainhash.Hash // preallocated [coinbase, ...MerkleBranch] scratch for UpdateHeader; slot 0 points to a per-job buffer
 	CoinbaseExtranonce2Idx int               // for faster merkle root calc
 	PrevBlock              *chainhash.Hash   // pointer to hash in header
-	MsgBlock               *wire.MsgBlock    // used on block submission only, NOT copied or modified by clients
+	RawTxns                []byte            // shared, pre-serialized non-coinbase transactions
+	NumTxns                uint64            // total transaction count, including the coinbase
 	NetworkDiff            float64
 	ID                     uint64
 	MinTime                int64
@@ -84,6 +84,28 @@ func (job *MiningJob) UpdateHeader(id stratum.ID, share *commonShare) (*wire.Blo
 	return &job.Header, true
 }
 
+func addWitnessCommitment(coinbase *wire.MsgTx, wtxns []*chainhash.Hash) {
+	/// the coinbase witness nonce is exactly 32 zero bytes
+	var witnessNonce [32]byte
+	coinbase.TxIn[0].Witness = wire.TxWitness{witnessNonce[:]}
+
+	/// and its wtxid is all zeroes for the commitment tree
+	wtxns[0] = &chainhash.Hash{}
+	merkleTree := buildMerkleTreeFromHashes(wtxns)
+	witnessRoot := merkleTree[len(merkleTree)-1]
+
+	var preimage [64]byte
+	copy(preimage[:32], witnessRoot[:])
+	copy(preimage[32:], witnessNonce[:])
+	commitment := simdSha256d(preimage[:])
+
+	/// OP_RETURN OP_DATA_36 {0xaa21a9ed || commitment}
+	script := make([]byte, 0, len(blockchain.WitnessMagicBytes)+len(commitment))
+	script = append(script, blockchain.WitnessMagicBytes...)
+	script = append(script, commitment[:]...)
+	coinbase.TxOut[0] = &wire.TxOut{Value: 0, PkScript: script}
+}
+
 func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, error) {
 	/// set the block timestamp, clamping to min and max time
 	currTime := max(template.MinTime, time.Now().Unix())
@@ -103,23 +125,35 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	if err != nil {
 		return nil, err
 	}
-	// add a slot for the coinbase
-	txns := make([]*btcutil.Tx, len(template.Transactions)+1)
 
-	/// decode the serialized txns into nice lil btcutil.Txs
+	/// txids and wtxids come straight from GBT; only the raw transaction bytes
+	/// are retained, never the decoded transaction object graph
+	txns := make([]*chainhash.Hash, len(template.Transactions)+1)
+	wtxns := make([]*chainhash.Hash, len(template.Transactions)+1)
+	rawSize := 0
+	for _, templateTx := range template.Transactions {
+		rawSize += hex.DecodedLen(len(templateTx.Data))
+	}
+	rawTxns := make([]byte, rawSize)
+	offset := 0
 	for idx, templateTx := range template.Transactions {
-		decoded, err := hex.DecodeString(templateTx.Data)
+		txLen := hex.DecodedLen(len(templateTx.Data))
+		n, err := hex.Decode(rawTxns[offset:offset+txLen], []byte(templateTx.Data))
 		if err != nil {
-			println(idx, templateTx.Data)
 			return nil, err
 		}
-		tx, err := btcutil.NewTxFromBytes(decoded)
+		offset += n
+
+		txid, err := chainhash.NewHashFromStr(templateTx.TxID)
 		if err != nil {
-			println(idx, templateTx.Data)
 			return nil, err
 		}
-		/// skip 0, thats the coinbase slot
-		txns[idx+1] = tx
+		wtxid, err := chainhash.NewHashFromStr(templateTx.Hash)
+		if err != nil {
+			return nil, err
+		}
+		txns[idx+1] = txid
+		wtxns[idx+1] = wtxid
 	}
 
 	/// create temp coinbase
@@ -127,13 +161,14 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 	if err != nil {
 		return nil, err
 	}
-	txns[0] = cb
 	/// NOTE: witness gets added furst, just cause its *unique*
-	mining.AddWitnessCommitment(txns[0], txns)
+	addWitnessCommitment(cb, wtxns)
+	coinbaseHash := simdSha256d(serializeCoinbaseTx(cb))
+	txns[0] = &coinbaseHash
 
 	/// this merkle tree describes the block txids and will be used to create the merkle root
-	merkleTree := blockchain.BuildMerkleTreeStore(txns, false)
-	merkleBranches := buildMerkleProof(merkleTree, txns[0].Hash())
+	merkleTree := buildMerkleTreeFromHashes(txns)
+	merkleBranches := buildMerkleProof(merkleTree, txns[0])
 	/// prune empty branches
 	merkleBranches = slices.DeleteFunc(merkleBranches, func(h *chainhash.Hash) bool {
 		return h == nil
@@ -148,12 +183,17 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 		merkleBranch = merkleBranches[1:]
 	}
 
-	msgTxns := make([]*wire.MsgTx, len(txns))
-	for idx, tx := range txns {
-		msgTxns[idx] = tx.MsgTx()
+	/// the serialized non-coinbase transactions are immutable; block submission
+	/// only needs to serialize the header and the client-specific coinbase
+	numTxns := uint64(len(template.Transactions) + 1)
+	blockSize := 80 + wire.VarIntSerializeSize(numTxns) + cb.SerializeSize() + len(rawTxns)
+	if blockSize > blockchain.MaxBlockWeight {
+		return nil, errors.New("block too heavy, please reduce blockmaxweight in your node config")
 	}
 
-	block := wire.MsgBlock{
+	currTemplateID++
+	job := &JobTemplate{
+		ID: currTemplateID,
 		Header: wire.BlockHeader{
 			/// OR configured activation bits with template from node
 			Version:   template.Version | conf.BIPVersionBits,
@@ -161,20 +201,9 @@ func CreateJobTemplate(template *btcjson.GetBlockTemplateResult) (*JobTemplate, 
 			PrevBlock: *prevBlockHash,
 			Timestamp: time.Unix(currTime, 0),
 		},
-		Transactions: msgTxns,
-	}
-
-	if block.SerializeSize() > blockchain.MaxBlockWeight {
-		err := errors.New("block too heavy, please reduce blockmaxweight in your node config")
-		return nil, err
-	}
-
-	currTemplateID++
-	job := &JobTemplate{
-		ID:           currTemplateID,
-		MsgBlock:     &block,
-		Header:       block.Header,
-		CoinbaseTx:   block.Transactions[0],
+		CoinbaseTx:   cb,
+		RawTxns:      rawTxns,
+		NumTxns:      numTxns,
 		MerkleBranch: merkleBranch,
 		Bits:         [4]byte(bits),
 		NetworkDiff:  calcNetworkDifficulty(headerBits),
